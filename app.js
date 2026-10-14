@@ -185,9 +185,12 @@ function drawItem(g, s, w, h) {
   const k = s.k || 'chalk', u = w / 360;
   let lw = s.w * u;
   g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = s.c || '#fff';
-  if (k === 'marker') lw *= 1.8;
+  if (k === 'marker') { lw *= 2; g.globalAlpha = 0.94; }
   else if (k === 'hl') { lw *= 4; g.globalAlpha = 0.35; g.lineCap = 'butt'; }
   else if (k === 'eraser') { lw *= 4; g.globalCompositeOperation = 'destination-out'; }
+  /* 同一筆每次重畫都要一樣，所以用第一個點算出固定的亂數種子 */
+  let seed = Math.floor((s.p[0][0] * 9973 + s.p[0][1] * 7919 + s.p.length * 31) * 1000) % 2147483647 || 1;
+  const rnd = () => { seed = (seed * 48271) % 2147483647; return seed / 2147483647; };
   const trace = (dx, dy) => {
     g.beginPath();
     s.p.forEach((q, i) => { const x = q[0] * w + dx, y = q[1] * h + dy; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
@@ -197,6 +200,16 @@ function drawItem(g, s, w, h) {
   if (k === 'crayon') {
     g.lineWidth = lw * 0.75; g.globalAlpha = 0.55;
     [[-1, 0.5], [1, -0.6], [0, 1]].forEach(o => trace(o[0] * u * s.w * 0.3, o[1] * u * s.w * 0.3));
+  } else if (k === 'chalk') {
+    /* 粉筆：好幾條細線疊在一起，每條有隨機的斷點和位置，邊緣毛毛的、有顆粒 */
+    g.lineCap = 'butt';
+    for (let i = 0; i < 6; i++) {
+      g.lineWidth = Math.max(0.8, lw * (0.35 + rnd() * 0.25));
+      g.globalAlpha = 0.5 + rnd() * 0.35;
+      g.setLineDash([1 + rnd() * 7 * u * 3, rnd() * 3.2 * u * 3 + 0.6]);
+      g.lineDashOffset = rnd() * 20;
+      trace((rnd() - 0.5) * lw * 0.7, (rnd() - 0.5) * lw * 0.7);
+    }
   } else { g.lineWidth = lw; trace(0, 0); }
   g.restore();
 }
