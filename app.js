@@ -554,9 +554,18 @@ const ACT = {
   async notifyHelper() {
     try {
       const t = (await (await fetch('push-worker.txt', { cache: 'no-store' })).text()).replace('__FID__', FID);
-      await navigator.clipboard.writeText(t);
-      toast('已複製小幫手程式，可以貼到 Cloudflare');
-    } catch (e) { toast('複製失敗：' + (e.message || e)); }
+      openSheet('<h3>通知小幫手程式</h3><p class="muted">按下「複製全部」，再到 Cloudflare 的程式區貼上。</p>' +
+        '<textarea id="helper-ta" readonly rows="8" style="width:100%;font-size:12px">' + esc(t) + '</textarea>' +
+        '<div class="actions"><button class="btn ghost" data-act="close">關閉</button><button class="btn" data-act="copyHelper">複製全部</button></div>');
+    } catch (e) { toast('讀取失敗：' + (e.message || e)); }
+  },
+  copyHelper() {
+    const ta = $('#helper-ta'); if (!ta) return;
+    ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+    let ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    if (ok) { toast('已複製，可以貼到 Cloudflare 了'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(() => toast('已複製，可以貼到 Cloudflare 了'), () => toast('沒複製成功，請長按文字框，選「全選」再「拷貝」'));
+    else toast('沒複製成功，請長按文字框，選「全選」再「拷貝」');
   },
   async backup(el) {
     el.disabled = true; toast('備份中…');
