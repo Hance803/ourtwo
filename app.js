@@ -81,7 +81,7 @@ const S = { me: LS.get('ourtwo.me') === '老婆' ? '老婆' : '老公', shifts: 
 const meKey = () => S.me === '老公' ? 'him' : 'her';
 let booted = false, synced = false, unsubs = [];
 let curTab = 'home', calY, calM, calSel = TODAY, perY, perM, memoMode = 'todo';
-let draft = [], cur = null, color = CH[0], brush = 5, tool = 'chalk', stickerSel = STICKERS[0], draftPhoto = '';
+let draft = [], cur = null, color = CH[0], brush = 5, tool = 'chalk', stickerSel = STICKERS[0], draftPhoto = '', draftPA = 4 / 3, view = { z: 1, ox: 0, oy: 0 };
 let boardLimit = 30, boardUnsub = null, boardNew = new Set();
 let paintMode = false, paintWho = 'her', paintCode = 'A', loginWho = '老公', curSheet = null;
 { const t0 = new Date(); calY = perY = t0.getFullYear(); calM = perM = t0.getMonth(); }
@@ -179,7 +179,7 @@ function drawItem(g, s, w, h) {
   g.save();
   if (s.t === 'st') {
     g.font = Math.round(s.z * w) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s.s, s.x * w, s.y * h);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s.s, s.x * w, s.y * w);
     g.restore(); return;
   }
   const k = s.k || 'chalk', u = w / 360;
@@ -193,8 +193,8 @@ function drawItem(g, s, w, h) {
   const rnd = () => { seed = (seed * 48271) % 2147483647; return seed / 2147483647; };
   const trace = (dx, dy) => {
     g.beginPath();
-    s.p.forEach((q, i) => { const x = q[0] * w + dx, y = q[1] * h + dy; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
-    if (s.p.length === 1) g.lineTo(s.p[0][0] * w + dx + 0.1, s.p[0][1] * h + dy);
+    s.p.forEach((q, i) => { const x = q[0] * w + dx, y = q[1] * w + dy; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+    if (s.p.length === 1) g.lineTo(s.p[0][0] * w + dx + 0.1, s.p[0][1] * w + dy);
     g.stroke();
   };
   if (k === 'crayon') {
@@ -213,21 +213,24 @@ function drawItem(g, s, w, h) {
   } else { g.lineWidth = lw; trace(0, 0); }
   g.restore();
 }
-function paint(cv, items, photo, key) {
+function paint(cv, items, photo, key, view) {
   const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
   const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
   if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
-  const g = cv.getContext('2d');
+  const g = cv.getContext('2d'), vz = view ? view.z : 1, vx = view ? view.ox : 0, vy = view ? view.oy : 0;
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  g.save(); g.translate(vx, vy); g.scale(vz, vz);
   if (photo) { const im = getImg(key, photo); if (im) drawCover(g, im, w, h); }
   INK.width = pw; INK.height = ph;
   const ig = INK.getContext('2d');
-  ig.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ig.setTransform(dpr, 0, 0, dpr, 0, 0); ig.translate(vx, vy); ig.scale(vz, vz);
   items.forEach(s => drawItem(ig, s, w, h));
-  g.drawImage(INK, 0, 0, w, h);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.drawImage(INK, 0, 0);
+  g.restore();
 }
 function noteView(n) {
-  const body = (n.strokes.length || n.photo) ? '<canvas class="thumb" data-nid="' + n.id + '"></canvas>' : '';
+  const body = (n.strokes.length || n.photo) ? '<canvas class="thumb" data-nid="' + n.id + '" style="aspect-ratio:' + (n.pa || 4 / 3) + '"></canvas>' : '';
   const text = n.caption ? ((n.strokes.length || n.photo) ? '<p class="cap">' + esc(n.caption) + '</p>' : '<div class="textonly">' + esc(n.caption) + '</div>') : '';
   return body + text;
 }
@@ -369,10 +372,20 @@ function renderMemo() {
   $('#memo-body').innerHTML = h;
 }
 
+function clampView(w, h) {
+  view.z = Math.min(6, Math.max(1, view.z));
+  view.ox = Math.min(0, Math.max(w - w * view.z, view.ox));
+  view.oy = Math.min(0, Math.max(h - h * view.z, view.oy));
+}
+function resetView() { view = { z: 1, ox: 0, oy: 0 }; }
 function paintPad() {
   const cv = $('#pad'), all = cur ? draft.concat([cur]) : draft;
-  paint(cv, all, draftPhoto, 'draft'); $('#pad-hint').hidden = all.length > 0 || !!draftPhoto;
+  const pa = draftPhoto ? draftPA : 4 / 3;
+  $('.padwrap').style.aspectRatio = String(pa);
+  const r = cv.getBoundingClientRect(); clampView(r.width, r.height);
+  paint(cv, all, draftPhoto, 'draft', view); $('#pad-hint').hidden = all.length > 0 || !!draftPhoto;
   $('#photo-clear').hidden = !draftPhoto;
+  const zr = $('#zoom-reset'); zr.hidden = view.z < 1.02; zr.textContent = '還原大小（' + Math.round(view.z * 100) + '%）';
 }
 const fmtTm = ts => { const d = new Date(ts); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
 function dayLabel(ts) {
@@ -445,7 +458,8 @@ function subBoard() {
     S.board = snap.docs.map(d => {
       const v = d.data(); let strokes = [];
       try { strokes = JSON.parse(v.strokesJson || '[]'); } catch (e) { strokes = []; }
-      return { id: d.id, by: v.by, ts: v.ts, caption: v.caption || '', strokes, photo: v.photo || '', react: v.react || {} };
+      if (!v.v) strokes = strokes.map(s => s.t === 'st' ? Object.assign({}, s, { y: s.y * 0.75 }) : Object.assign({}, s, { p: s.p.map(q => [q[0], q[1] * 0.75]) }));
+      return { id: d.id, by: v.by, ts: v.ts, caption: v.caption || '', strokes, photo: v.photo || '', pa: v.pa || 4 / 3, react: v.react || {} };
     });
     rerender();
   }, syncErr);
@@ -574,9 +588,10 @@ const ACT = {
   },
   sticker(el) { stickerSel = el.dataset.s; $$('#stickers button').forEach(b => b.setAttribute('aria-pressed', String(b === el))); },
   photoPick() { $('#photo').click(); },
-  photoClear() { draftPhoto = ''; paintPad(); },
+  photoClear() { draftPhoto = ''; draftPA = 4 / 3; paintPad(); },
+  zoomReset() { resetView(); paintPad(); },
   undo() { draft.pop(); paintPad(); },
-  clearPad() { draft = []; draftPhoto = ''; paintPad(); },
+  clearPad() { draft = []; draftPhoto = ''; draftPA = 4 / 3; resetView(); paintPad(); },
   react(el) {
     const n = S.board.find(x => x.id === el.dataset.id); if (!n) return;
     const mk = meKey(), e = el.dataset.e, same = n.react && n.react[mk] === e;
@@ -588,10 +603,10 @@ const ACT = {
     if (!draft.length && !cap && !draftPhoto) { toast('先畫點東西或寫一句話'); return; }
     const json = JSON.stringify(draft);
     if (json.length + draftPhoto.length > 900000) { toast('這張畫得太滿了，請擦掉一些再貼'); return; }
-    const note = { by: S.me, ts: Date.now(), caption: cap, strokesJson: json };
-    if (draftPhoto) note.photo = draftPhoto;
+    const note = { by: S.me, ts: Date.now(), caption: cap, strokesJson: json, v: 2 };
+    if (draftPhoto) { note.photo = draftPhoto; note.pa = draftPA; }
     wr(addDoc(col('board'), note));
-    draft = []; draftPhoto = ''; $('#caption').value = ''; paintPad(); toast('已貼上黑板');
+    draft = []; draftPhoto = ''; draftPA = 4 / 3; resetView(); $('#caption').value = ''; paintPad(); toast('已貼上黑板');
   }
 };
 
@@ -624,20 +639,55 @@ function readSettings() {
 }
 ['p-last', 'p-cycle', 'p-plen'].forEach(id => $('#' + id).addEventListener('change', readSettings));
 
-/* 手指繪圖 */
+/* 手指繪圖：一根手指畫畫；兩根手指放大縮小、拖動畫面（不會畫出東西） */
 const padEl = $('#pad');
-function pt(e) { const r = padEl.getBoundingClientRect(); return [Math.round((e.clientX - r.left) / r.width * 1000) / 1000, Math.round((e.clientY - r.top) / r.height * 1000) / 1000]; }
+const ptrs = new Map();
+let gest = null, gestLock = false;
+function pt(e) {
+  const r = padEl.getBoundingClientRect();
+  const wx = ((e.clientX - r.left) - view.ox) / view.z, wy = ((e.clientY - r.top) - view.oy) / view.z;
+  return [Math.round(wx / r.width * 1000) / 1000, Math.round(wy / r.width * 1000) / 1000];
+}
+function twoPts() {
+  const r = padEl.getBoundingClientRect(), v = Array.from(ptrs.values()).slice(0, 2);
+  const a = { x: v[0].x - r.left, y: v[0].y - r.top }, b = { x: v[1].x - r.left, y: v[1].y - r.top };
+  return { d: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, r };
+}
 padEl.addEventListener('pointerdown', e => {
   e.preventDefault(); try { padEl.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size >= 2) {
+    cur = null; gestLock = true;
+    const t = twoPts();
+    gest = { d0: t.d, z0: view.z, wx: (t.mx - view.ox) / view.z, wy: (t.my - view.oy) / view.z };
+    paintPad(); return;
+  }
+  if (gestLock) return;
   const p = pt(e);
   if (tool === 'sticker') cur = { t: 'st', s: stickerSel, x: p[0], y: p[1], z: brush < 4 ? 0.1 : brush < 7 ? 0.16 : 0.26 };
   else { cur = { c: color, w: brush, p: [p] }; if (tool !== 'chalk') cur.k = tool; }
   paintPad();
 });
-padEl.addEventListener('pointermove', e => { if (!cur) return; const p = pt(e); if (cur.t === 'st') { cur.x = p[0]; cur.y = p[1]; } else cur.p.push(p); paintPad(); });
+padEl.addEventListener('pointermove', e => {
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (gest && ptrs.size >= 2) {
+    const t = twoPts();
+    view.z = Math.min(6, Math.max(1, gest.z0 * t.d / gest.d0));
+    view.ox = t.mx - gest.wx * view.z; view.oy = t.my - gest.wy * view.z;
+    paintPad(); return;
+  }
+  if (!cur) return;
+  const p = pt(e); if (cur.t === 'st') { cur.x = p[0]; cur.y = p[1]; } else cur.p.push(p); paintPad();
+});
 function endStroke() { if (!cur) return; draft.push(cur); cur = null; paintPad(); }
-padEl.addEventListener('pointerup', endStroke);
-padEl.addEventListener('pointercancel', endStroke);
+function upPtr(e) {
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) gest = null;
+  if (ptrs.size === 0) { gestLock = false; endStroke(); }
+}
+padEl.addEventListener('pointerup', upPtr);
+padEl.addEventListener('pointercancel', e => { if (ptrs.size <= 1) cur = null; upPtr(e); });
+['gesturestart', 'gesturechange'].forEach(n => padEl.addEventListener(n, e => e.preventDefault()));
 window.addEventListener('resize', () => { if (booted && (curTab === 'board' || curTab === 'home')) RENDER[curTab](); });
 window.addEventListener('online', () => { setNet(); if (booted && !synced) boot(); });
 window.addEventListener('offline', setNet);
@@ -648,7 +698,8 @@ applyTheme();
 try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (getTheme() === 'auto') applyTheme(); }); } catch (e) { /* ignore */ }
 boot();
 
-/* 在照片上畫：照片先縮成 800×600、壓成 JPEG 再存，才不會超過 Firestore 單筆資料的大小上限 */
+/* 在照片上畫：照片保留原本的長寬比（太極端的才會裁一點），縮到最長邊 1000、壓成 JPEG 再存，
+   才不會超過 Firestore 單筆資料的大小上限 */
 $('#photo').addEventListener('change', e => {
   const f = e.target.files && e.target.files[0]; e.target.value = '';
   if (!f) return;
@@ -658,11 +709,13 @@ $('#photo').addEventListener('change', e => {
     const im = new Image();
     im.onerror = () => toast('這張照片打不開');
     im.onload = () => {
-      const c = document.createElement('canvas'); c.width = 800; c.height = 600;
-      drawCover(c.getContext('2d'), im, 800, 600);
-      let q = 0.72, out = c.toDataURL('image/jpeg', q);
-      while (out.length > 450000 && q > 0.3) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
-      draftPhoto = out; paintPad();
+      const a = im.naturalWidth / im.naturalHeight, pa = Math.min(1.8, Math.max(0.6, a));
+      const W = pa >= 1 ? 1000 : Math.round(1000 * pa), H = pa >= 1 ? Math.round(1000 / pa) : 1000;
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      drawCover(c.getContext('2d'), im, W, H);
+      let q = 0.78, out = c.toDataURL('image/jpeg', q);
+      while (out.length > 480000 && q > 0.3) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+      draftPhoto = out; draftPA = pa; resetView(); paintPad();
     };
     im.src = rd.result;
   };
