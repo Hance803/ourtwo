@@ -61,7 +61,7 @@ const CODES = {
 const CODE_ORDER = ['A', 'B', 'AB', 'C', '休', 'A+G1'];
 const fm = m => pad2(Math.floor(m / 60) % 24) + ':' + pad2(m % 60);
 const cls = c => c === '休' ? 's-off' : c === 'A' ? 's-A' : c === 'B' ? 's-B' : c === 'AB' ? 's-AB' : c ? 's-X' : 's-none';
-const codeTxt = c => { const d = CODES[c]; if (!d) return '尚未輸入'; return d.e > d.s ? d.n + '　' + fm(d.s) + '–' + fm(d.e) : d.n; };
+const codeTxt = c => { const d = CODES[c]; if (!d) return '尚未輸入'; return d.e > d.s ? d.n + '　' + fm(d.s) + ' ~ ' + fm(d.e) : d.n; };
 
 
 /* ---------- 外觀（自動／淺色／深色），每支手機自己記住 ---------- */
@@ -110,7 +110,7 @@ function together(k) {
   free = free.filter(r => r[1] - r[0] >= 30);
   if (!free.length) return '沒有兩人都有空的時段';
   if (free.length === 1 && free[0][0] === 480 && free[0][1] === 1440) return '兩人都休息，整天都可以在一起';
-  return '兩人都有空：' + free.map(r => fm(r[0]) + '–' + (r[1] === 1440 ? '24:00' : fm(r[1]))).join('、');
+  return '兩人都有空：' + free.map(r => fm(r[0]) + ' ~ ' + (r[1] === 1440 ? '24:00' : fm(r[1]))).join('、');
 }
 function monthStats(y, m) {
   const n = new Date(y, m + 1, 0).getDate(), off = [], cnt = { him: {}, her: {} };
@@ -296,7 +296,7 @@ function renderCal() {
   $('#cal-body').innerHTML =
     '<div class="card"><div class="mhead"><button class="btn ghost small" data-act="calPrev" aria-label="上個月">‹</button><span class="ttl">' + calY + ' 年 ' + (calM + 1) + ' 月</span><button class="btn ghost small" data-act="calNext" aria-label="下個月">›</button></div>' +
       '<div class="grid">' + wdRow() + cells + '</div>' +
-      '<div class="legend"><span>每格上排老公、下排老婆</span><span><i class="s s-A">A</i>早班</span><span><i class="s s-B">B</i>晚班</span><span><i class="s s-AB">AB</i>兩班都上</span><span><i class="s s-X">C</i>C 班 12–21</span><span><i class="s s-off">休</i>休假</span></div>' +
+      '<div class="legend"><span>每格上排老公、下排老婆</span><span><i class="s s-A">A</i>早班</span><span><i class="s s-B">B</i>晚班</span><span><i class="s s-AB">AB</i>兩班都上</span><span><i class="s s-X">C</i>C 班 12 ~ 21</span><span><i class="s s-off">休</i>休假</span></div>' +
       '<div class="legend"><span><i class="sw2" style="box-shadow:inset 0 0 0 2px var(--sOff)"></i>兩人同天休假</span><span><i class="sw2" style="background:var(--accent)"></i>當天有行程</span></div>' +
       (paintMode ? '' : '<div class="row wrap" style="justify-content:flex-start"><button class="btn ghost small" data-act="paintToggle">快速輸入班表</button><button class="btn ghost small" data-act="importForm">貼上整月班表</button></div>') + '</div>' +
     tool +
