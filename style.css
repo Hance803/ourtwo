@@ -1,4 +1,4 @@
-/* Ourtwo 樣式。字體 OurtwoPanda 由 app.js 從兩人專用雲端載入，沒載到時用系統字。 */
+/* Ourtwo 樣式。字體：內海字體（fonts/naikai.css），沒載到時用系統字。 */
 
 /* OURTWO ALL HANDWRITING 2026-10-14 20:47 / Complete CSS replacement */
 
@@ -63,8 +63,8 @@
   --shadow-card:0 2px 4px rgba(60,46,30,.08);
   --shadow-nav:none;
   --shadow-sheet:0 -12px 40px rgba(39,33,26,.16);
-  --font-display:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
-  --font-body:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
+  --font-display:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
+  --font-body:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
   --space-5:20px; --space-6:24px; --space-8:32px;
   --radius-sm:3px; --radius-control:5px; --radius-card:3px;
@@ -195,13 +195,13 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{min-height:100%;background:var(--bg);scroll-padding-top:120px;-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px;line-height:1.65;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px;line-height:1.65;-webkit-tap-highlight-color:transparent}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;touch-action:manipulation}
 button:disabled{cursor:default;opacity:.55}
 h1,h2,h3,p,ul{margin:0}
-h1{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:28px;font-weight:400!important;line-height:1.3;letter-spacing:-.055em;color:var(--accent)}
-h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:24px;font-weight:400!important;line-height:1.4;text-wrap:balance}
+h1{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:28px;font-weight:400!important;line-height:1.3;letter-spacing:-.055em;color:var(--accent)}
+h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:24px;font-weight:400!important;line-height:1.4;text-wrap:balance}
 h3{font-size:14px;font-weight:400!important;line-height:1.5;color:var(--muted);letter-spacing:.035em}
 p{overflow-wrap:anywhere}
 .muted{color:var(--muted)}
@@ -247,7 +247,7 @@ main{padding-top:24px}
 .chip.ovul{background:var(--ovul);color:var(--ovul-fg)}
 .chip.safe{background:var(--sOff-soft);color:var(--safe)}
 .banner{font-size:12px;line-height:1.8;color:var(--muted);border:1px dashed var(--line);border-radius:var(--radius-control);padding:14px 16px}
-.big{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:clamp(24px,6.8vw,30px);font-weight:400!important;line-height:1.4;text-wrap:balance}
+.big{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:clamp(24px,6.8vw,30px);font-weight:400!important;line-height:1.4;text-wrap:balance}
 
 
 #home-body>div:not(.card){padding:0 4px 4px}
@@ -260,8 +260,8 @@ main{padding-top:24px}
 
 
 .mhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px 4px}
-.mhead .ttl{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;font-weight:400!important;font-variant-numeric:tabular-nums;white-space:nowrap}
-.mhead .btn{width:44px;height:44px;padding:0;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:24px;border-radius:var(--radius-pill);background:var(--surface-tint);border-color:transparent}
+.mhead .ttl{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;font-weight:400!important;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mhead .btn{width:44px;height:44px;padding:0;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:24px;border-radius:var(--radius-pill);background:var(--surface-tint);border-color:transparent}
 .grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .wd{font-size:11px;color:var(--muted);text-align:center;padding:4px 0 8px}
 .cell{position:relative;min-width:0;min-height:56px;border-radius:var(--radius-sm);border:0;background:var(--surface-tint);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:4px 2px;font-size:13px;font-variant-numeric:tabular-nums;line-height:1.4}
@@ -298,7 +298,7 @@ main{padding-top:24px}
 .shiftrow .s{flex:none;min-width:36px;height:26px;line-height:26px;font-size:12px;border-radius:8px}
 .shiftrow .info{flex:1;min-width:0;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
 .shiftrow .btn{padding-inline:11px}
-.together{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.7;padding:12px 14px;border-radius:var(--radius-control);background:var(--accent-soft);color:var(--accent)}
+.together{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.7;padding:12px 14px;border-radius:var(--radius-control);background:var(--accent-soft);color:var(--accent)}
 .codes{display:flex;flex-wrap:wrap;gap:8px}
 .code{min-height:44px;min-width:48px;border-radius:var(--radius-control);border:2px solid transparent;font-weight:400!important;padding:0 12px;font-size:14px;line-height:1.4;height:auto}
 .code.clear{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:400!important}
@@ -336,7 +336,7 @@ main{padding-top:24px}
 .todo.done .check{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .note-card p.body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85}
 .note-card h2{font-size:24px}
-.empty{color:var(--muted);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.7;padding:14px 4px;text-align:center}
+.empty{color:var(--muted);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.7;padding:14px 4px;text-align:center}
 #memo-todo-form{padding:14px}
 #tab-memo>.stack>.seg{margin-left:4px}
 
@@ -358,7 +358,7 @@ textarea{min-height:132px;resize:vertical}
 .board-editor{padding:16px;gap:20px}
 .padwrap{position:relative;border:6px solid var(--frame);border-radius:18px;background:var(--board);aspect-ratio:4/3;width:100%;max-width:100%;overflow:hidden;box-shadow:inset 0 2px 10px rgba(0,0,0,.15)}
 #pad{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
-.hint{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;color:var(--chalk);opacity:.72;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:21px}
+.hint{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;color:var(--chalk);opacity:.72;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:21px}
 .board-editor>.row.wrap{flex-direction:column;align-items:stretch;gap:12px}
 .swatches{display:flex;gap:8px;align-items:center;justify-content:center}
 .sw{width:44px;height:44px;border-radius:50%;border:7px solid transparent;padding:0;background-clip:padding-box;box-shadow:inset 0 0 0 1px rgba(45,56,50,.12);flex:none}
@@ -368,8 +368,8 @@ textarea{min-height:132px;resize:vertical}
 .board-editor>.row:not(.wrap) .btn{flex:1}
 .note{display:flex;flex-direction:column;gap:14px}
 .thumb{display:block;width:100%;aspect-ratio:4/3;max-width:100%;border:1px solid var(--frame);border-radius:16px;background:var(--board)}
-.textonly{border-radius:16px;background:var(--board);color:var(--chalk);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;line-height:1.7;padding:28px 20px;overflow-wrap:anywhere;text-wrap:balance}
-.cap{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;line-height:1.65;overflow-wrap:anywhere}
+.textonly{border-radius:16px;background:var(--board);color:var(--chalk);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;line-height:1.7;padding:28px 20px;overflow-wrap:anywhere;text-wrap:balance}
+.cap{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;line-height:1.65;overflow-wrap:anywhere}
 #tab-board>.stack>h3{padding-left:4px;color:var(--fg);font-size:16px}
 
 
@@ -391,7 +391,7 @@ textarea{min-height:132px;resize:vertical}
 .sheet-panel::before{content:'';display:block;flex:none;width:36px;height:4px;background:var(--line);border-radius:var(--radius-pill);margin:0 auto 4px}
 .sheet-panel h2{font-size:28px;line-height:1.45;margin-bottom:4px}
 .sheet-panel>.eyebrow{margin-bottom:-12px}
-.sheet-panel>.empty{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;text-align:left;padding:0}
+.sheet-panel>.empty{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;text-align:left;padding:0}
 .sheet-panel .list{padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-control);background:var(--surface-tint)}
 .sheet-panel .opt+.opt{margin-top:-6px}
 .sheet-panel>.btn{width:100%}
@@ -420,44 +420,44 @@ textarea{min-height:132px;resize:vertical}
 html,body{background-color:var(--bg);background-image:none}
 body{font-size:15px;line-height:1.75}
 .app{position:relative;isolation:isolate;max-width:520px}
-h1,h2,h3,.big,.mhead .ttl,.cap,.together{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;color:var(--fg)}
+h1,h2,h3,.big,.mhead .ttl,.cap,.together{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;color:var(--fg)}
 h1{font-size:35px;line-height:1.35;font-weight:400!important;letter-spacing:-.035em;width:max-content;max-width:100%;padding:0 2px;background:linear-gradient(transparent 82%,var(--period-soft) 82%,var(--period-soft) 96%,transparent 96%)}
 h1::after{content:'♡';display:inline-block;color:var(--period);font-size:22px;font-weight:400!important;margin-left:8px;transform:rotate(12deg)}
 h2{font-size:29px;font-weight:400!important;line-height:1.4;letter-spacing:0}
 h3{font-size:21px;font-weight:400!important;line-height:1.5;letter-spacing:0;color:var(--fg)}
 .big{font-size:26px;line-height:1.4;font-weight:400!important}
-.eyebrow{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;letter-spacing:0;line-height:1.6}
+.eyebrow{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;letter-spacing:0;line-height:1.6}
 .top{padding-block:calc(12px + env(safe-area-inset-top,0px)) 15px;border-bottom:1px dashed var(--line);background-color:var(--header-bg);backdrop-filter:none;-webkit-backdrop-filter:none;align-items:center}
 .top>div:first-child{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
 .top h1{order:-1}
-#today-label{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px;padding:2px 6px;background:var(--paper-note);color:var(--fg);border-radius:1px;transform:rotate(-1deg)}
+#today-label{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px;padding:2px 6px;background:var(--paper-note);color:var(--fg);border-radius:1px;transform:rotate(-1deg)}
 .top .seg{border:0;background:transparent;padding:0;gap:5px}
-.top .seg button{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;padding:8px 9px;border:1px solid var(--line);min-height:44px;border-radius:45% 50% 44% 48%;background:transparent;color:var(--muted)}
+.top .seg button{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;padding:8px 9px;border:1px solid var(--line);min-height:44px;border-radius:45% 50% 44% 48%;background:transparent;color:var(--muted)}
 .top [data-v="老公"][aria-pressed="true"]{background:var(--him-soft);border-color:var(--him);color:var(--him);box-shadow:none}
 .top [data-v="老婆"][aria-pressed="true"]{background:var(--her-soft);border-color:var(--her);color:var(--her);box-shadow:none}
 main{padding-top:24px}
 .stack{gap:28px}
 .page-heading{margin:0 2px 26px;gap:4px}
-.page-heading h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:32px;width:max-content;max-width:100%;background:linear-gradient(transparent 78%,var(--paper-note) 78%,var(--paper-note) 95%,transparent 95%);padding-inline:3px}
-.page-heading p{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.6;color:var(--muted)}
+.page-heading h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:32px;width:max-content;max-width:100%;background:linear-gradient(transparent 78%,var(--paper-note) 78%,var(--paper-note) 95%,transparent 95%);padding-inline:3px}
+.page-heading p{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.6;color:var(--muted)}
 .card{position:relative;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:3px 5px 4px 2px;box-shadow:var(--paper-shadow);padding:20px;gap:14px}
 .row{gap:10px}
 .seg{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:3px;gap:3px}
-.seg button{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;border-radius:5px;min-height:44px;padding:7px 14px}
+.seg button{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;border-radius:5px;min-height:44px;padding:7px 14px}
 .seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:400!important;box-shadow:none}
-.btn{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;font-weight:400!important;min-height:48px;border:1px solid var(--accent);border-radius:5px 8px 6px 4px;background:var(--accent);color:var(--accent-fg);padding:10px 15px;line-height:1.5}
+.btn{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;font-weight:400!important;min-height:48px;border:1px solid var(--accent);border-radius:5px 8px 6px 4px;background:var(--accent);color:var(--accent-fg);padding:10px 15px;line-height:1.5}
 .btn.ghost{border:1px dashed var(--line);border-radius:4px;background:transparent;color:var(--accent);font-weight:400!important}
 .btn.small{font-size:16px;min-height:44px;padding:6px 10px}
-.x{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;width:44px;height:44px;font-size:22px;border-radius:4px}
-.chip{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;line-height:1.3;padding:4px 8px;border-radius:4px 7px 4px 5px;font-weight:400!important}
+.x{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;width:44px;height:44px;font-size:22px;border-radius:4px}
+.chip{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;line-height:1.3;padding:4px 8px;border-radius:4px 7px 4px 5px;font-weight:400!important}
 
 
 #home-body{gap:28px}
 #home-body>div:not(.card){padding:0 2px 3px}
-#home-body>div:not(.card) h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:32px;margin-bottom:4px}
-#home-body>div:not(.card) .muted{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px}
+#home-body>div:not(.card) h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:32px;margin-bottom:4px}
+#home-body>div:not(.card) .muted{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px}
 #home-body>.card{order:1}
-#home-body>.banner{order:2;padding:14px 0 0;border:0;border-top:1px dashed var(--line);border-radius:0;background:transparent;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px;line-height:1.8}
+#home-body>.banner{order:2;padding:14px 0 0;border:0;border-top:1px dashed var(--line);border-radius:0;background:transparent;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px;line-height:1.8}
 #home-body>.card:has(>.shiftrow){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 0;padding:22px 18px 18px;border-radius:3px;background:var(--surface)}
 #home-body>.card:has(>.shiftrow)::before{content:'';position:absolute;top:-8px;left:50%;width:82px;height:18px;transform:translateX(-50%) rotate(-2deg);background:repeating-linear-gradient(125deg,transparent 0 8px,var(--accent-soft) 8px 16px),var(--paper-tape);opacity:.78;pointer-events:none}
 #home-body>.card:has(>.shiftrow)>.row{grid-column:1/-1;margin-bottom:2px}
@@ -465,28 +465,28 @@ main{padding-top:24px}
 #home-body>.card:has(>.shiftrow)>.row .btn{border:0;border-bottom:1px solid var(--accent);border-radius:0;background:transparent;padding:4px 0;font-size:15px}
 #home-body .shiftrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:start;gap:9px 6px;padding:4px 12px 7px;min-width:0}
 #home-body .shiftrow+.shiftrow{border-left:1px dashed var(--line)}
-#home-body .shiftrow .who{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:20px;color:var(--fg);width:auto}
+#home-body .shiftrow .who{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:20px;color:var(--fg);width:auto}
 #home-body .shiftrow .s{min-width:25px;height:26px;line-height:24px;font-size:13px;border:1px solid currentColor;border-radius:4px;align-self:center;padding:0 5px}
-#home-body .shiftrow .info{grid-column:1/-1;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.7;overflow-wrap:normal;word-break:normal}
-#home-body .together{grid-column:1/-1;background:var(--accent-soft);border-radius:2px 4px 2px 5px;padding:8px 10px;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.6;color:var(--accent);text-align:center;border-top:1px solid var(--line)}
+#home-body .shiftrow .info{grid-column:1/-1;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.7;overflow-wrap:normal;word-break:normal}
+#home-body .together{grid-column:1/-1;background:var(--accent-soft);border-radius:2px 4px 2px 5px;padding:8px 10px;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.6;color:var(--accent);text-align:center;border-top:1px solid var(--line)}
 
 
 #home-body>.card:has(>.list){padding:18px 16px 12px;background-color:var(--surface);background-image:repeating-linear-gradient(transparent 0 35px,var(--paper-grid) 35px 36px);border-radius:2px}
-#home-body>.card:has(>.list)>.row h3{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;background:linear-gradient(transparent 82%,var(--period-soft) 82%,var(--period-soft) 95%,transparent 95%);width:max-content;max-width:100%}
+#home-body>.card:has(>.list)>.row h3{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;background:linear-gradient(transparent 82%,var(--period-soft) 82%,var(--period-soft) 95%,transparent 95%);width:max-content;max-width:100%}
 #home-body>.card:has(>.list)>.row .btn{border:0;background:transparent;padding-inline:0}
-#home-body .ev .tm{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;width:48px;color:var(--accent)}
-#home-body .ev .tt{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.6}
+#home-body .ev .tm{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;width:48px;color:var(--accent)}
+#home-body .ev .tt{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.6}
 #home-body .ev .chip{font-size:14px}
 #home-body .ev .x{font-size:20px}
 #home-body .todo{min-height:48px;padding:8px 0}
-#home-body .todo .tx{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.6}
+#home-body .todo .tx{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.6}
 
 
 #home-body [data-v="period"]{background:var(--period-soft);border:0;border-radius:1px 2px 2px 1px;padding:18px 20px;gap:9px;box-shadow:var(--paper-shadow);transform:rotate(.35deg)}
 #home-body [data-v="period"]::after{content:'';position:absolute;top:0;right:0;width:0;height:0;border-left:15px solid var(--paper-fold);border-top:15px solid var(--bg);pointer-events:none}
-#home-body [data-v="period"] h3{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;color:var(--fg)}
-#home-body [data-v="period"] .big{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;color:var(--period);line-height:1.4}
-#home-body [data-v="period"] .muted{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.6}
+#home-body [data-v="period"] h3{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;color:var(--fg)}
+#home-body [data-v="period"] .big{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;color:var(--period);line-height:1.4}
+#home-body [data-v="period"] .muted{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.6}
 
 
 #home-body [data-v="board"]{display:grid;grid-template-columns:94px minmax(0,1fr);grid-template-rows:auto auto auto;gap:8px 15px;padding:0 0 4px;background:transparent;border:0;border-radius:0;box-shadow:none}
@@ -494,50 +494,50 @@ main{padding-top:24px}
 #home-body [data-v="board"] h3{font-size:24px;background:linear-gradient(transparent 83%,var(--period-soft) 83%,var(--period-soft) 95%,transparent 95%);padding-inline:2px}
 #home-body [data-v="board"] .thumb{grid-column:1;grid-row:2/4;width:94px;aspect-ratio:4/3;border:4px solid var(--surface);border-radius:1px;box-shadow:var(--paper-shadow);align-self:start}
 #home-body [data-v="board"]::before{content:'';position:absolute;top:43px;left:22px;width:46px;height:12px;background:var(--paper-tape);opacity:.75;transform:rotate(-4deg);z-index:1;pointer-events:none}
-#home-body [data-v="board"] .cap{grid-column:2;grid-row:2;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:20px;line-height:1.6}
-#home-body [data-v="board"]>.muted{grid-column:2;grid-row:3;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px!important;line-height:1.6}
+#home-body [data-v="board"] .cap{grid-column:2;grid-row:2;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:20px;line-height:1.6}
+#home-body [data-v="board"]>.muted{grid-column:2;grid-row:3;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px!important;line-height:1.6}
 #home-body [data-v="board"] .textonly{grid-column:1/-1;font-size:22px;padding:22px;border-radius:2px}
 
 
 .mhead{padding:0 1px 6px}
-.mhead .ttl{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:24px;font-weight:400!important;letter-spacing:0}
+.mhead .ttl{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:24px;font-weight:400!important;letter-spacing:0}
 .mhead .btn{border:1px solid var(--line);border-radius:44% 48% 46% 50%;width:44px;height:44px;background:transparent;font-size:25px}
 .grid{gap:0;border-left:1px solid var(--line);border-top:1px solid var(--line)}
-.wd{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;padding:5px 0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface-tint)}
-.cell{border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;background:transparent;min-height:57px;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;gap:5px;padding:4px 1px}
+.wd{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;padding:5px 0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface-tint)}
+.cell{border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;background:transparent;min-height:57px;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;gap:5px;padding:4px 1px}
 .cell.cal{min-height:82px;padding:6px 1px 5px;gap:5px}
 .cell.out{opacity:.4}
 .cell.today>span:first-child{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:2px}
 .cell.sel{background:var(--accent-soft);outline:2px solid var(--accent);outline-offset:-2px;border-radius:0}
 .cell.bothoff{background:var(--sOff-soft);box-shadow:inset 0 0 0 1px var(--sOff)}
-.s{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:10px;height:17px;line-height:17px;border-radius:2px;min-width:26px;padding-inline:3px;font-weight:400!important}
+.s{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:10px;height:17px;line-height:17px;border-radius:2px;min-width:26px;padding-inline:3px;font-weight:400!important}
 .ph-period{background:var(--period-soft);color:var(--period);box-shadow:inset 0 -2px 0 var(--period)}
 .ph-fertile{background:var(--fertile-soft);color:var(--fertile);box-shadow:inset 0 -2px 0 var(--fertile)}
 .ph-ovul{background:var(--ovul);color:var(--ovul-fg)}
 .heart{font-size:11px;line-height:10px;min-height:10px}
-.legend{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px;line-height:1.8;gap:8px 10px;padding-inline:1px}
+.legend{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px;line-height:1.8;gap:8px 10px;padding-inline:1px}
 .legend i.sw2{border-radius:2px}
 #cal-body>.card:first-child,#period-body>.card:nth-child(2){padding:16px 8px 14px;border:1px solid var(--line);border-radius:2px;background:var(--surface);gap:15px}
 #cal-body>.card:not(:first-child){padding:18px;background:var(--surface);border-radius:3px}
 .shiftrow{padding-block:3px;gap:9px}
-.shiftrow .who{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;width:34px}
+.shiftrow .who{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;width:34px}
 .shiftrow .s{height:26px;line-height:26px;border-radius:3px;min-width:30px}
-.shiftrow .info{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:13px;line-height:1.7}
-.together{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.6;background:var(--accent-soft);color:var(--accent);border-radius:2px;padding:10px 12px}
+.shiftrow .info{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:13px;line-height:1.7}
+.together{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.6;background:var(--accent-soft);color:var(--accent);border-radius:2px;padding:10px 12px}
 .stat{font-size:13px;line-height:1.85;gap:10px}
-.stat b{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;font-weight:400!important;color:var(--fg)}
+.stat b{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;font-weight:400!important;color:var(--fg)}
 .code{border-radius:4px;font-size:14px;min-height:44px}
 .code.clear{border-radius:4px}
-.opt{border-radius:4px;min-height:56px;background:var(--surface);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;border:1px solid var(--line);padding:10px 12px}
+.opt{border-radius:4px;min-height:56px;background:var(--surface);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;border:1px solid var(--line);padding:10px 12px}
 .opt .s{border-radius:3px}
 
 
 #period-body>.card:first-child{background:var(--period-soft);border:0;border-radius:2px;padding:20px}
 #period-body>.card:first-child h3{color:var(--fg)}
-#period-body>.card:first-child .big{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:28px;color:var(--period)}
+#period-body>.card:first-child .big{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:28px;color:var(--period)}
 #period-body>.card:first-child p:not(.big){font-size:14px;line-height:1.8}
 .period-settings{background:var(--surface);border:1px solid var(--line);border-radius:3px}
-.period-settings>h3{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;font-weight:400!important;color:var(--fg)}
+.period-settings>h3{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;font-weight:400!important;color:var(--fg)}
 .period-settings .row3{gap:14px 12px}
 
 
@@ -545,50 +545,50 @@ main{padding-top:24px}
 #memo-todo-form{padding:0;background:transparent;border:0;border-radius:0;box-shadow:none}
 #memo-body>.card{background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:12px 16px;background-image:repeating-linear-gradient(transparent 0 43px,var(--paper-grid) 43px 44px)}
 .todo{gap:9px;min-height:64px;padding:10px 0;border-top:1px dashed var(--line)}
-.todo .tx{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.6}
+.todo .tx{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.6}
 .check{width:44px;height:44px;border:1px solid var(--line);border-radius:3px 5px 3px 4px;background:var(--surface);box-shadow:none}
 .todo.done .check{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
 #memo-body>.note-card{padding:22px 18px 18px;background:var(--paper-note);background-image:none;border:0;box-shadow:var(--paper-shadow);border-radius:2px}
 .note-card::before{content:'';position:absolute;top:-6px;left:25px;width:60px;height:14px;background:var(--paper-tape);opacity:.7;transform:rotate(-3deg);pointer-events:none}
-.note-card h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:25px;line-height:1.4}
-.note-card p.body{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px;line-height:1.85}
-.empty{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:20px;line-height:1.7;text-align:center}
+.note-card h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:25px;line-height:1.4}
+.note-card p.body{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px;line-height:1.85}
+.empty{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:20px;line-height:1.7;text-align:center}
 
 
 .board-editor{padding:18px 14px;background:var(--surface);border-radius:3px;gap:18px}
 .padwrap{border:4px solid var(--frame);border-radius:3px;background:var(--board);box-shadow:none;transform:none}
-.hint{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;opacity:.78}
+.hint{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;opacity:.78}
 .swatches{justify-content:center;gap:10px}
 .sw{background-clip:padding-box}
 #brushes{background:var(--surface-tint);border-radius:5px}
-#brushes button{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;border-radius:3px}
+#brushes button{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;border-radius:3px}
 .thumb{border:4px solid var(--surface);border-radius:2px;background:var(--board);box-shadow:var(--paper-shadow)}
-.cap{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;line-height:1.6}
-.textonly{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;border-radius:2px;line-height:1.7}
+.cap{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;line-height:1.6}
+.textonly{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;border-radius:2px;line-height:1.7}
 #wall>.card{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:16px;gap:14px}
-#tab-board>.stack>h3{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:24px;padding-left:0;background:linear-gradient(transparent 83%,var(--paper-note) 83%,var(--paper-note) 96%,transparent 96%);width:max-content;max-width:100%}
+#tab-board>.stack>h3{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:24px;padding-left:0;background:linear-gradient(transparent 83%,var(--paper-note) 83%,var(--paper-note) 96%,transparent 96%);width:max-content;max-width:100%}
 
 
 .f{gap:7px}
-.f>span{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;color:var(--muted)}
-input[type=text],input[type=date],input[type=time],input[type=month],input[type=number],select,textarea{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;background:var(--surface);border:0;border-bottom:1px solid var(--line);border-radius:2px;padding:11px 10px;min-height:48px;line-height:1.5}
+.f>span{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;color:var(--muted)}
+input[type=text],input[type=date],input[type=time],input[type=month],input[type=number],select,textarea{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;background:var(--surface);border:0;border-bottom:1px solid var(--line);border-radius:2px;padding:11px 10px;min-height:48px;line-height:1.5}
 textarea{line-height:1.85;min-height:132px;background-color:var(--surface);background-image:repeating-linear-gradient(transparent 0 29px,var(--paper-grid) 29px 30px);background-position:0 12px}
 input:focus,select:focus,textarea:focus{border-bottom-color:var(--accent)}
 .sheet-panel{background-color:var(--surface);border-radius:12px 12px 0 0;border:1px solid var(--line);border-bottom:0;padding-inline:20px;gap:16px;box-shadow:var(--shadow-sheet)}
-.sheet-panel h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:30px;font-weight:400!important;line-height:1.4}
-.sheet-panel>.eyebrow{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;margin-bottom:-10px}
-.sheet-panel>.empty{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px}
+.sheet-panel h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:30px;font-weight:400!important;line-height:1.4}
+.sheet-panel>.eyebrow{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;margin-bottom:-10px}
+.sheet-panel>.empty{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px}
 .sheet-panel .list{border-radius:3px;background:var(--surface);border:1px solid var(--line)}
 .sheet-panel .opt{background:var(--surface);border-radius:3px}
 .sheet-panel .opt[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
 .sheet-panel::before{width:54px;height:8px;border-radius:0;background:repeating-linear-gradient(125deg,var(--accent-soft) 0 6px,var(--paper-tape) 6px 12px);transform:rotate(-2deg)}
 .actions .btn{font-size:17px}
-.toast{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;background:var(--fg);color:var(--bg);border-radius:3px;line-height:1.6;box-shadow:var(--paper-shadow)}
+.toast{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;background:var(--fg);color:var(--bg);border-radius:3px;line-height:1.6;box-shadow:var(--paper-shadow)}
 
 
 .tabs{background:var(--nav-bg);border-top:1px dashed var(--line);box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .tabs-in{padding:0 6px;gap:2px}
-.tabs button{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px;font-weight:400!important;line-height:1.3;gap:5px;padding:12px 3px 10px;min-height:78px;color:var(--fg)}
+.tabs button{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px;font-weight:400!important;line-height:1.3;gap:5px;padding:12px 3px 10px;min-height:78px;color:var(--fg)}
 .tabs button::before{top:7px;left:50%;width:calc(100% - 7px);height:calc(100% - 12px);border:1px solid var(--line);border-radius:3px 5px 2px 4px;background:var(--surface);transform:translateX(-50%) rotate(var(--tab-tilt,-1deg));box-shadow:var(--paper-shadow)}
 .tabs button:nth-child(1){--tab-tilt:-1.5deg}
 .tabs button:nth-child(1)::before{background:var(--him-soft)}
@@ -775,12 +775,12 @@ body::before{content:'';position:fixed;top:0;bottom:0;left:50%;width:100%;max-wi
 
 
 
-.err{color:var(--period);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px}
+.err{color:var(--period);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px}
 .login{position:relative;z-index:1;min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;padding:calc(32px + env(safe-area-inset-top,0px)) var(--page-edge) calc(32px + env(safe-area-inset-bottom,0px))}
 .login-in{position:relative;width:100%;max-width:420px;display:flex;flex-direction:column;gap:20px;padding:30px 24px 24px;background:var(--surface);border:1px solid var(--line);border-radius:3px 5px 4px 2px;box-shadow:var(--paper-shadow)}
 .login-in::before{content:'';position:absolute;top:-7px;left:50%;width:78px;height:17px;transform:translateX(-50%) rotate(-3deg);background:repeating-linear-gradient(115deg,var(--accent-soft) 0 7px,var(--paper-tape) 7px 14px);opacity:.8;pointer-events:none}
 .login-in>h1{font-size:40px;line-height:1.35}
-.login-in>p:first-of-type{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.8}
+.login-in>p:first-of-type{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.8}
 .login-in>p[style]{font-size:13px;line-height:1.85}
 .login-in input{background:var(--surface-tint)}
 .login-in [data-act="loginWho"][data-v="老公"][aria-pressed="true"]{background:var(--him-soft);color:var(--him)}
@@ -793,7 +793,7 @@ body::before{content:'';position:fixed;top:0;bottom:0;left:50%;width:100%;max-wi
 .board-editor{padding:22px 14px 18px;gap:18px}
 .board-editor>.row.wrap{display:flex;flex-direction:column;align-items:stretch;gap:16px;padding:14px 12px;background:var(--surface-tint);border:1px dashed var(--line);border-radius:4px}
 #tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:7px;padding:0;background:transparent;border:0;border-radius:0}
-#tools button{--tool-ink:var(--accent);--tool-paper:var(--accent-soft);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:70px;padding:10px 4px 8px;white-space:nowrap;border:1px solid var(--line);border-radius:4px 6px 3px 5px;background:var(--surface);color:var(--muted);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;font-weight:400!important;line-height:1.3;box-shadow:none}
+#tools button{--tool-ink:var(--accent);--tool-paper:var(--accent-soft);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:70px;padding:10px 4px 8px;white-space:nowrap;border:1px solid var(--line);border-radius:4px 6px 3px 5px;background:var(--surface);color:var(--muted);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;font-weight:400!important;line-height:1.3;box-shadow:none}
 #tools [data-v="marker"]{--tool-ink:var(--her);--tool-paper:var(--her-soft)}
 #tools [data-v="crayon"]{--tool-ink:var(--fertile);--tool-paper:var(--fertile-soft)}
 #tools [data-v="hl"]{--tool-ink:var(--safe);--tool-paper:var(--sOff-soft)}
@@ -812,7 +812,7 @@ body::before{content:'';position:fixed;top:0;bottom:0;left:50%;width:100%;max-wi
 
 
 #stickers{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;padding:12px 10px;background:var(--surface);border:1px dashed var(--line);border-radius:3px}
-#stickers button{position:relative;display:grid;place-items:center;min-width:44px;min-height:52px;padding:7px 2px;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:27px;line-height:1;border:1px solid var(--line);border-radius:4px 7px 4px 6px;background:var(--surface);box-shadow:none;transform:none}
+#stickers button{position:relative;display:grid;place-items:center;min-width:44px;min-height:52px;padding:7px 2px;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:27px;line-height:1;border:1px solid var(--line);border-radius:4px 7px 4px 6px;background:var(--surface);box-shadow:none;transform:none}
 #stickers button:nth-child(4n+2){background:var(--period-soft)}
 #stickers button:nth-child(4n+3){background:var(--fertile-soft)}
 #stickers button:nth-child(4n){background:var(--sOff-soft)}
@@ -821,7 +821,7 @@ body::before{content:'';position:fixed;top:0;bottom:0;left:50%;width:100%;max-wi
 
 
 .board-editor #brushes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;padding:3px;border:1px solid var(--line);background:var(--surface);border-radius:4px;gap:4px}
-#brushes button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:9px;min-width:0;min-height:44px;padding:8px 4px;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.3;color:var(--muted);border:0;border-radius:3px;background:transparent}
+#brushes button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:9px;min-width:0;min-height:44px;padding:8px 4px;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;line-height:1.3;color:var(--muted);border:0;border-radius:3px;background:transparent}
 #brushes button::before{content:'';display:block;width:18px;height:3px;border-radius:2px;background:currentColor;pointer-events:none}
 #brushes [data-w="2.5"]::before{height:1.5px}
 #brushes [data-w="9"]::before{height:6px}
@@ -833,7 +833,7 @@ body::before{content:'';position:fixed;top:0;bottom:0;left:50%;width:100%;max-wi
 
 .board-editor>.row:not(.wrap){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:7px}
 .board-editor>.row:not(.wrap):has(#photo-clear:not([hidden])){grid-template-columns:repeat(2,minmax(0,1fr))}
-.board-editor>.row:not(.wrap) .btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:62px;padding:8px 2px;border:1px dashed var(--line);border-radius:3px 5px 3px 4px;background:var(--surface);color:var(--accent);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px;line-height:1.4;white-space:normal}
+.board-editor>.row:not(.wrap) .btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:62px;padding:8px 2px;border:1px dashed var(--line);border-radius:3px 5px 3px 4px;background:var(--surface);color:var(--accent);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px;line-height:1.4;white-space:normal}
 .board-editor>.row:not(.wrap) .btn::before{content:'';display:block;width:19px;height:19px;background:currentColor;-webkit-mask-image:var(--action-icon);mask-image:var(--action-icon);-webkit-mask-size:contain;mask-size:contain;-webkit-mask-position:center;mask-position:center;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;pointer-events:none}
 .board-editor>.row:not(.wrap) [data-act="photoClear"],.board-editor>.row:not(.wrap) [data-act="clearPad"]{color:var(--muted)}
 .board-editor>.f>span{font-size:18px;color:var(--fg)}
@@ -845,21 +845,21 @@ body::before{content:'';position:fixed;top:0;bottom:0;left:50%;width:100%;max-wi
 
 
 #wall{gap:24px}
-#wall>.daygroup{display:flex;align-items:center;gap:9px;margin:4px 1px -8px;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;font-weight:400!important;color:var(--muted);line-height:1.6}
+#wall>.daygroup{display:flex;align-items:center;gap:9px;margin:4px 1px -8px;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;font-weight:400!important;color:var(--muted);line-height:1.6}
 #wall>.daygroup::before{content:'';width:6px;height:6px;flex:none;border:1px solid var(--muted);border-radius:45% 50% 46% 48%;pointer-events:none}
 #wall>.daygroup::after{content:'';height:1px;flex:1;background:var(--line);pointer-events:none}
 #wall>.note{padding:20px 14px 16px;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:3px 5px 3px 4px;box-shadow:var(--paper-shadow)}
 #wall>.note:has(.newtag){border-left:3px solid var(--period)}
 #wall>.note>.row{align-items:center;gap:10px}
 #wall>.note>.row>span:first-child{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}
-#wall>.note>.row>.muted{flex:none;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px!important;font-variant-numeric:tabular-nums}
+#wall>.note>.row>.muted{flex:none;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px!important;font-variant-numeric:tabular-nums}
 #wall .thumb{display:block;aspect-ratio:4/3;transform:none}
-#wall .cap{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;line-height:1.75;padding-inline:2px}
+#wall .cap{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:22px;line-height:1.75;padding-inline:2px}
 #wall .textonly{font-size:23px;line-height:1.8}
 
 
 .react-row{display:grid;grid-template-columns:repeat(5,minmax(44px,1fr));gap:8px;align-items:center;width:100%;padding-top:13px;border-top:1px dashed var(--line)}
-.rx{--reaction-paper:var(--accent-soft);--reaction-ink:var(--accent);position:relative;display:grid;place-items:center;min-width:44px;min-height:48px;padding:7px 2px;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;line-height:1;border:1px solid var(--line);border-radius:5px 8px 4px 7px;background:var(--surface);box-shadow:none;transform:none}
+.rx{--reaction-paper:var(--accent-soft);--reaction-ink:var(--accent);position:relative;display:grid;place-items:center;min-width:44px;min-height:48px;padding:7px 2px;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px;line-height:1;border:1px solid var(--line);border-radius:5px 8px 4px 7px;background:var(--surface);box-shadow:none;transform:none}
 .rx[data-e="❤️"]{--reaction-paper:var(--period-soft);--reaction-ink:var(--period)}
 .rx[data-e="😂"]{--reaction-paper:var(--fertile-soft);--reaction-ink:var(--fertile)}
 .rx[data-e="👍"]{--reaction-paper:var(--him-soft);--reaction-ink:var(--him)}
@@ -867,15 +867,15 @@ body::before{content:'';position:fixed;top:0;bottom:0;left:50%;width:100%;max-wi
 .rx[data-e="🥺"]{--reaction-paper:var(--sOff-soft);--reaction-ink:var(--safe)}
 .rx[aria-pressed="true"]{background:var(--reaction-paper);border-color:var(--reaction-ink);box-shadow:inset 0 -2px 0 var(--reaction-ink)}
 .rx[aria-pressed="true"]::after{content:'';position:absolute;top:5px;right:5px;width:4px;height:6px;border:solid var(--reaction-ink);border-width:0 1.5px 1.5px 0;transform:rotate(42deg);pointer-events:none}
-.react-who{grid-column:1/-1;margin-top:1px;font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;color:var(--muted);line-height:1.7;overflow-wrap:anywhere}
+.react-who{grid-column:1/-1;margin-top:1px;font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:16px;color:var(--muted);line-height:1.7;overflow-wrap:anywhere}
 
 
-.newtag{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:3px 7px;border:1px dashed var(--period);border-radius:3px 6px 3px 5px;background:var(--period-soft);color:var(--period);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;font-weight:400!important;line-height:1.3;vertical-align:middle;white-space:nowrap}
+.newtag{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:3px 7px;border:1px dashed var(--period);border-radius:3px 6px 3px 5px;background:var(--period-soft);color:var(--period);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;font-weight:400!important;line-height:1.3;vertical-align:middle;white-space:nowrap}
 .newtag::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--period);flex:none;pointer-events:none}
 #home-body [data-v="board"]>.row{align-items:flex-start;flex-wrap:wrap;gap:8px 12px}
 #home-body [data-v="board"]>.row>span{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.nbadge{position:absolute;z-index:2;top:5px;left:calc(50% + 11px);display:grid;place-items:center;min-width:21px;height:21px;padding:0 4px;border:2px solid var(--nav-bg);border-radius:44% 48% 43% 50%;background:var(--period);color:var(--bg);font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:10px;font-style:normal;font-weight:400!important;line-height:1;text-decoration:none;pointer-events:none}
-#wall>[data-act="moreBoard"]{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;background:transparent;border:0;border-bottom:1px dashed var(--line);border-radius:0;min-height:48px}
+.nbadge{position:absolute;z-index:2;top:5px;left:calc(50% + 11px);display:grid;place-items:center;min-width:21px;height:21px;padding:0 4px;border:2px solid var(--nav-bg);border-radius:44% 48% 43% 50%;background:var(--period);color:var(--bg);font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:10px;font-style:normal;font-weight:400!important;line-height:1;text-decoration:none;pointer-events:none}
+#wall>[data-act="moreBoard"]{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px;background:transparent;border:0;border-bottom:1px dashed var(--line);border-radius:0;min-height:48px}
 
 @media (max-width:359px){
   .login-in{padding:28px 18px 22px}
@@ -912,8 +912,8 @@ body::before{content:'';position:fixed;top:0;bottom:0;left:50%;width:100%;max-wi
 
 
 :root{--page-edge:18px;--tab-height:68px}
-body{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;line-height:1.7}
-h1{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:30px;font-weight:400!important;line-height:1.3;letter-spacing:0}
+body{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px;line-height:1.7}
+h1{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:30px;font-weight:400!important;line-height:1.3;letter-spacing:0}
 h1::after{font-size:19px;margin-left:7px}
 .top{padding-top:calc(10px + env(safe-area-inset-top,0px));padding-bottom:12px}
 .top .seg button{font-size:13px;min-height:40px;padding:7px 10px;border-radius:12px}
@@ -931,7 +931,7 @@ h3{font-size:16px;font-weight:400!important;line-height:1.6}
 .btn.small{font-size:12px;min-height:40px;padding:7px 9px}
 .chip{font-size:11px;font-weight:400!important;padding:4px 7px;border-radius:6px;line-height:1.4}
 .f>span{font-size:13px;line-height:1.6}
-input,select,textarea{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important}
+input,select,textarea{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important}
 #home-body>div:not(.card) h2{font-size:26px;font-weight:400!important;letter-spacing:.015em;margin-bottom:5px}
 #home-body>div:not(.card) .muted{font-size:14px}
 #home-body>.card:has(>.shiftrow){padding:20px 15px 16px;gap:12px 0}
@@ -1027,65 +1027,65 @@ input,select,textarea{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Not
 @media(max-width:389px){#swatches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;justify-items:center}}
 @media(max-width:359px){:root{--page-edge:16px}#tools button{font-size:12px;gap:4px}#home-body .shiftrow{padding-inline:7px}#home-body .shiftrow .info{font-size:12px}.board-editor>.row:not(.wrap) .btn{font-size:11px;gap:3px}.page-heading h2{font-size:24px}}
 
-:root{--font-body:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif}
-body{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important;font-synthesis:none;line-height:1.75}
-button,input,select,textarea{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-synthesis:none}
-h1,.top h1,.login-in>h1{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important;font-size:30px;letter-spacing:-.025em;line-height:1.35}
-.page-heading h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px!important;font-weight:400!important;letter-spacing:.035em;line-height:1.5}
+:root{--font-body:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif}
+body{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important;font-synthesis:none;line-height:1.75}
+button,input,select,textarea{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-synthesis:none}
+h1,.top h1,.login-in>h1{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important;font-size:30px;letter-spacing:-.025em;line-height:1.35}
+.page-heading h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px!important;font-weight:400!important;letter-spacing:.035em;line-height:1.5}
 .page-heading p{font-size:13px!important;font-weight:400!important;line-height:1.8}
 #home-body>div:not(.card) h2{font-size:24px!important;font-weight:400!important;letter-spacing:.01em}
-h3,.card h3,.period-settings>h3,#tab-board>.stack>h3{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important}
+h3,.card h3,.period-settings>h3,#tab-board>.stack>h3{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important}
 #home-body .row h3,#home-body [data-v="period"] h3,#home-body [data-v="board"] h3{font-size:16px!important}
-#cal-body .mhead .ttl,#period-body .mhead .ttl{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:19px!important;font-weight:400!important;letter-spacing:.01em;line-height:1.5}
-#cal-body .wd,#period-body .wd{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px;font-weight:400!important;line-height:1.8}
-#cal-body .cell,#period-body .cell{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px!important;font-weight:400!important;line-height:1.4;font-variant-numeric:tabular-nums}
+#cal-body .mhead .ttl,#period-body .mhead .ttl{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:19px!important;font-weight:400!important;letter-spacing:.01em;line-height:1.5}
+#cal-body .wd,#period-body .wd{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px;font-weight:400!important;line-height:1.8}
+#cal-body .cell,#period-body .cell{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px!important;font-weight:400!important;line-height:1.4;font-variant-numeric:tabular-nums}
 #cal-body .cell.today,#period-body .cell.today{font-weight:400!important}
-#cal-body .shifts .s{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:10px!important;font-weight:400!important;letter-spacing:0;line-height:17px}
+#cal-body .shifts .s{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:10px!important;font-weight:400!important;letter-spacing:0;line-height:17px}
 #cal-body .shiftrow .who,#home-body .shiftrow .who{font-weight:400!important}
 .big,#period-body>.card:first-child .big,#home-body [data-v="period"] .big{font-weight:400!important}
 .note-card h2,#memo-body>.note-card h2{font-weight:400!important;font-size:18px!important}
 .top .seg button,.top .seg button[aria-pressed="true"],.tabs button,.tabs button[aria-current="page"],#tools button,#tools button[aria-pressed="true"],#brushes button,#brushes button[aria-pressed="true"],.btn{font-weight:400!important}
 .tabs button{font-size:11px!important;letter-spacing:.015em}
-#today-label{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px;font-weight:400!important;letter-spacing:.005em}
-.sheet-panel>h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px!important;font-weight:400!important}
+#today-label{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px;font-weight:400!important;letter-spacing:.005em}
+.sheet-panel>h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:23px!important;font-weight:400!important}
 @media(max-width:359px){.page-heading h2{font-size:22px!important}#cal-body .mhead .ttl,#period-body .mhead .ttl{font-size:18px!important}}
 
 :root{
-  --font-display:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
-  --font-body:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
+  --font-display:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
+  --font-body:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;
 }
-body,button,input,select,textarea{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-synthesis:none}
-h1,h2,h3,.big,.mhead .ttl,.stat b,.chip,.s,.tabs button{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important;font-synthesis:none}
-.top h1,.login-in>h1{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:32px!important;font-weight:400!important;letter-spacing:.005em;line-height:1.4}
-.page-heading h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:25px!important;font-weight:400!important;letter-spacing:.035em;line-height:1.5}
-.page-heading p{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px!important;line-height:1.8;letter-spacing:.015em}
-#home-body>div:not(.card) h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:26px!important;font-weight:400!important;letter-spacing:.025em}
-#home-body>div:not(.card) .muted{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px}
-#home-body .row h3,#home-body [data-v="period"] h3,#home-body [data-v="board"] h3{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px!important;font-weight:400!important}
+body,button,input,select,textarea{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-synthesis:none}
+h1,h2,h3,.big,.mhead .ttl,.stat b,.chip,.s,.tabs button{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important;font-synthesis:none}
+.top h1,.login-in>h1{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:32px!important;font-weight:400!important;letter-spacing:.005em;line-height:1.4}
+.page-heading h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:25px!important;font-weight:400!important;letter-spacing:.035em;line-height:1.5}
+.page-heading p{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px!important;line-height:1.8;letter-spacing:.015em}
+#home-body>div:not(.card) h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:26px!important;font-weight:400!important;letter-spacing:.025em}
+#home-body>div:not(.card) .muted{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:14px}
+#home-body .row h3,#home-body [data-v="period"] h3,#home-body [data-v="board"] h3{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:17px!important;font-weight:400!important}
 #home-body .shiftrow .who{font-size:16px;font-weight:400!important}
 #home-body .shiftrow .info{font-size:13px;line-height:1.9}
-#cal-body .mhead .ttl,#period-body .mhead .ttl{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:21px!important;font-weight:400!important;letter-spacing:.01em}
-#cal-body .wd,#period-body .wd{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:13px;font-weight:400!important}
-#cal-body .cell,#period-body .cell{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px!important;font-weight:400!important;font-variant-numeric:tabular-nums}
-#cal-body .shifts .s{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px!important;font-weight:400!important;line-height:17px}
-#tools button,#tools button[aria-pressed="true"],#brushes button,#brushes button[aria-pressed="true"],.top .seg button,.top .seg button[aria-pressed="true"],.btn{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important}
+#cal-body .mhead .ttl,#period-body .mhead .ttl{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:21px!important;font-weight:400!important;letter-spacing:.01em}
+#cal-body .wd,#period-body .wd{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:13px;font-weight:400!important}
+#cal-body .cell,#period-body .cell{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:15px!important;font-weight:400!important;font-variant-numeric:tabular-nums}
+#cal-body .shifts .s{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:11px!important;font-weight:400!important;line-height:17px}
+#tools button,#tools button[aria-pressed="true"],#brushes button,#brushes button[aria-pressed="true"],.top .seg button,.top .seg button[aria-pressed="true"],.btn{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-weight:400!important}
 #tools button{font-size:14px;gap:5px}
-.board-editor .hint{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.8}
-#wall .cap{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.85}
-.tabs button,.tabs button[aria-current="page"]{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px!important;font-weight:400!important}
-#today-label{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px;font-weight:400!important}
-.sheet-panel>h2{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:25px!important;font-weight:400!important}
+.board-editor .hint{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.8}
+#wall .cap{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:18px;line-height:1.85}
+.tabs button,.tabs button[aria-current="page"]{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px!important;font-weight:400!important}
+#today-label{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:12px;font-weight:400!important}
+.sheet-panel>h2{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-size:25px!important;font-weight:400!important}
 @media(max-width:359px){#tools button{font-size:13px}.page-heading h2{font-size:24px!important}#cal-body .mhead .ttl,#period-body .mhead .ttl{font-size:20px!important}}
 
 
 
 
-.top h1,.login-in>h1{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;letter-spacing:.015em!important}
-:root{--font-display:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;--font-body:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif}
-body,input,textarea,button,select{font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-synthesis:none}
+.top h1,.login-in>h1{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;letter-spacing:.015em!important}
+:root{--font-display:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif;--font-body:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif}
+body,input,textarea,button,select{font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;font-synthesis:none}
 
 /* Every text node, including numbers, letters, placeholders and pseudo elements. */
 html,body,body *,body *::before,body *::after,body *::placeholder{
- font-family:'OurtwoPanda',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;
+ font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;
  font-weight:400!important; font-synthesis:none!important;
 }

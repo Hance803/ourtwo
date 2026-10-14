@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/fireba
 import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, getDoc, getDocs, Bytes, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, deleteField, query, orderBy, limit
+  collection, doc, getDoc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, deleteField, query, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -270,7 +270,6 @@ function renderHome() {
       (open.length ? '<ul class="list">' + open.slice(0, 3).map(m => '<li class="todo"><span class="tx">' + esc(m.text) + '</span>' + byChip(m.by) + '</li>').join('') + '</ul>' : '<p class="empty">全部都做完了</p>') + '</div>' +
     '<div class="card"><div class="row wrap"><span class="muted">外觀</span><div class="seg" role="group" aria-label="外觀">' + THEMES.map(t => '<button data-act="theme" data-v="' + t[0] + '" aria-pressed="' + (getTheme() === t[0]) + '">' + t[1] + '</button>').join('') + '</div></div>' +
       '<div class="row wrap"><span class="muted">新留言通知（' + notifyState() + '）</span><span class="row"><button class="btn ghost small" data-act="notifyOn">開啟</button><button class="btn ghost small" data-act="notifyTest">測試</button></span></div>' +
-      '<div class="row wrap"><span class="muted">字體（' + (fontReady ? '星光小熊貓' : '系統字') + '）</span><button class="btn ghost small" data-act="fontUp">上傳字體檔</button></div>' +
       '<div class="row wrap"><span class="muted">備份（班表、備忘、黑板全部）</span><span class="row"><button class="btn ghost small" data-act="backup">備份</button><button class="btn ghost small" data-act="restore">還原</button></span></div>' +
       '<div class="row"><span class="muted">這支手機是 ' + esc(S.me) + ' 在用</span><button class="btn ghost small" data-act="logout">換暗號／登出</button></div></div>';
   paintThumbs($('#home-body'));
@@ -472,27 +471,11 @@ function subBoard() {
   }, syncErr);
 }
 
-/* 字體：星光小熊貓體。字體檔不放在公開網站，只存在兩人專用的雲端資料夾，第一次下載後存在手機裡。 */
-const FONT_NAME = 'OurtwoPanda', FONT_CACHE = 'ourtwo-font-v1';
-let fontReady = false;
-async function useFontBuf(buf) { const ff = new FontFace(FONT_NAME, buf, { sizeAdjust: '140%' }); await ff.load(); document.fonts.add(ff); fontReady = true; }
-async function fontFromCache() {
-  try { const c = await caches.open(FONT_CACHE); const r = await c.match('ourtwo-font'); if (r) { await useFontBuf(await r.arrayBuffer()); return true; } } catch (e) { /* ignore */ }
-  return false;
+/* 字體改用內海字體（放在網站上）。清掉之前存在雲端的小熊貓字體檔與手機快取。 */
+async function cleanupOldFont() {
+  try { await caches.delete('ourtwo-font-v1'); } catch (e) { /* ignore */ }
+  try { const m = await getDoc(dref('fonts', 'meta')); if (!m.exists()) return; const n = m.data().parts || 0; for (let i = 0; i < n; i++) await deleteDoc(dref('fonts', 'p' + i)); await deleteDoc(dref('fonts', 'meta')); } catch (e) { /* ignore */ }
 }
-async function fontFromCloud() {
-  try {
-    const m = await getDoc(dref('fonts', 'meta')); if (!m.exists()) return;
-    const meta = m.data();
-    if (fontReady && LS.get('ourtwo.font.ver') === String(meta.ver)) return;
-    const parts = [];
-    for (let i = 0; i < meta.parts; i++) { const p = await getDoc(dref('fonts', 'p' + i)); parts.push(p.data().b.toUint8Array()); }
-    const blob = new Blob(parts, { type: 'font/otf' });
-    try { const c = await caches.open(FONT_CACHE); await c.put('ourtwo-font', new Response(blob)); LS.set('ourtwo.font.ver', String(meta.ver)); } catch (e) { /* ignore */ }
-    await useFontBuf(await blob.arrayBuffer());
-  } catch (e) { /* 字體失敗就用系統字，不影響使用 */ }
-}
-
 function startSync() {
   stopSync();
   unsubs.push(onSnapshot(col('shifts'), snap => { const o = {}; snap.forEach(d => { o[d.id] = d.data(); }); S.shifts = o; rerender(); }, syncErr));
@@ -501,7 +484,7 @@ function startSync() {
   unsubs.push(listItems('notes', 'notes', () => S.notes.sort((a, b) => (b.ts || 0) - (a.ts || 0))));
   unsubs.push(listItems('love', 'love'));
   subBoard();
-  fontFromCloud();
+  cleanupOldFont();
   unsubs.push(onSnapshot(dref('settings', 'period'), snap => { S.period = snap.exists() ? snap.data() : null; rerender(); }, syncErr));
   synced = true;
 }
@@ -587,24 +570,6 @@ const ACT = {
     if (ok) { toast('已複製'); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(() => toast('已複製'), () => toast('沒複製成功，請長按文字框，選「全選」再「拷貝」'));
     else toast('沒複製成功，請長按文字框，選「全選」再「拷貝」');
-  },
-  fontUp() {
-    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.otf,.ttf,.woff,.woff2,font/*';
-    inp.addEventListener('change', async () => {
-      const f = inp.files && inp.files[0]; if (!f) return;
-      try {
-        const buf = new Uint8Array(await f.arrayBuffer());
-        if (buf.length > 12 * 1024 * 1024) throw new Error('檔案太大（上限 12MB）');
-        await useFontBuf(buf.slice().buffer);
-        const N = 700 * 1024, n = Math.ceil(buf.length / N), ver = Date.now();
-        for (let i = 0; i < n; i++) { toast('上傳字體中… ' + (i + 1) + '/' + n); await setDoc(dref('fonts', 'p' + i), { i, b: Bytes.fromUint8Array(buf.slice(i * N, (i + 1) * N)) }); }
-        await setDoc(dref('fonts', 'meta'), { parts: n, size: buf.length, name: f.name, ver });
-        try { const c = await caches.open(FONT_CACHE); await c.put('ourtwo-font', new Response(new Blob([buf], { type: 'font/otf' }))); LS.set('ourtwo.font.ver', String(ver)); } catch (e) { /* ignore */ }
-        toast('字體已換好，另一半的手機打開 App 也會自動換');
-        rerender();
-      } catch (e) { toast('字體上傳失敗：' + (e.message || e.code || e)); }
-    });
-    inp.click();
   },
   async backup(el) {
     el.disabled = true; toast('備份中…');
@@ -815,7 +780,6 @@ window.addEventListener('offline', setNet);
 if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 applyTheme();
 try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (getTheme() === 'auto') applyTheme(); }); } catch (e) { /* ignore */ }
-fontFromCache();
 boot();
 
 /* 在照片上畫：照片保留原本的長寬比（太極端的才會裁一點），縮到最長邊 1000、壓成 JPEG 再存，
