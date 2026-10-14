@@ -1,5 +1,5 @@
 /* Ourtwo 離線外殼：網站自己的檔案優先連網更新，沒網路時用快取；Firebase 程式庫版本固定，快取優先。 */
-const CACHE = 'ourtwo-shell-v9';
+const CACHE = 'ourtwo-shell-v10';
 const SHELL = ['./', 'index.html', 'style.css?v=6', 'app.js', 'manifest.webmanifest', 'icon-192.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

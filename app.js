@@ -551,20 +551,17 @@ const ACT = {
       await reg.showNotification('Ourtwo', { body: '測試成功，通知可以顯示 💌', icon: 'icon-192.png', tag: 'ourtwo-test' });
     } catch (e) { toast('測試失敗：' + (e.message || e)); }
   },
-  async notifyHelper() {
-    try {
-      const t = (await (await fetch('push-worker.txt', { cache: 'no-store' })).text()).replace('__FID__', FID);
-      openSheet('<h3>通知小幫手程式</h3><p class="muted">按下「複製全部」，再到 Cloudflare 的程式區貼上。</p>' +
-        '<textarea id="helper-ta" readonly rows="8" style="width:100%;font-size:12px">' + esc(t) + '</textarea>' +
-        '<div class="actions"><button class="btn ghost" data-act="close">關閉</button><button class="btn" data-act="copyHelper">複製全部</button></div>');
-    } catch (e) { toast('讀取失敗：' + (e.message || e)); }
+  notifyHelper() {
+    openSheet('<h3>通知小幫手的設定值</h3><p class="muted">這是你們家的編號（FID），設定 Cloudflare 時要用。請不要傳給別人。按「複製」後貼到 Cloudflare 的 FID 欄位。</p>' +
+      '<textarea id="helper-ta" readonly rows="3" style="width:100%;font-size:13px;word-break:break-all">' + esc(FID) + '</textarea>' +
+      '<div class="actions"><button class="btn ghost" data-act="close">關閉</button><button class="btn" data-act="copyHelper">複製</button></div>');
   },
   copyHelper() {
     const ta = $('#helper-ta'); if (!ta) return;
     ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
     let ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-    if (ok) { toast('已複製，可以貼到 Cloudflare 了'); return; }
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(() => toast('已複製，可以貼到 Cloudflare 了'), () => toast('沒複製成功，請長按文字框，選「全選」再「拷貝」'));
+    if (ok) { toast('已複製'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(() => toast('已複製'), () => toast('沒複製成功，請長按文字框，選「全選」再「拷貝」'));
     else toast('沒複製成功，請長按文字框，選「全選」再「拷貝」');
   },
   async backup(el) {
