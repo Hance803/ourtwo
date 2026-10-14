@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/fireba
 import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, deleteField, query, orderBy, limit
+  collection, doc, getDocs, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, deleteField, query, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -265,6 +265,7 @@ function renderHome() {
     '<div class="card"><div class="row"><h3>還沒做的清單</h3><button class="btn ghost small" data-act="tab" data-v="memo">備忘</button></div>' +
       (open.length ? '<ul class="list">' + open.slice(0, 3).map(m => '<li class="todo"><span class="tx">' + esc(m.text) + '</span>' + byChip(m.by) + '</li>').join('') + '</ul>' : '<p class="empty">全部都做完了</p>') + '</div>' +
     '<div class="card"><div class="row wrap"><span class="muted">外觀</span><div class="seg" role="group" aria-label="外觀">' + THEMES.map(t => '<button data-act="theme" data-v="' + t[0] + '" aria-pressed="' + (getTheme() === t[0]) + '">' + t[1] + '</button>').join('') + '</div></div>' +
+      '<div class="row wrap"><span class="muted">備份（班表、備忘、黑板全部）</span><span class="row"><button class="btn ghost small" data-act="backup">備份</button><button class="btn ghost small" data-act="restore">還原</button></span></div>' +
       '<div class="row"><span class="muted">這支手機是 ' + esc(S.me) + ' 在用</span><button class="btn ghost small" data-act="logout">換暗號／登出</button></div></div>';
   paintThumbs($('#home-body'));
 }
@@ -525,6 +526,44 @@ const ACT = {
     btn.disabled = false;
   },
   theme(el) { LS.set('ourtwo.theme', el.dataset.v); applyTheme(); renderHome(); },
+  async backup(el) {
+    el.disabled = true; toast('備份中…');
+    try {
+      const out = { app: 'ourtwo', version: 1, exported: new Date().toISOString(), data: {} };
+      let n = 0;
+      for (const c of ['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board']) {
+        const snap = await getDocs(col(c)); out.data[c] = {};
+        snap.forEach(d => { out.data[c][d.id] = d.data(); n++; });
+      }
+      const text = JSON.stringify(out);
+      const name = 'ourtwo-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      const file = new File([text], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Ourtwo 備份' }); toast('已備份 ' + n + ' 筆'); el.disabled = false; return; } catch (e) { if (e && e.name === 'AbortError') { el.disabled = false; return; } }
+      }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      toast('已備份 ' + n + ' 筆');
+    } catch (e) { toast('備份失敗：' + (e.code || e.message)); }
+    el.disabled = false;
+  },
+  restore() {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.addEventListener('change', async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      try {
+        const j = JSON.parse(await f.text());
+        if (!j || j.app !== 'ourtwo' || !j.data) throw new Error('不是 Ourtwo 的備份檔');
+        let n = 0; Object.keys(j.data).forEach(c => { n += Object.keys(j.data[c]).length; });
+        if (!confirm('要把備份裡的 ' + n + ' 筆資料放回去嗎？\n同編號的資料會被備份內容蓋過，其他資料不會被刪除。')) return;
+        for (const c of Object.keys(j.data)) {
+          if (!['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board'].includes(c)) continue;
+          for (const id of Object.keys(j.data[c])) await setDoc(dref(c, id), j.data[c][id]);
+        }
+        toast('已還原 ' + n + ' 筆');
+      } catch (e) { toast('還原失敗：' + (e.code || e.message)); }
+    });
+    inp.click();
+  },
   logout(el) {
     if (el.dataset.arm !== '1') { el.dataset.arm = '1'; el.textContent = '再按一次確定登出'; return; }
     LS.del('ourtwo.fid'); location.reload();
