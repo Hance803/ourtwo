@@ -63,6 +63,18 @@ const fm = m => pad2(Math.floor(m / 60) % 24) + ':' + pad2(m % 60);
 const cls = c => c === '休' ? 's-off' : c === 'A' ? 's-A' : c === 'B' ? 's-B' : c === 'AB' ? 's-AB' : c ? 's-X' : 's-none';
 const codeTxt = c => { const d = CODES[c]; if (!d) return '尚未輸入'; return d.e > d.s ? d.n + '　' + fm(d.s) + '–' + fm(d.e) : d.n; };
 
+
+/* ---------- 外觀（自動／淺色／深色），每支手機自己記住 ---------- */
+const THEMES = [['auto', '自動'], ['light', '淺色'], ['dark', '深色']];
+const getTheme = () => { const v = LS.get('ourtwo.theme'); return v === 'light' || v === 'dark' ? v : 'auto'; };
+function applyTheme() {
+  const t = getTheme(), r = document.documentElement;
+  if (t === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', t);
+  const dark = t === 'dark' || (t === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  $$('meta[name="theme-color"]').forEach(m => m.remove());
+  const m = document.createElement('meta'); m.name = 'theme-color'; m.content = dark ? '#2E282F' : '#FFF9F5'; document.head.appendChild(m);
+}
+
 /* ---------- 狀態 ---------- */
 let FID = LS.get('ourtwo.fid');
 const S = { me: LS.get('ourtwo.me') === '老婆' ? '老婆' : '老公', shifts: {}, events: [], memos: [], notes: [], love: [], board: [], period: null };
@@ -236,7 +248,8 @@ function renderHome() {
       (last ? noteView(last) + '<p class="muted" style="font-size:13px">' + fmtTs(last.ts) + '</p>' : '<p class="empty">黑板還是空的</p>') + '</button>' +
     '<div class="card"><div class="row"><h3>還沒做的清單</h3><button class="btn ghost small" data-act="tab" data-v="memo">備忘</button></div>' +
       (open.length ? '<ul class="list">' + open.slice(0, 3).map(m => '<li class="todo"><span class="tx">' + esc(m.text) + '</span>' + byChip(m.by) + '</li>').join('') + '</ul>' : '<p class="empty">全部都做完了</p>') + '</div>' +
-    '<div class="card"><div class="row"><span class="muted">這支手機是 ' + esc(S.me) + ' 在用</span><button class="btn ghost small" data-act="logout">換暗號／登出</button></div></div>';
+    '<div class="card"><div class="row wrap"><span class="muted">外觀</span><div class="seg" role="group" aria-label="外觀">' + THEMES.map(t => '<button data-act="theme" data-v="' + t[0] + '" aria-pressed="' + (getTheme() === t[0]) + '">' + t[1] + '</button>').join('') + '</div></div>' +
+      '<div class="row"><span class="muted">這支手機是 ' + esc(S.me) + ' 在用</span><button class="btn ghost small" data-act="logout">換暗號／登出</button></div></div>';
   paintThumbs($('#home-body'));
 }
 
@@ -484,6 +497,7 @@ const ACT = {
     }
     btn.disabled = false;
   },
+  theme(el) { LS.set('ourtwo.theme', el.dataset.v); applyTheme(); renderHome(); },
   logout(el) {
     if (el.dataset.arm !== '1') { el.dataset.arm = '1'; el.textContent = '再按一次確定登出'; return; }
     LS.del('ourtwo.fid'); location.reload();
@@ -617,6 +631,8 @@ window.addEventListener('offline', setNet);
 
 /* 開始 */
 if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+applyTheme();
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (getTheme() === 'auto') applyTheme(); }); } catch (e) { /* ignore */ }
 boot();
 
 /* 在照片上畫：照片先縮成 800×600、壓成 JPEG 再存，才不會超過 Firestore 單筆資料的大小上限 */
