@@ -88,6 +88,10 @@ let paintMode = false, paintWho = 'her', paintCode = 'A', loginWho = '老公', c
 
 const col = n => collection(db, 'families', FID, n);
 const dref = (n, id) => doc(db, 'families', FID, n, id);
+
+const VAPID_PUB = 'BMmsYwVKIthLmHnioturlTNgKm_8XALobFZE3k8hR1BVU4_SEikCIX4okvBnq2-gOT8DJBJxVPeN5M7uFkts7nQ';
+const b64uToBytes = s => { const p = '='.repeat((4 - s.length % 4) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, c => c.charCodeAt(0)); };
+function notifyState() { try { return 'Notification' in window ? (Notification.permission === 'granted' ? '已開啟' : Notification.permission === 'denied' ? '已被封鎖' : '未開啟') : '請從主畫面圖示開啟'; } catch (e) { return '不支援'; } }
 const wr = p => { Promise.resolve(p).catch(e => toast('儲存失敗：' + (e.code || e.message))); };
 
 function sh(w, k) { const m = S.shifts[k.slice(0, 7)]; return (m && m[w] && m[w][k.slice(8)]) || ''; }
@@ -265,6 +269,7 @@ function renderHome() {
     '<div class="card"><div class="row"><h3>還沒做的清單</h3><button class="btn ghost small" data-act="tab" data-v="memo">備忘</button></div>' +
       (open.length ? '<ul class="list">' + open.slice(0, 3).map(m => '<li class="todo"><span class="tx">' + esc(m.text) + '</span>' + byChip(m.by) + '</li>').join('') + '</ul>' : '<p class="empty">全部都做完了</p>') + '</div>' +
     '<div class="card"><div class="row wrap"><span class="muted">外觀</span><div class="seg" role="group" aria-label="外觀">' + THEMES.map(t => '<button data-act="theme" data-v="' + t[0] + '" aria-pressed="' + (getTheme() === t[0]) + '">' + t[1] + '</button>').join('') + '</div></div>' +
+      '<div class="row wrap"><span class="muted">新留言通知（' + notifyState() + '）</span><span class="row"><button class="btn ghost small" data-act="notifyOn">開啟</button><button class="btn ghost small" data-act="notifyTest">測試</button><button class="btn ghost small" data-act="notifyHelper">小幫手程式</button></span></div>' +
       '<div class="row wrap"><span class="muted">備份（班表、備忘、黑板全部）</span><span class="row"><button class="btn ghost small" data-act="backup">備份</button><button class="btn ghost small" data-act="restore">還原</button></span></div>' +
       '<div class="row"><span class="muted">這支手機是 ' + esc(S.me) + ' 在用</span><button class="btn ghost small" data-act="logout">換暗號／登出</button></div></div>';
   paintThumbs($('#home-body'));
@@ -526,6 +531,33 @@ const ACT = {
     btn.disabled = false;
   },
   theme(el) { LS.set('ourtwo.theme', el.dataset.v); applyTheme(); renderHome(); },
+  async notifyOn() {
+    if (!('Notification' in window) || !('PushManager' in window)) { toast('請從主畫面圖示打開 App（需要 iOS 16.4 以上）'); return; }
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { toast('沒有允許通知，請到 iPhone 設定 > 通知 > Ourtwo 開啟'); return; }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(VAPID_PUB) });
+      await setDoc(dref('push', meKey()), { sub: JSON.stringify(sub), who: S.me, ts: Date.now() });
+      toast('通知已開啟，這支手機會收到另一半的新留言');
+      rerender();
+    } catch (e) { toast('開啟通知失敗：' + (e.message || e.code || e)); }
+  },
+  async notifyTest() {
+    try {
+      if (!('Notification' in window) || Notification.permission !== 'granted') { toast('請先按「開啟」並允許通知'); return; }
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('Ourtwo', { body: '測試成功，通知可以顯示 💌', icon: 'icon-192.png', tag: 'ourtwo-test' });
+    } catch (e) { toast('測試失敗：' + (e.message || e)); }
+  },
+  async notifyHelper() {
+    try {
+      const t = (await (await fetch('push-worker.txt', { cache: 'no-store' })).text()).replace('__FID__', FID);
+      await navigator.clipboard.writeText(t);
+      toast('已複製小幫手程式，可以貼到 Cloudflare');
+    } catch (e) { toast('複製失敗：' + (e.message || e)); }
+  },
   async backup(el) {
     el.disabled = true; toast('備份中…');
     try {
