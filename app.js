@@ -475,7 +475,7 @@ function subBoard() {
 /* 字體：星光小熊貓體。字體檔不放在公開網站，只存在兩人專用的雲端資料夾，第一次下載後存在手機裡。 */
 const FONT_NAME = 'OurtwoPanda', FONT_CACHE = 'ourtwo-font-v1';
 let fontReady = false;
-async function useFontBuf(buf) { const ff = new FontFace(FONT_NAME, buf); await ff.load(); document.fonts.add(ff); fontReady = true; }
+async function useFontBuf(buf) { const ff = new FontFace(FONT_NAME, buf, { sizeAdjust: '140%' }); await ff.load(); document.fonts.add(ff); fontReady = true; }
 async function fontFromCache() {
   try { const c = await caches.open(FONT_CACHE); const r = await c.match('ourtwo-font'); if (r) { await useFontBuf(await r.arrayBuffer()); return true; } } catch (e) { /* ignore */ }
   return false;
