@@ -1089,3 +1089,41 @@ html,body,body *,body *::before,body *::after,body *::placeholder{
  font-family:'Naikai',-apple-system,'PingFang TC','Noto Sans TC',sans-serif!important;
  font-weight:400!important; font-synthesis:none!important;
 }
+
+/* ===== 心情、玩、回今天按鈕：工程先做的基本樣式（沿用美術的顏色變數，美術可以再調） ===== */
+.page-heading .back{align-self:flex-start;margin-bottom:6px;min-height:36px;padding:4px 12px}
+.moods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.moods button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border:1px solid var(--line);border-radius:var(--radius-control);background:transparent;color:var(--muted);font:inherit;font-size:14px;min-height:64px}
+.moods button span{font-size:26px;line-height:1.1}
+.moods button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--fg)}
+.mpadwrap{width:100%;aspect-ratio:4/3;border-radius:var(--radius-control);border:1px solid var(--line);background:#fffaf0;overflow:hidden;touch-action:none}
+.mpadwrap canvas,#mpad{width:100%;height:100%;display:block;touch-action:none}
+.mswatches{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.msw{width:36px;height:36px;border-radius:50%;border:3px solid var(--surface);background:var(--c);box-shadow:0 0 0 1px var(--line);padding:0}
+.msw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent)}
+.mphoto{width:100%;border-radius:var(--radius-control);display:block}
+.mood-entry{display:flex;flex-direction:column;gap:8px}
+.mood-face{font-size:34px;line-height:1}
+.mood-meta{flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mood-did,.mood-text{margin:0;line-height:1.7;overflow-wrap:anywhere;white-space:pre-wrap}
+.mood-did b{color:var(--muted);font-weight:400}
+.mthumb{width:100%;display:block;border-radius:var(--radius-control);background:#fffaf0;border:1px solid var(--line)}
+.daylabel{font-size:17px;margin:4px 2px}
+.play-card{display:flex;flex-direction:column;gap:12px}
+.wheelwrap{position:relative;width:min(300px,82vw);aspect-ratio:1;margin:4px auto 0}
+#wheel{width:100%;height:100%;border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,.12);will-change:transform}
+.wheel-pin{position:absolute;left:50%;top:-14px;transform:translateX(-50%);font-size:26px;color:var(--accent);z-index:1;line-height:1}
+.wheel-result{text-align:center;font-size:20px;margin:0}
+.wheel-result b{color:var(--accent)}
+.truth-card{min-height:120px;display:grid;place-items:center;text-align:center;padding:18px;border-radius:var(--radius-card);background:var(--paper-note);color:var(--fg);font-size:20px;line-height:1.6}
+.quiz-q{font-size:20px;margin:0;text-align:center}
+.quiz-opts,.rps-opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.rps-opts{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rps-opts button{display:flex;flex-direction:column;align-items:center;gap:2px}
+.rps-opts button span{font-size:30px}
+.quiz-res{text-align:center;font-size:20px;margin:0;color:var(--accent)}
+.rps-show{text-align:center;font-size:30px;margin:0}
+.ttt-status{text-align:center;margin:0;font-size:18px}
+.ttt{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:min(270px,76vw);margin:0 auto}
+.ttt button{aspect-ratio:1;border:1px solid var(--line);border-radius:var(--radius-control);background:var(--surface);font-size:38px;padding:0;color:inherit}
+.ttt button:disabled{opacity:1}

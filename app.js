@@ -77,7 +77,7 @@ function applyTheme() {
 
 /* ---------- 狀態 ---------- */
 let FID = LS.get('ourtwo.fid');
-const S = { me: LS.get('ourtwo.me') === '老婆' ? '老婆' : '老公', shifts: {}, events: [], memos: [], notes: [], love: [], board: [], period: null };
+const S = { me: LS.get('ourtwo.me') === '老婆' ? '老婆' : '老公', shifts: {}, events: [], memos: [], notes: [], love: [], board: [], mood: [], play: {}, period: null };
 const meKey = () => S.me === '老公' ? 'him' : 'her';
 let booted = false, synced = false, unsubs = [];
 let curTab = 'home', calY, calM, calSel = TODAY, perY, perM, memoMode = 'todo';
@@ -261,6 +261,7 @@ function renderHome() {
   $('#home-body').innerHTML =
     '<div><h2>' + esc(S.me) + '，' + hello + '</h2><p class="muted">' + md(t) + ' 週' + WD[t.getDay()] + '</p></div>' +
     '<div class="card"><div class="row"><h3>今天的班表</h3><button class="btn ghost small" data-act="tab" data-v="cal">看整個月</button></div>' + shiftRows(TODAY, false) + togetherHtml(TODAY) + '</div>' +
+    homeMoodCard() +
     '<div class="card"><div class="row"><h3>今天的行程</h3></div>' +
       (evs.length ? '<ul class="list">' + evs.map(evRow).join('') + '</ul>' : '<p class="empty">今天沒有行程</p>') + '</div>' +
     periodCard +
@@ -270,7 +271,7 @@ function renderHome() {
       (open.length ? '<ul class="list">' + open.slice(0, 3).map(m => '<li class="todo"><span class="tx">' + esc(m.text) + '</span>' + byChip(m.by) + '</li>').join('') + '</ul>' : '<p class="empty">全部都做完了</p>') + '</div>' +
     '<div class="card"><div class="row wrap"><span class="muted">外觀</span><div class="seg" role="group" aria-label="外觀">' + THEMES.map(t => '<button data-act="theme" data-v="' + t[0] + '" aria-pressed="' + (getTheme() === t[0]) + '">' + t[1] + '</button>').join('') + '</div></div>' +
       '<div class="row wrap"><span class="muted">新留言通知（' + notifyState() + '）</span><span class="row"><button class="btn ghost small" data-act="notifyOn">開啟</button><button class="btn ghost small" data-act="notifyTest">測試</button></span></div>' +
-      '<div class="row wrap"><span class="muted">備份（班表、備忘、黑板全部）</span><span class="row"><button class="btn ghost small" data-act="backup">備份</button><button class="btn ghost small" data-act="restore">還原</button></span></div>' +
+      '<div class="row wrap"><span class="muted">備份（班表、心情、黑板等全部）</span><span class="row"><button class="btn ghost small" data-act="backup">備份</button><button class="btn ghost small" data-act="restore">還原</button></span></div>' +
       '<div class="row"><span class="muted">這支手機是 ' + esc(S.me) + ' 在用</span><button class="btn ghost small" data-act="logout">換暗號／登出</button></div></div>';
   paintThumbs($('#home-body'));
 }
@@ -484,11 +485,13 @@ function startSync() {
   unsubs.push(listItems('notes', 'notes', () => S.notes.sort((a, b) => (b.ts || 0) - (a.ts || 0))));
   unsubs.push(listItems('love', 'love'));
   subBoard();
+  subMood();
+  unsubs.push(subPlay());
   cleanupOldFont();
   unsubs.push(onSnapshot(dref('settings', 'period'), snap => { S.period = snap.exists() ? snap.data() : null; rerender(); }, syncErr));
   synced = true;
 }
-function stopSync() { if (boardUnsub) { try { boardUnsub(); } catch (e) { /* ignore */ } boardUnsub = null; } unsubs.forEach(u => { try { u(); } catch (e) { /* ignore */ } }); unsubs = []; synced = false; }
+function stopSync() { if (moodUnsub) { try { moodUnsub(); } catch (e) { /* ignore */ } moodUnsub = null; } if (boardUnsub) { try { boardUnsub(); } catch (e) { /* ignore */ } boardUnsub = null; } unsubs.forEach(u => { try { u(); } catch (e) { /* ignore */ } }); unsubs = []; synced = false; }
 
 function ensureAuth() {
   return new Promise((resolve, reject) => {
@@ -576,7 +579,7 @@ const ACT = {
     try {
       const out = { app: 'ourtwo', version: 1, exported: new Date().toISOString(), data: {} };
       let n = 0;
-      for (const c of ['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board']) {
+      for (const c of ['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play']) {
         const snap = await getDocs(col(c)); out.data[c] = {};
         snap.forEach(d => { out.data[c][d.id] = d.data(); n++; });
       }
@@ -601,7 +604,7 @@ const ACT = {
         let n = 0; Object.keys(j.data).forEach(c => { n += Object.keys(j.data[c]).length; });
         if (!confirm('要把備份裡的 ' + n + ' 筆資料放回去嗎？\n同編號的資料會被備份內容蓋過，其他資料不會被刪除。')) return;
         for (const c of Object.keys(j.data)) {
-          if (!['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board'].includes(c)) continue;
+          if (!['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play'].includes(c)) continue;
           for (const id of Object.keys(j.data[c])) await setDoc(dref(c, id), j.data[c][id]);
         }
         toast('已還原 ' + n + ' 筆');
@@ -772,7 +775,262 @@ function upPtr(e) {
 padEl.addEventListener('pointerup', upPtr);
 padEl.addEventListener('pointercancel', e => { if (ptrs.size <= 1) cur = null; upPtr(e); });
 ['gesturestart', 'gesturechange'].forEach(n => padEl.addEventListener(n, e => e.preventDefault()));
-window.addEventListener('resize', () => { if (booted && (curTab === 'board' || curTab === 'home')) RENDER[curTab](); });
+window.addEventListener('resize', () => { if (booted && ['board', 'home', 'mood', 'play'].includes(curTab)) RENDER[curTab](); });
+/* ---------- 心情筆記 ---------- */
+/* 一人一天一篇，文件編號是「日期_him／her」。兩人互看，可以按愛心回應。手繪小圖跟黑板用同一套畫法。 */
+const MOODS = [['happy', '😄', '開心'], ['love', '🥰', '幸福'], ['calm', '😌', '平靜'], ['tired', '😴', '好累'], ['sad', '😢', '難過'], ['angry', '😠', '生氣'], ['sick', '🤒', '不舒服'], ['stress', '🤯', '壓力大']];
+const MOOD_OF = Object.fromEntries(MOODS.map(m => [m[0], m]));
+const MINK = ['#4a3f45', '#e76f6f', '#f4a3b5', '#f6a04d', '#e9c24a', '#7cbf6e', '#5aa9e6', '#a57fd9'];
+let moodLimit = 40, moodUnsub = null;
+let mDate = TODAY, mMood = '', mDraft = [], mCur = null, mInk = MINK[0], mPhoto = '', mPA = 4 / 3, mLoaded = '';
+const moodId = (d, mk) => d + '_' + mk;
+function subMood() {
+  if (moodUnsub) { try { moodUnsub(); } catch (e) { /* ignore */ } }
+  moodUnsub = onSnapshot(query(col('mood'), orderBy('d', 'desc'), limit(moodLimit)), snap => {
+    S.mood = snap.docs.map(d => {
+      const v = d.data(); let strokes = [];
+      try { strokes = JSON.parse(v.strokesJson || '[]'); } catch (e) { strokes = []; }
+      return { id: d.id, by: v.by, d: v.d, ts: v.ts || 0, mood: v.mood || '', did: v.did || '', text: v.text || '', strokes, photo: v.photo || '', pa: v.pa || 4 / 3, react: v.react || {} };
+    });
+    rerender();
+  }, syncErr);
+}
+/* 把自己那天寫過的內容放進編輯區（只在換日期或第一次進來時，避免打字打到一半被蓋掉） */
+function loadMoodEditor(force) {
+  const key = moodId(mDate, meKey());
+  if (!force && mLoaded === key) return;
+  const e = S.mood.find(x => x.id === key);
+  mMood = e ? e.mood : ''; mDraft = e ? e.strokes.slice() : []; mPhoto = e ? e.photo : ''; mPA = e ? e.pa : 4 / 3;
+  $('#mood-did').value = e ? e.did : ''; $('#mood-text').value = e ? e.text : '';
+  mLoaded = key;
+}
+function paintM() {
+  $('#mpad').parentElement.style.aspectRatio = '4 / 3';
+  paint($('#mpad'), mCur ? mDraft.concat([mCur]) : mDraft, '', 'mpad');
+  const img = $('#mphoto-prev'); img.hidden = !mPhoto; if (mPhoto) img.src = mPhoto;
+  $('#mphoto-clear').hidden = !mPhoto;
+}
+function moodCard(e) {
+  const m = MOOD_OF[e.mood], mine = e.by === S.me, other = e.by === '老公' ? 'her' : 'him';
+  const heart = e.react[mine ? other : meKey()];
+  return '<article class="card mood-entry">' +
+    '<div class="row"><span class="mood-face">' + (m ? m[1] : '📝') + '</span><span class="mood-meta">' + byChip(e.by) + (m ? ' <span class="muted">' + m[2] + '</span>' : '') + '</span>' +
+      (mine ? '<button class="btn ghost small" data-act="mEdit" data-d="' + e.d + '">編輯</button>' : '<button class="btn ghost small rx" data-act="mHeart" data-id="' + e.id + '" aria-pressed="' + (!!heart) + '">' + (heart ? '❤️' : '🤍') + '</button>') + '</div>' +
+    (e.did ? '<p class="mood-did"><b>做了什麼</b>　' + esc(e.did) + '</p>' : '') +
+    (e.text ? '<p class="mood-text">' + esc(e.text) + '</p>' : '') +
+    (e.strokes.length ? '<canvas class="mthumb" data-mid="' + e.id + '" style="aspect-ratio:4/3"></canvas>' : '') +
+    (e.photo ? '<img class="mphoto" src="' + e.photo + '" alt="照片" loading="lazy">' : '') +
+    (mine && heart ? '<p class="muted" style="font-size:13px">' + (e.by === '老公' ? '老婆' : '老公') + ' 按了 ❤️</p>' : '') +
+    '</article>';
+}
+function renderMood() {
+  if (!$('#moods').childElementCount) $('#moods').innerHTML = MOODS.map(m => '<button data-act="mMood" data-v="' + m[0] + '" aria-pressed="false"><span>' + m[1] + '</span>' + m[2] + '</button>').join('');
+  if (!$('#mswatches').childElementCount) $('#mswatches').innerHTML = MINK.map((c, i) => '<button class="msw" data-act="mInk" data-c="' + c + '" style="--c:' + c + '" aria-pressed="' + (i === 0) + '" aria-label="顏色"></button>').join('');
+  loadMoodEditor(false);
+  $$('#moods button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === mMood)));
+  $('#mood-title').textContent = mDate === TODAY ? '今天的心情' : md(parse(mDate)) + ' 的心情';
+  $('#mood-today').hidden = mDate === TODAY;
+  paintM();
+  const days = [];
+  S.mood.forEach(e => { let g = days.find(x => x.d === e.d); if (!g) { g = { d: e.d, list: [] }; days.push(g); } g.list.push(e); });
+  $('#mood-feed').innerHTML = days.length ? days.map(g => {
+    const dt = parse(g.d);
+    return '<div class="daygroup"><h3 class="daylabel">' + (g.d === TODAY ? '今天' : md(dt)) + ' 週' + WD[dt.getDay()] + '</h3>' + g.list.sort((a, b) => a.by === S.me ? -1 : b.by === S.me ? 1 : 0).map(moodCard).join('') + '</div>';
+  }).join('') + (S.mood.length >= moodLimit ? '<button class="btn ghost" data-act="mMore">看更早的</button>' : '') : '<p class="empty">還沒有心情筆記，寫下今天的第一篇吧</p>';
+  $$('canvas[data-mid]', $('#mood-feed')).forEach(cv => { const e = S.mood.find(x => x.id === cv.dataset.mid); if (e) paint(cv, e.strokes, '', e.id); });
+}
+function homeMoodCard() {
+  const mine = S.mood.find(x => x.id === moodId(TODAY, meKey())), theirs = S.mood.find(x => x.id === moodId(TODAY, meKey() === 'him' ? 'her' : 'him'));
+  const face = e => e && MOOD_OF[e.mood] ? MOOD_OF[e.mood][1] + ' ' + MOOD_OF[e.mood][2] : (e ? '📝 寫好了' : '還沒寫');
+  return '<button class="card tap" data-act="tab" data-v="mood" style="font:inherit;color:inherit"><div class="row"><h3>今天的心情</h3></div>' +
+    '<div class="row"><span>' + byChip('老公') + ' ' + face(S.me === '老公' ? mine : theirs) + '</span><span>' + byChip('老婆') + ' ' + face(S.me === '老婆' ? mine : theirs) + '</span></div></button>';
+}
+
+/* ---------- 玩 ---------- */
+const EAT = ['便當', '拉麵', '火鍋', '滷肉飯', '牛肉麵', '壽司', '麥當勞', '義大利麵', '炒飯', '鍋燒意麵', '韓式料理', '咖哩飯'];
+const DRINK = ['珍珠奶茶', '紅茶拿鐵', '四季春', '美式咖啡', '多多綠', '冬瓜檸檬', '水果茶', '奶蓋紅茶', '楊枝甘露', '烏龍鮮奶'];
+const WCOL = ['#f4b6c2', '#f9d98a', '#a9d4f0', '#b9e0ae', '#f7c08f', '#d3bdf0', '#f3a6a6', '#9fd8cf'];
+const TRUTH = ['第一次見到我的時候，你心裡在想什麼？', '我做過最讓你心動的一件小事是什麼？', '你最喜歡我身上的哪個地方？', '如果明天放假一整天，你最想跟我做什麼？', '我哪個習慣你其實偷偷覺得很可愛？', '最近一次被我惹生氣是什麼時候？', '你覺得我們最像的地方是什麼？', '你最想跟我一起去的國家是哪裡？', '如果可以回到過去，你想重來我們的哪一天？', '我做的哪道菜（或買的哪樣東西）你最喜歡？', '你覺得十年後的我們會在做什麼？', '你最想對我說，但一直沒說出口的話？', '我們吵架時，你最希望我怎麼做？', '你覺得我最近壓力大的原因是什麼？', '你記得我們第一次約會吃了什麼嗎？', '用三個詞形容我。', '你最喜歡我們的哪張合照？為什麼？', '最近有什麼事讓你覺得「還好有你」？', '你小時候的夢想是什麼？', '如果我變成一隻動物，你覺得會是什麼？', '你最想跟我一起完成的一件事？', '你覺得我們家最需要添購的東西是什麼？', '今天上班最累的瞬間是什麼時候？', '如果只能選一樣，你選消夜還是早餐約會？', '我讓你覺得最安心的是什麼時候？', '你覺得我最近有哪裡變了？', '有什麼小事是你希望我多做一點的？', '最想收到我送的什麼禮物？', '週末早上，你理想的起床方式是？', '說一件今天想謝謝我的事。'];
+const QUIZ = [['週末最想怎麼過？', ['在家耍廢', '出去走走', '吃大餐', '睡到自然醒']], ['消夜首選？', ['鹹酥雞', '泡麵', '滷味', '不吃消夜']], ['旅行比較想去？', ['日本', '韓國', '海島', '台灣環島']], ['吵架後誰會先道歉？', ['老公', '老婆', '看情況', '都不會']], ['家裡誰比較會花錢？', ['老公', '老婆', '一樣', '都很省']], ['下雨天最適合？', ['看電影', '睡覺', '吃火鍋', '打電動']], ['理想的約會時間？', ['早上', '下午', '晚上', '半夜']], ['比較喜歡的寵物？', ['貓', '狗', '兔子', '都不要']], ['最常一起吃的？', ['火鍋', '拉麵', '便當', '燒肉']], ['生日最想收到？', ['驚喜派對', '一封手寫信', '想要很久的東西', '一起去旅行']], ['誰比較會賴床？', ['老公', '老婆', '一樣', '都不會']], ['誰比較會記仇？', ['老公', '老婆', '一樣', '都不會']], ['放假第一件事？', ['補眠', '追劇', '出門吃', '打掃']], ['最想一起學的？', ['煮飯', '游泳', '跳舞', '外語']], ['家裡誰負責找東西？', ['老公', '老婆', '一起找', '找不到就算了']], ['最喜歡的季節？', ['春天', '夏天', '秋天', '冬天']], ['手搖飲的甜度？', ['全糖', '半糖', '微糖', '無糖']], ['誰比較怕黑？', ['老公', '老婆', '一樣', '都不怕']], ['理想的家？', ['市區公寓', '郊區透天', '海邊小屋', '鄉下農舍']], ['一起看電影選？', ['喜劇', '恐怖片', '愛情片', '動畫']]];
+const RPS = [['rock', '✊', '石頭'], ['scissors', '✌️', '剪刀'], ['paper', '🖐️', '布']];
+const MARK = { him: '🐻', her: '🐰' };
+let playKind = 'eat', wheelRot = 0, wheelSpin = false, wheelResult = '', truthIdx = -1;
+const otherKey = mk => mk === 'him' ? 'her' : 'him';
+const PL = k => (S.play && S.play[k]) || null;
+function wheelList() { const w = PL('wheel') || {}; const l = w[playKind]; return (l && l.length ? l : (playKind === 'eat' ? EAT : DRINK)).slice(0, 24); }
+function drawWheel() {
+  const cv = $('#wheel'); if (!cv) return;
+  const list = wheelList(), r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, w = Math.round(r.width);
+  if (!w) return;
+  cv.width = w * dpr; cv.height = w * dpr;
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const c = w / 2, R = c - 4, seg = Math.PI * 2 / list.length;
+  list.forEach((t, i) => {
+    const a0 = -Math.PI / 2 + i * seg;
+    g.beginPath(); g.moveTo(c, c); g.arc(c, c, R, a0, a0 + seg); g.closePath();
+    g.fillStyle = WCOL[i % WCOL.length]; g.fill(); g.strokeStyle = '#fffaf3'; g.lineWidth = 2; g.stroke();
+    g.save(); g.translate(c, c); g.rotate(a0 + seg / 2); g.textAlign = 'right'; g.textBaseline = 'middle';
+    g.fillStyle = '#4a3f45'; g.font = Math.max(11, Math.min(17, R * 0.12)) + 'px Naikai, sans-serif';
+    g.fillText(t.length > 6 ? t.slice(0, 6) + '…' : t, R - 10, 0); g.restore();
+  });
+  g.beginPath(); g.arc(c, c, R * 0.12, 0, Math.PI * 2); g.fillStyle = '#fffaf3'; g.fill();
+  cv.style.transform = 'rotate(' + wheelRot + 'deg)';
+}
+function wheelHtml() {
+  return '<div class="card play-card"><div class="row"><h3>今天' + (playKind === 'eat' ? '吃' : '喝') + '什麼？</h3><div class="seg" role="group" aria-label="輪盤"><button data-act="wKind" data-v="eat" aria-pressed="' + (playKind === 'eat') + '">吃</button><button data-act="wKind" data-v="drink" aria-pressed="' + (playKind === 'drink') + '">喝</button></div></div>' +
+    '<div class="wheelwrap"><div class="wheel-pin">▼</div><canvas id="wheel"></canvas></div>' +
+    '<p class="wheel-result" id="wheel-result">' + (wheelResult ? '就決定是：<b>' + esc(wheelResult) + '</b>！' : '按下面的按鈕轉轉看') + '</p>' +
+    '<div class="row"><button class="btn" data-act="wSpin">轉！</button><button class="btn ghost small" data-act="wEdit">編輯選項</button></div></div>';
+}
+function truthHtml() {
+  return '<div class="card play-card"><div class="row"><h3>真心話小卡</h3><span class="muted">輪流回答</span></div>' +
+    '<div class="truth-card">' + (truthIdx < 0 ? '抽一張卡，看看今天要回答什麼' : esc(TRUTH[truthIdx])) + '</div>' +
+    '<button class="btn" data-act="tDraw">' + (truthIdx < 0 ? '抽一張' : '換一張') + '</button></div>';
+}
+function quizHtml() {
+  const z = PL('quiz'), mk = meKey(), ok = otherKey(mk), sc = (z && z.score) || {};
+  let body;
+  if (!z || z.i == null) body = '<p class="muted">兩個人各自作答，看答案一不一樣。</p><button class="btn" data-act="qNew">出題</button>';
+  else {
+    const q = QUIZ[z.i] || QUIZ[0], a = z.a || {}, mine = a[mk], theirs = a[ok], both = mine != null && theirs != null;
+    body = '<p class="quiz-q">' + esc(q[0]) + '</p>';
+    if (mine == null) body += '<div class="quiz-opts">' + q[1].map((o, i) => '<button class="btn ghost" data-act="qAns" data-v="' + i + '">' + esc(o) + '</button>').join('') + '</div>' + (theirs != null ? '<p class="muted">' + WHO[ok] + ' 已經作答了，換你</p>' : '');
+    else if (!both) body += '<p class="muted">你選了「' + esc(q[1][mine]) + '」，等 ' + WHO[ok] + ' 作答…</p>';
+    else body += '<p>' + chip('him') + ' ' + esc(q[1][a.him]) + '　' + chip('her') + ' ' + esc(q[1][a.her]) + '</p><p class="quiz-res">' + (a.him === a.her ? '心有靈犀！💞' : '差一點點…再來一題') + '</p><button class="btn" data-act="qNew">下一題</button>';
+  }
+  return '<div class="card play-card"><div class="row"><h3>默契大考驗</h3><span class="muted">' + (sc.t ? '默契 ' + (sc.m || 0) + ' / ' + sc.t : '') + '</span></div>' + body + '</div>';
+}
+function tttWin(b) {
+  const L = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  for (const l of L) if (b[l[0]] !== '.' && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) return b[l[0]] === 'h' ? 'him' : 'her';
+  return b.includes('.') ? '' : 'draw';
+}
+function tttHtml() {
+  const t = PL('ttt'), mk = meKey(), sc = (t && t.sc) || {};
+  let body;
+  if (!t || !t.b) body = '<p class="muted">' + MARK.him + ' 老公 vs ' + MARK.her + ' 老婆，兩支手機輪流下。</p><button class="btn" data-act="tttNew">開一局</button>';
+  else {
+    const st = t.w ? (t.w === 'draw' ? '平手！' : WHO[t.w] + ' 贏了！🎉') : (t.turn === mk ? '輪到你下' : '等 ' + WHO[t.turn] + ' 下…');
+    body = '<p class="ttt-status">' + st + '</p><div class="ttt">' + t.b.split('').map((c, i) => '<button data-act="tttMove" data-i="' + i + '"' + (c !== '.' || t.w || t.turn !== mk ? ' disabled' : '') + '>' + (c === 'h' ? MARK.him : c === 'w' ? MARK.her : '') + '</button>').join('') + '</div>' +
+      (t.w ? '<button class="btn" data-act="tttNew">再來一局</button>' : '');
+  }
+  return '<div class="card play-card"><div class="row"><h3>井字遊戲</h3><span class="muted">' + (t ? MARK.him + ' ' + (sc.him || 0) + '：' + (sc.her || 0) + ' ' + MARK.her + (sc.draw ? '（平手 ' + sc.draw + '）' : '') : '') + '</span></div>' + body + '</div>';
+}
+function rpsResult(a, b) { if (a === b) return 'draw'; return (a === 'rock' && b === 'scissors') || (a === 'scissors' && b === 'paper') || (a === 'paper' && b === 'rock') ? 'him' : 'her'; }
+function rpsHtml() {
+  const p = PL('rps'), mk = meKey(), ok = otherKey(mk), c = (p && p.c) || {}, sc = (p && p.sc) || {};
+  const R = Object.fromEntries(RPS.map(x => [x[0], x]));
+  let body;
+  if (c[mk] && c[ok]) {
+    const w = rpsResult(c.him, c.her);
+    body = '<p class="rps-show">' + MARK.him + ' ' + R[c.him][1] + '　vs　' + R[c.her][1] + ' ' + MARK.her + '</p><p class="quiz-res">' + (w === 'draw' ? '平手！' : WHO[w] + ' 贏了！') + '</p><button class="btn" data-act="rpsAgain">再來</button>';
+  } else if (c[mk]) body = '<p class="muted">你出了 ' + R[c[mk]][1] + '，等 ' + WHO[ok] + ' 出拳…</p>';
+  else body = '<div class="rps-opts">' + RPS.map(x => '<button class="btn ghost" data-act="rpsPick" data-v="' + x[0] + '"><span>' + x[1] + '</span>' + x[2] + '</button>').join('') + '</div>' + (c[ok] ? '<p class="muted">' + WHO[ok] + ' 已經出好了</p>' : '');
+  return '<div class="card play-card"><div class="row"><h3>剪刀石頭布</h3><span class="muted">' + (p ? MARK.him + ' ' + (sc.him || 0) + '：' + (sc.her || 0) + ' ' + MARK.her : '') + '</span></div>' + body + '</div>';
+}
+function renderPlay() {
+  const root = $('#play-body');
+  if (!root.childElementCount) root.innerHTML = ['wheel', 'truth', 'quiz', 'ttt', 'rps'].map(k => '<div id="pw-' + k + '"></div>').join('');
+  if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
+  $('#pw-truth').innerHTML = truthHtml();
+  $('#pw-quiz').innerHTML = quizHtml();
+  $('#pw-ttt').innerHTML = tttHtml();
+  $('#pw-rps').innerHTML = rpsHtml();
+}
+function subPlay() {
+  return onSnapshot(col('play'), snap => { const o = {}; snap.forEach(d => { o[d.id] = d.data(); }); S.play = o; rerender(); }, syncErr);
+}
+
+Object.assign(ACT, {
+  mMood(el) { mMood = mMood === el.dataset.v ? '' : el.dataset.v; $$('#moods button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === mMood))); },
+  mInk(el) { mInk = el.dataset.c; $$('.msw').forEach(b => b.setAttribute('aria-pressed', String(b === el))); },
+  mUndo() { mDraft.pop(); paintM(); },
+  mClear() { mDraft = []; paintM(); },
+  mPhotoPick() { $('#mphoto').click(); },
+  mPhotoClear() { mPhoto = ''; paintM(); },
+  mToday() { mDate = TODAY; loadMoodEditor(true); renderMood(); },
+  mEdit(el) { mDate = el.dataset.d; loadMoodEditor(true); renderMood(); window.scrollTo(0, 0); },
+  mMore() { moodLimit += 40; subMood(); },
+  mHeart(el) {
+    const e = S.mood.find(x => x.id === el.dataset.id); if (!e) return;
+    const k = 'react.' + meKey();
+    wr(updateDoc(dref('mood', e.id), { [k]: e.react[meKey()] ? deleteField() : '❤️' }));
+  },
+  mSave() {
+    const did = $('#mood-did').value.trim(), text = $('#mood-text').value.trim();
+    if (!mMood && !did && !text && !mDraft.length && !mPhoto) { toast('先選個心情或寫點什麼'); return; }
+    const json = JSON.stringify(mDraft);
+    if (json.length + mPhoto.length > 900000) { toast('圖畫得太滿了，請擦掉一些'); return; }
+    wr(setDoc(dref('mood', moodId(mDate, meKey())), { by: S.me, d: mDate, ts: Date.now(), mood: mMood, did, text, strokesJson: json, photo: mPhoto || deleteField(), pa: mPA }, { merge: true }));
+    toast('存好了');
+  },
+  wKind(el) { if (wheelSpin) return; playKind = el.dataset.v; wheelResult = ''; renderPlay(); },
+  wSpin() {
+    if (wheelSpin) return;
+    const list = wheelList(), n = list.length, seg = 360 / n, i = Math.floor(Math.random() * n);
+    const target = Math.ceil(wheelRot / 360) * 360 + 360 * 5 + (360 - (i + 0.5) * seg) + (Math.random() - 0.5) * seg * 0.6;
+    wheelSpin = true; wheelResult = '';
+    const cv = $('#wheel'); $('#wheel-result').textContent = '轉轉轉…';
+    cv.style.transition = 'transform 4s cubic-bezier(.15,.75,.2,1)';
+    requestAnimationFrame(() => { wheelRot = target; cv.style.transform = 'rotate(' + wheelRot + 'deg)'; });
+    setTimeout(() => { wheelSpin = false; wheelResult = list[i]; cv.style.transition = ''; renderPlay(); }, 4100);
+  },
+  wEdit() {
+    openSheet('<h3>' + (playKind === 'eat' ? '吃什麼' : '喝什麼') + '的選項</h3><p class="muted">一行一個，最多 24 個。兩支手機會共用同一份。</p>' +
+      '<textarea id="wheel-ta" rows="10" style="width:100%">' + esc(wheelList().join('\n')) + '</textarea>' +
+      '<div class="actions"><button class="btn ghost" data-act="wReset">恢復預設</button><button class="btn ghost" data-act="close">取消</button><button class="btn" data-act="wSave">存起來</button></div>');
+  },
+  wSave() {
+    const l = $('#wheel-ta').value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 24);
+    if (l.length < 2) { toast('至少要兩個選項'); return; }
+    wr(setDoc(dref('play', 'wheel'), { [playKind]: l }, { merge: true })); wheelResult = ''; closeSheet(); toast('選項存好了');
+  },
+  wReset() { wr(setDoc(dref('play', 'wheel'), { [playKind]: deleteField() }, { merge: true })); wheelResult = ''; closeSheet(); toast('已恢復預設'); },
+  tDraw() { let n; do { n = Math.floor(Math.random() * TRUTH.length); } while (n === truthIdx && TRUTH.length > 1); truthIdx = n; renderPlay(); },
+  qNew() {
+    const z = PL('quiz'); let n; do { n = Math.floor(Math.random() * QUIZ.length); } while (z && n === z.i && QUIZ.length > 1);
+    if (z) wr(updateDoc(dref('play', 'quiz'), { i: n, 'a.him': deleteField(), 'a.her': deleteField() }));
+    else wr(setDoc(dref('play', 'quiz'), { i: n, a: {}, score: { m: 0, t: 0 } }));
+  },
+  qAns(el) {
+    const z = PL('quiz'); if (!z) return;
+    const mk = meKey(), v = Number(el.dataset.v), o = (z.a || {})[otherKey(mk)], patch = { ['a.' + mk]: v };
+    if (o != null) { const sc = z.score || {}; patch['score.t'] = (sc.t || 0) + 1; patch['score.m'] = (sc.m || 0) + (o === v ? 1 : 0); }
+    wr(updateDoc(dref('play', 'quiz'), patch));
+  },
+  tttNew() {
+    const t = PL('ttt'), st = t && t.st ? otherKey(t.st) : 'her';
+    wr(setDoc(dref('play', 'ttt'), { b: '.........', st, turn: st, w: '' }, { merge: true }));
+  },
+  tttMove(el) {
+    const t = PL('ttt'), mk = meKey(), i = Number(el.dataset.i);
+    if (!t || t.w || t.turn !== mk || t.b[i] !== '.') return;
+    const b = t.b.slice(0, i) + (mk === 'him' ? 'h' : 'w') + t.b.slice(i + 1), w = tttWin(b), patch = { b, turn: otherKey(mk), w };
+    if (w) patch['sc.' + w] = ((t.sc || {})[w] || 0) + 1;
+    wr(updateDoc(dref('play', 'ttt'), patch));
+  },
+  rpsPick(el) {
+    const p = PL('rps') || {}, mk = meKey(), ok = otherKey(mk), c = p.c || {};
+    if (c[mk]) return;
+    if (!PL('rps')) { wr(setDoc(dref('play', 'rps'), { c: { [mk]: el.dataset.v }, sc: {} })); return; }
+    const patch = { ['c.' + mk]: el.dataset.v };
+    if (c[ok]) { const both = Object.assign({}, c, { [mk]: el.dataset.v }), w = rpsResult(both.him, both.her); patch['sc.' + w] = ((p.sc || {})[w] || 0) + 1; }
+    wr(updateDoc(dref('play', 'rps'), patch));
+  },
+  rpsAgain() { wr(updateDoc(dref('play', 'rps'), { 'c.him': deleteField(), 'c.her': deleteField() })); }
+});
+RENDER.mood = renderMood; RENDER.play = renderPlay;
+
+/* 心情小圖：一根手指畫，不縮放 */
+const mpadEl = $('#mpad');
+function mpt(e) { const r = mpadEl.getBoundingClientRect(); return [Math.round((e.clientX - r.left) / r.width * 1000) / 1000, Math.round((e.clientY - r.top) / r.width * 1000) / 1000]; }
+mpadEl.addEventListener('pointerdown', e => { e.preventDefault(); if (mCur) return; try { mpadEl.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } mCur = { c: mInk, w: 2.2, p: [mpt(e)], k: 'marker', id: e.pointerId }; paintM(); });
+mpadEl.addEventListener('pointermove', e => { if (!mCur || mCur.id !== e.pointerId) return; mCur.p.push(mpt(e)); paintM(); });
+function mEnd(e) { if (!mCur || mCur.id !== e.pointerId) return; const s = mCur; delete s.id; mDraft.push(s); mCur = null; paintM(); }
+mpadEl.addEventListener('pointerup', mEnd);
+mpadEl.addEventListener('pointercancel', e => { if (mCur && mCur.id === e.pointerId) { mCur = null; paintM(); } });
+['gesturestart', 'gesturechange'].forEach(n => mpadEl.addEventListener(n, e => e.preventDefault()));
+
 window.addEventListener('online', () => { setNet(); if (booted && !synced) boot(); });
 window.addEventListener('offline', setNet);
 
@@ -784,9 +1042,7 @@ boot();
 
 /* 在照片上畫：照片保留原本的長寬比（太極端的才會裁一點），縮到最長邊 1000、壓成 JPEG 再存，
    才不會超過 Firestore 單筆資料的大小上限 */
-$('#photo').addEventListener('change', e => {
-  const f = e.target.files && e.target.files[0]; e.target.value = '';
-  if (!f) return;
+function compressPhoto(f, done) {
   const rd = new FileReader();
   rd.onerror = () => toast('這張照片讀不進來');
   rd.onload = () => {
@@ -799,9 +1055,17 @@ $('#photo').addEventListener('change', e => {
       drawCover(c.getContext('2d'), im, W, H);
       let q = 0.78, out = c.toDataURL('image/jpeg', q);
       while (out.length > 480000 && q > 0.3) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
-      draftPhoto = out; draftPA = pa; resetView(); paintPad();
+      done(out, pa);
     };
     im.src = rd.result;
   };
   rd.readAsDataURL(f);
+}
+$('#photo').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if (f) compressPhoto(f, (out, pa) => { draftPhoto = out; draftPA = pa; resetView(); paintPad(); });
+});
+$('#mphoto').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if (f) compressPhoto(f, (out, pa) => { mPhoto = out; mPA = pa; paintM(); });
 });
