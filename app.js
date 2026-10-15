@@ -1038,6 +1038,9 @@ mpadEl.addEventListener('pointercancel', e => { if (mCur && mCur.id === e.pointe
 const FRUITS = [['🍒', 4.4, '#f7c6cf'], ['🍓', 5.8, '#f9b4b4'], ['🍇', 7.4, '#d9c2f0'], ['🍊', 8.8, '#ffd3a1'], ['🍋', 10.4, '#fff0a6'], ['🍎', 12.2, '#ffb8b0'],
   ['🍐', 14.0, '#d9efb0'], ['🍑', 16.0, '#ffd0c2'], ['🍍', 18.2, '#ffe59a'], ['🍈', 20.6, '#cdeec0'], ['🍉', 23.2, '#bfe8b3']];
 const MPTS = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
+/* 水果圖（美術畫的 512×512 透明圖，水果主體約佔中間直徑 490 的圓）；圖還沒載好時先用 emoji 代替 */
+let FIMG = null;
+const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
 const MW = 100, MH = 140, MDANGER = 24, MG = 300;
 let MG_ = null;
 function mergeNew() {
@@ -1099,7 +1102,8 @@ function mDraw(G) {
   g.strokeStyle = G.overT > 0 ? '#e76f6f' : 'rgba(231,111,111,.45)'; g.lineWidth = 0.5; g.setLineDash([2, 2]);
   g.beginPath(); g.moveTo(0, MDANGER); g.lineTo(MW, MDANGER); g.stroke(); g.setLineDash([]);
   const fruit = (x, y, lv, sc) => {
-    const f = FRUITS[lv], rr = f[1] * sc;
+    const f = FRUITS[lv], rr = f[1] * sc, im = fimgs()[lv];
+    if (im.complete && im.naturalWidth) { const d = rr * 2 * 512 / 490; g.drawImage(im, x - d / 2, y - d / 2, d, d); return; }
     g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fillStyle = f[2]; g.fill();
     g.lineWidth = 0.4; g.strokeStyle = 'rgba(74,63,69,.25)'; g.stroke();
     g.font = (rr * 1.25) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
@@ -1115,7 +1119,7 @@ function mDraw(G) {
   for (const p of G.pops) { const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
   g.globalAlpha = 1;
   $('#mg-score').textContent = G.score;
-  $('#mg-next').textContent = FRUITS[G.next][0];
+  const nx = $('#mg-next'); if (nx.dataset.lv !== String(G.next)) { nx.dataset.lv = G.next; nx.innerHTML = '<img src="' + fimgs()[G.next].src + '" alt="' + FRUITS[G.next][0] + '">'; }
 }
 function mLoop(ts) {
   const G = MG_; if (!G) return;
