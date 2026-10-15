@@ -930,7 +930,8 @@ function rpsHtml() {
 }
 function renderPlay() {
   const root = $('#play-body');
-  if (!root.childElementCount) root.innerHTML = ['wheel', 'truth', 'quiz', 'ttt', 'rps'].map(k => '<div id="pw-' + k + '"></div>').join('');
+  if (!root.childElementCount) root.innerHTML = ['merge', 'wheel', 'truth', 'quiz', 'ttt', 'rps'].map(k => '<div id="pw-' + k + '"></div>').join('');
+  $('#pw-merge').innerHTML = mergeCardHtml();
   if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
   $('#pw-truth').innerHTML = truthHtml();
   $('#pw-quiz').innerHTML = quizHtml();
@@ -1030,6 +1031,144 @@ function mEnd(e) { if (!mCur || mCur.id !== e.pointerId) return; const s = mCur;
 mpadEl.addEventListener('pointerup', mEnd);
 mpadEl.addEventListener('pointercancel', e => { if (mCur && mCur.id === e.pointerId) { mCur = null; paintM(); } });
 ['gesturestart', 'gesturechange'].forEach(n => mpadEl.addEventListener(n, e => e.preventDefault()));
+
+/* ---------- 合成大西瓜 ---------- */
+/* 自己寫的小物理：Verlet 積分＋圓形碰撞，世界寬 100、高 140 單位，畫的時候再縮放到螢幕。
+   一樣的水果碰到就合成下一級；兩顆西瓜碰到會一起消失加大分。水果超過紅線太久就結束。 */
+const FRUITS = [['🍒', 4.4, '#f7c6cf'], ['🍓', 5.8, '#f9b4b4'], ['🍇', 7.4, '#d9c2f0'], ['🍊', 8.8, '#ffd3a1'], ['🍋', 10.4, '#fff0a6'], ['🍎', 12.2, '#ffb8b0'],
+  ['🍐', 14.0, '#d9efb0'], ['🍑', 16.0, '#ffd0c2'], ['🍍', 18.2, '#ffe59a'], ['🍈', 20.6, '#cdeec0'], ['🍉', 23.2, '#bfe8b3']];
+const MPTS = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
+const MW = 100, MH = 140, MDANGER = 24, MG = 300;
+let MG_ = null;
+function mergeNew() {
+  return { bodies: [], score: 0, next: Math.floor(Math.random() * 4), cur: Math.floor(Math.random() * 3), aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
+}
+function mAdd(G, x, y, lv) { const r = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, r, lv, born: G.t, dead: false }); }
+function mStep(G, dt) {
+  G.t += dt; G.cool = Math.max(0, G.cool - dt);
+  const sub = 8, h = dt / sub;
+  for (let s = 0; s < sub; s++) {
+    for (const b of G.bodies) {
+      const vx = (b.x - b.px) * 0.995, vy = (b.y - b.py) * 0.995;
+      b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + MG * h * h;
+    }
+    for (let it = 0; it < 2; it++) {
+      const B = G.bodies;
+      for (let i = 0; i < B.length; i++) {
+        const a = B[i]; if (a.dead) continue;
+        for (let j = i + 1; j < B.length; j++) {
+          const c = B[j]; if (c.dead) continue;
+          const dx = c.x - a.x, dy = c.y - a.y, rr = a.r + c.r, d2 = dx * dx + dy * dy;
+          if (d2 >= rr * rr || d2 === 0) continue;
+          if (a.lv === c.lv && !G.over) {
+            a.dead = c.dead = true;
+            const mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2;
+            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1); G.score += MPTS[a.lv + 1]; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + MPTS[a.lv + 1] }); }
+            else { G.score += 100; G.pops.push({ x: mx, y: my, t: G.t, s: '+100 🎉' }); }
+            continue;
+          }
+          const d = Math.sqrt(d2), o = (rr - d) / d * 0.5, ma = a.r * a.r, mc = c.r * c.r, wa = mc / (ma + mc), wc = ma / (ma + mc);
+          a.x -= dx * o * 2 * wa; a.y -= dy * o * 2 * wa; c.x += dx * o * 2 * wc; c.y += dy * o * 2 * wc;
+        }
+      }
+      G.bodies = G.bodies.filter(b => !b.dead);
+      for (const b of G.bodies) {
+        if (b.x < b.r) { b.x = b.r; b.px = b.x + (b.x - b.px) * 0.2; }
+        if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x + (b.x - b.px) * 0.2; }
+        if (b.y > MH - b.r) { b.y = MH - b.r; b.py = b.y + (b.y - b.py) * 0.2; b.px = b.x - (b.x - b.px) * 0.85; }
+      }
+    }
+  }
+  /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 2 秒就結束 */
+  const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER && Math.abs(b.y - b.py) < 0.3);
+  G.overT = high ? G.overT + dt : 0;
+  if (G.overT > 2 && !G.over) { G.over = true; mergeOver(G); }
+  G.pops = G.pops.filter(p => G.t - p.t < 0.9);
+}
+function mDraw(G) {
+  const cv = $('#mg-cv'); if (!cv) return;
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+  const g = cv.getContext('2d'), k = r.width / MW;
+  g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0);
+  g.clearRect(0, 0, MW, MH);
+  g.fillStyle = '#fff7ea'; g.fillRect(0, 0, MW, MH);
+  g.strokeStyle = G.overT > 0 ? '#e76f6f' : 'rgba(231,111,111,.45)'; g.lineWidth = 0.5; g.setLineDash([2, 2]);
+  g.beginPath(); g.moveTo(0, MDANGER); g.lineTo(MW, MDANGER); g.stroke(); g.setLineDash([]);
+  const fruit = (x, y, lv, sc) => {
+    const f = FRUITS[lv], rr = f[1] * sc;
+    g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fillStyle = f[2]; g.fill();
+    g.lineWidth = 0.4; g.strokeStyle = 'rgba(74,63,69,.25)'; g.stroke();
+    g.font = (rr * 1.25) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(f[0], x, y + rr * 0.06);
+  };
+  if (!G.over) {
+    const cr = FRUITS[G.cur][1], ax = Math.min(MW - cr, Math.max(cr, G.aim));
+    g.strokeStyle = 'rgba(74,63,69,.18)'; g.lineWidth = 0.4; g.beginPath(); g.moveTo(ax, 10); g.lineTo(ax, MH); g.stroke();
+    if (G.cool <= 0) fruit(ax, 10, G.cur, 1);
+  }
+  for (const b of G.bodies) { const a = Math.min(1, (G.t - b.born) / 0.15); fruit(b.x, b.y, b.lv, 0.6 + 0.4 * a); }
+  g.textAlign = 'center'; g.font = '6px Naikai, sans-serif';
+  for (const p of G.pops) { const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
+  g.globalAlpha = 1;
+  $('#mg-score').textContent = G.score;
+  $('#mg-next').textContent = FRUITS[G.next][0];
+}
+function mLoop(ts) {
+  const G = MG_; if (!G) return;
+  const dt = Math.min(1 / 30, G.last ? (ts - G.last) / 1000 : 1 / 60); G.last = ts;
+  if (!G.over) mStep(G, dt);
+  mDraw(G);
+  G.raf = requestAnimationFrame(mLoop);
+}
+function mDrop() {
+  const G = MG_; if (!G || G.over || G.cool > 0) return;
+  const cr = FRUITS[G.cur][1], x = Math.min(MW - cr, Math.max(cr, G.aim));
+  mAdd(G, x, 10, G.cur); G.cur = G.next; G.next = Math.floor(Math.random() * 5); G.cool = 0.55;
+}
+function mergeBest() { const m = PL('merge') || {}; return { him: m.him || 0, her: m.her || 0, top: m.top || [] }; }
+function mergeOver(G) {
+  if (G.saved) return; G.saved = true;
+  const mk = meKey(), m = mergeBest(), isBest = G.score > (m[mk] || 0);
+  const top = m.top.concat([{ by: S.me, s: G.score, ts: Date.now() }]).sort((a, b) => b.s - a.s).slice(0, 10);
+  if (G.score > 0) wr(setDoc(dref('play', 'merge'), Object.assign({ top }, isBest ? { [mk]: G.score } : {}), { merge: true }));
+  const box = $('#mg-over');
+  box.innerHTML = '<p class="mg-over-t">遊戲結束</p><p class="mg-over-s">' + G.score + ' 分</p>' + (isBest && G.score > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + (m[mk] || 0) + '</p>') +
+    '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgAgain">再來一局</button><button class="btn ghost" data-act="mgClose">離開</button></div>';
+  box.hidden = false;
+}
+function mergeCardHtml() {
+  const m = mergeBest();
+  return '<div class="card play-card"><div class="row"><h3>合成大西瓜 🍉</h3><span class="muted">' + MARK.him + ' ' + m.him + '　' + MARK.her + ' ' + m.her + '</span></div>' +
+    '<p class="muted">丟水果，一樣的碰在一起會變大，合出西瓜！水果疊過紅線就結束。</p>' +
+    (m.top.length ? '<ol class="mg-top">' + m.top.slice(0, 5).map(t => '<li>' + byChip(t.by) + ' <b>' + t.s + '</b> <span class="muted">' + md(new Date(t.ts)) + '</span></li>').join('') + '</ol>' : '') +
+    '<button class="btn" data-act="mgOpen">開始玩</button></div>';
+}
+function mergeOpen() {
+  let ov = $('#mg');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'mg'; ov.className = 'mg';
+    ov.innerHTML = '<div class="mg-top-bar"><button class="btn ghost small" data-act="mgClose">‹ 離開</button><span class="mg-sc">分數 <b id="mg-score">0</b></span><span class="mg-nx">下一個 <span id="mg-next"></span></span></div>' +
+      '<div class="mg-stage"><canvas id="mg-cv"></canvas><div class="mg-over" id="mg-over" hidden></div></div><p class="mg-tip">手指左右移動對準，放開就丟下去</p>';
+    document.body.appendChild(ov);
+    const cv = $('#mg-cv');
+    const aim = e => { const r = cv.getBoundingClientRect(); if (MG_) MG_.aim = (e.clientX - r.left) / r.width * MW; };
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aim(e); });
+    cv.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') aim(e); });
+    cv.addEventListener('pointerup', e => { aim(e); mDrop(); });
+    ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => e.preventDefault(), { passive: false }));
+  }
+  ov.hidden = false; document.documentElement.classList.add('mg-open');
+  if (MG_) cancelAnimationFrame(MG_.raf);
+  MG_ = mergeNew(); $('#mg-over').hidden = true;
+  MG_.raf = requestAnimationFrame(mLoop);
+}
+function mergeClose() {
+  if (MG_) { cancelAnimationFrame(MG_.raf); if (!MG_.over && MG_.score > 0) { MG_.over = true; mergeOver(MG_); } MG_ = null; }
+  const ov = $('#mg'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
+  if (curTab === 'play') renderPlay();
+}
+Object.assign(ACT, { mgOpen: mergeOpen, mgClose: mergeClose, mgAgain: mergeOpen });
 
 window.addEventListener('online', () => { setNet(); if (booted && !synced) boot(); });
 window.addEventListener('offline', setNet);
