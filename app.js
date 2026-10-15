@@ -1043,13 +1043,15 @@ let MG_ = null;
 function mergeNew() {
   return { bodies: [], score: 0, next: Math.floor(Math.random() * 4), cur: Math.floor(Math.random() * 3), aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
 }
-function mAdd(G, x, y, lv) { const r = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, r, lv, born: G.t, dead: false }); }
+function mAdd(G, x, y, lv, grow) { const R = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, R, r: grow ? R * 0.55 : R, lv, born: G.t, dead: false }); }
 function mStep(G, dt) {
   G.t += dt; G.cool = Math.max(0, G.cool - dt);
   const sub = 8, h = dt / sub;
   for (let s = 0; s < sub; s++) {
     for (const b of G.bodies) {
-      const vx = (b.x - b.px) * 0.995, vy = (b.y - b.py) * 0.995;
+      if (b.r < b.R) b.r = Math.min(b.R, b.r + b.R * h * 4);
+      let vx = (b.x - b.px) * 0.995, vy = (b.y - b.py) * 0.995;
+      const sp = Math.hypot(vx, vy), MAXV = 0.5; if (sp > MAXV) { vx *= MAXV / sp; vy *= MAXV / sp; }
       b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + MG * h * h;
     }
     for (let it = 0; it < 2; it++) {
@@ -1063,7 +1065,7 @@ function mStep(G, dt) {
           if (a.lv === c.lv && !G.over) {
             a.dead = c.dead = true;
             const mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2;
-            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1); G.score += MPTS[a.lv + 1]; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + MPTS[a.lv + 1] }); }
+            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); G.score += MPTS[a.lv + 1]; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + MPTS[a.lv + 1] }); }
             else { G.score += 100; G.pops.push({ x: mx, y: my, t: G.t, s: '+100 🎉' }); }
             continue;
           }
@@ -1075,12 +1077,13 @@ function mStep(G, dt) {
       for (const b of G.bodies) {
         if (b.x < b.r) { b.x = b.r; b.px = b.x + (b.x - b.px) * 0.2; }
         if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x + (b.x - b.px) * 0.2; }
+        if (b.y < -10) { b.y = -10; b.py = Math.max(b.py, b.y); }
         if (b.y > MH - b.r) { b.y = MH - b.r; b.py = b.y + (b.y - b.py) * 0.2; b.px = b.x - (b.x - b.px) * 0.85; }
       }
     }
   }
   /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 2 秒就結束 */
-  const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER && Math.abs(b.y - b.py) < 0.3);
+  const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER && Math.abs(b.y - b.py) < 0.03);
   G.overT = high ? G.overT + dt : 0;
   if (G.overT > 2 && !G.over) { G.over = true; mergeOver(G); }
   G.pops = G.pops.filter(p => G.t - p.t < 0.9);
@@ -1107,7 +1110,7 @@ function mDraw(G) {
     g.strokeStyle = 'rgba(74,63,69,.18)'; g.lineWidth = 0.4; g.beginPath(); g.moveTo(ax, 10); g.lineTo(ax, MH); g.stroke();
     if (G.cool <= 0) fruit(ax, 10, G.cur, 1);
   }
-  for (const b of G.bodies) { const a = Math.min(1, (G.t - b.born) / 0.15); fruit(b.x, b.y, b.lv, 0.6 + 0.4 * a); }
+  for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R);
   g.textAlign = 'center'; g.font = '6px Naikai, sans-serif';
   for (const p of G.pops) { const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
   g.globalAlpha = 1;
