@@ -1177,7 +1177,7 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .g-a{margin:0;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
 .g-date{margin:0;font-size:12px}
 /* 射氣球 */
-.bl-stage{position:relative;flex:none;width:min(100%,calc(100dvh - 240px),520px);aspect-ratio:1;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.15);border:6px solid #b7854f}
+.bl-stage{position:relative;flex:none;width:min(100%,calc(100dvh - 240px),520px);aspect-ratio:1;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.15)}
 #bl-cv{width:100%;height:100%;display:block;touch-action:none}
 .bl-darts{margin:0 0 6px;font-size:20px;letter-spacing:2px;min-height:28px;text-align:center}
 .bl-res{margin:0;font-size:18px}.bl-res b{font-size:22px;color:var(--accent)}
@@ -1229,3 +1229,4 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .k-badge.sm{width:22px;height:22px;vertical-align:middle}
 .k-lastname{font-size:14px;white-space:nowrap}
 .k-header{display:block;width:100%;max-width:360px;margin:-4px auto 0}
+.bl-cp-i{width:26px;height:26px;flex:none}

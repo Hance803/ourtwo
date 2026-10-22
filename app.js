@@ -1253,6 +1253,9 @@ const BCOL = ['#F15E61', '#F39D53', '#EFCB55', '#6BBEA4', '#6DAEE5', '#B283CA'];
 const BRX = 100 / 256, BRY = 110 / 256, BOY = (120 - 128) / 256;
 let BIMG = null;
 const bimgs = () => BIMG || (BIMG = BCOL.map((c, i) => { const im = new Image(); im.src = 'balloon/balloon_' + (i + 1) + '.webp'; return im; }));
+/* 其他美術圖：破掉的氣球、木板、飛鏢（鏢尖在 (32,8)） */
+const BART = {};
+const bart = n => { if (!BART[n]) { const im = new Image(); im.src = 'balloon/' + n + '.webp'; BART[n] = im; } const im = BART[n]; return im.complete && im.naturalWidth ? im : null; };
 /* 直接兌換＝保證拿到但比較貴；想碰運氣就去抽一番賞 */
 const BREWARDS = [['親親', 20], ['抱抱', 20], ['撒嬌一次', 20], ['買飲料', 50], ['洗碗一次', 50], ['按摩 10 分鐘', 50], ['跑腿一次', 120], ['掃地', 120], ['陪看一部電影', 120], ['早餐服務', 120]];
 let BG = null, couponUnsub = null;
@@ -1286,12 +1289,16 @@ function bDraw() {
   if (cv.width !== Math.round(S_ * dpr)) { cv.width = Math.round(S_ * dpr); cv.height = Math.round(S_ * dpr); }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
   const cell = S_ / BN, now = performance.now();
-  g.fillStyle = '#e8c48c'; g.fillRect(0, 0, S_, S_);
+  const bd = bart('board');
+  if (bd) g.drawImage(bd, 0, 0, S_, S_);
+  else { g.fillStyle = '#e8c48c'; g.fillRect(0, 0, S_, S_); }
   g.strokeStyle = 'rgba(120,80,40,.12)'; g.lineWidth = 1;
-  for (let i = 1; i < 14; i++) { g.beginPath(); g.moveTo(0, i * S_ / 14 + Math.sin(i) * 3); g.bezierCurveTo(S_ / 3, i * S_ / 14 - 4, S_ * 2 / 3, i * S_ / 14 + 4, S_, i * S_ / 14); g.stroke(); }
+  if (!bd) for (let i = 1; i < 14; i++) { g.beginPath(); g.moveTo(0, i * S_ / 14 + Math.sin(i) * 3); g.bezierCurveTo(S_ / 3, i * S_ / 14 - 4, S_ * 2 / 3, i * S_ / 14 + 4, S_, i * S_ / 14); g.stroke(); }
   for (let i = 0; i < BN * BN; i++) {
     const cx = (i % BN + 0.5) * cell, cy = (Math.floor(i / BN) + 0.5 + BOY) * cell, rx = cell * BRX, ry = cell * BRY, colr = BCOL[G.ci[i]];
     if (G.popped[i]) {
+      const pim = bart('popped_' + (G.ci[i] + 1));
+      if (pim) { g.drawImage(pim, cx - cell / 2, cy - BOY * cell - cell / 2, cell, cell); continue; }
       g.fillStyle = colr; g.globalAlpha = 0.85;
       for (let k = 0; k < 5; k++) { const a = k * 1.3 + i; g.beginPath(); g.ellipse(cx + Math.cos(a) * rx * 0.35, cy + Math.sin(a) * ry * 0.3, rx * 0.16, ry * 0.08, a, 0, Math.PI * 2); g.fill(); }
       g.globalAlpha = 1; continue;
@@ -1305,6 +1312,8 @@ function bDraw() {
     g.fillStyle = colr; g.beginPath(); g.moveTo(cx, cy + ry + wob - 2); g.lineTo(cx - 4, cy + ry + wob + 5); g.lineTo(cx + 4, cy + ry + wob + 5); g.closePath(); g.fill(); g.stroke();
   }
   const dart = (x, y, s, ang) => {
+    const dim = bart('dart');
+    if (dim) { const w = cell * 0.36 * s, h = w * 160 / 64; g.save(); g.translate(x, y); g.rotate(ang); g.drawImage(dim, -w * 32 / 64, -h * 8 / 160, w, h); g.restore(); return; }
     g.save(); g.translate(x, y); g.rotate(ang); g.scale(s, s);
     g.strokeStyle = '#4a3f45'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 22); g.stroke();
     g.fillStyle = '#e76f6f'; g.beginPath(); g.moveTo(0, 14); g.lineTo(-6, 24); g.lineTo(0, 21); g.lineTo(6, 24); g.closePath(); g.fill();
@@ -1368,6 +1377,7 @@ function bEnd() {
   box.hidden = false;
 }
 function bOpen() {
+  ['board', 'dart', 'popped_1', 'popped_2', 'popped_3', 'popped_4', 'popped_5', 'popped_6'].forEach(bart); bimgs();
   if (bLeftToday() <= 0) { toast('今天 ' + bInfo().limit + ' 局都玩完了，明天再來！'); if (BG) bClose(false); return; }
   let ov = $('#bl');
   if (!ov) {
@@ -1396,7 +1406,7 @@ function bClose(toShop) {
   if (toShop) setTimeout(() => { const s = $('#bl-shop'); if (s) { s.open = true; OPEN_DET.add('bl-shop'); s.scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); } }, 50);
 }
 function couponRow(c, mine) {
-  return '<li class="bl-cp' + (c.used ? ' used' : '') + '"><span class="bl-cp-n">🎟️ ' + esc(c.what) + '</span><span class="muted">' + (c.used ? md(new Date(c.usedAt || c.ts)) + ' 兌換了' : (c.from === S.me ? '你要兌現' : '由 ' + c.from + ' 兌現')) + '</span>' +
+  return '<li class="bl-cp' + (c.used ? ' used' : '') + '"><img class="bl-cp-i" src="balloon/coupon.webp" alt=""><span class="bl-cp-n">' + esc(c.what) + '</span><span class="muted">' + (c.used ? md(new Date(c.usedAt || c.ts)) + ' 兌換了' : (c.from === S.me ? '你要兌現' : '由 ' + c.from + ' 兌現')) + '</span>' +
     (!c.used && mine ? '<button class="btn small" data-act="blUse" data-id="' + c.id + '">使用</button>' : '') + '</li>';
 }
 function balloonCardHtml() {

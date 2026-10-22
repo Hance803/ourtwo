@@ -26,11 +26,10 @@ coupon.png：128 × 128，RGBA 透明背景，愛心兌換券。
 6 薰衣草紫：#B283CA
 同資料亦提供於 colors.json。色碼取自完整氣球中央中間色，不含白色高光與深色輪廓。
 
-【預覽】
-previews/board_full.png：6 × 6 完整氣球合成預覽，僅供檢視。
-previews/board_play.png：含 7 支飛鏢與已破氣球的合成預覽，僅供檢視。
-previews/phone_350.png：木板實際縮至 350 × 350 的檢視圖。
-預覽不應當成遊戲背景使用。
+【交件檢查】
+本 ZIP 直接包含 15 張正式 PNG、colors.json、README.txt 與 production_prompts.txt。
+所有 PNG 已完整解碼檢查，壓縮檔已逐檔驗證可解壓縮。
+整板預覽另提供，不包含在本素材包內。
 
 【製作】
 美術以 imagegen 內建工具生成；已按工程規格裁切、縮放及對位校準。
