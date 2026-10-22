@@ -897,9 +897,10 @@ function quizHtml() {
 }
 function renderPlay() {
   const root = $('#play-body');
-  if (!root.childElementCount) root.innerHTML = ['merge', 'balloon', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
+  if (!root.childElementCount) root.innerHTML = ['merge', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
   $('#pw-merge').innerHTML = mergeCardHtml();
   $('#pw-balloon').innerHTML = balloonCardHtml();
+  if (!kDrawing) $('#pw-kuji').innerHTML = kujiCardHtml();
   if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
   const ga = document.activeElement && document.activeElement.id === 'g-ta';
   if (!gWatch() && !gAnim && !ga) $('#pw-truth').innerHTML = truthHtml();
@@ -1249,7 +1250,8 @@ const detOpen = id => OPEN_DET.has(id) ? ' open' : '';
    點數存在 play/balloon.pts，各自累積；用點數向另一半換獎勵，換到的變成「兌換券」（coupons）。 */
 const BN = 6, BDARTS = 7, BLINE = 4, BLINE_PTS = 5;
 const BCOL = ['#ff8fa3', '#ffd166', '#7cc6fe', '#9be39a', '#c3a6e8', '#ffad69'];
-const BREWARDS = [['親親', 10], ['抱抱', 10], ['撒嬌一次', 10], ['買飲料', 30], ['洗碗一次', 30], ['按摩 10 分鐘', 30], ['跑腿一次', 60], ['掃地', 60], ['陪看一部電影', 60], ['早餐服務', 60]];
+/* 直接兌換＝保證拿到但比較貴；想碰運氣就去抽一番賞 */
+const BREWARDS = [['親親', 20], ['抱抱', 20], ['撒嬌一次', 20], ['買飲料', 50], ['洗碗一次', 50], ['按摩 10 分鐘', 50], ['跑腿一次', 120], ['掃地', 120], ['陪看一部電影', 120], ['早餐服務', 120]];
 let BG = null, couponUnsub = null;
 const BLIMIT = 3;
 const bInfo = () => { const b = PL('balloon') || {}; return { limit: b.limit || BLIMIT, daily: b.daily || {}, pts: b.pts || {}, best: b.best || {}, rewards: (b.rewards && b.rewards.length ? b.rewards : BREWARDS.map(r => ({ n: r[0], p: r[1] }))) }; };
@@ -1397,9 +1399,9 @@ function balloonCardHtml() {
   const info = bInfo(), mk = meKey(), ok = otherKey(mk), mine = info.pts[mk] || 0;
   const cps = S.coupons || [], myCp = cps.filter(c => c.to === S.me && !c.used), theirCp = cps.filter(c => c.to !== S.me && !c.used), used = cps.filter(c => c.used).slice(0, 10);
   return '<div class="card play-card"><div class="row"><h3>射氣球 🎈</h3><span class="muted">' + MARK.him + ' ' + (info.pts.him || 0) + ' 點　' + MARK.her + ' ' + (info.pts.her || 0) + ' 點</span></div>' +
-    '<p class="muted">夜市玩法！一局 7 支鏢，破一顆 1 點，連成一條線再加 5 點。點數可以跟' + WHO[ok] + '換獎勵。</p>' +
+    '<p class="muted">夜市玩法！一局 7 支鏢，破一顆 1 點，連成一條線再加 5 點。點數可以拿去抽一番賞碰運氣，或存起來直接跟' + WHO[ok] + '換指定的獎勵。</p>' +
     (bLeftToday() > 0 ? '<button class="btn" data-act="blOpen">開始射氣球（今天還有 ' + bLeftToday() + ' 局）</button>' : '<button class="btn" disabled>今天 ' + info.limit + ' 局都玩完了，明天再來</button>') +
-    '<details class="bl-shop" id="bl-shop"' + detOpen('bl-shop') + '><summary>用點數換獎勵（你有 ' + mine + ' 點）</summary><ul class="bl-rw">' +
+    '<details class="bl-shop" id="bl-shop"' + detOpen('bl-shop') + '><summary>直接兌換（保證拿到，你有 ' + mine + ' 點）</summary><ul class="bl-rw">' +
       info.rewards.map((r, i) => '<li><span>' + esc(r.n) + '</span><span class="muted">' + r.p + ' 點</span><button class="btn ghost small" data-act="blBuy" data-i="' + i + '"' + (mine < r.p ? ' disabled' : '') + '>換</button></li>').join('') +
     '</ul><button class="btn ghost small" data-act="blEditRw">編輯獎勵和每日次數</button></details>' +
     '<div class="bl-cps"><p class="bl-h">你的兌換券（' + WHO[ok] + '要兌現）</p>' + (myCp.length ? '<ul>' + myCp.map(c => couponRow(c, true)).join('') + '</ul>' : '<p class="muted">還沒有，快去射氣球</p>') +
@@ -1435,6 +1437,99 @@ Object.assign(ACT, {
     wr(setDoc(dref('play', 'balloon'), { rewards: l, limit: lim }, { merge: true })); closeSheet(); toast('設定存好了');
   },
   blRwReset() { wr(setDoc(dref('play', 'balloon'), { rewards: deleteField() }, { merge: true })); closeSheet(); toast('已恢復預設'); }
+});
+
+/* ---------- 一番賞 ---------- */
+/* 兩人共用一箱 30 張籤（play/kuji）：A 賞 1、B 賞 2、C 賞 3、D 賞 6、E 賞 18，每抽必中；抽到最後一張的人另外得到「最後賞」。
+   每抽花射氣球的點數（預設 8 點）。抽到的獎品變成兌換券（coupons），跟射氣球換來的放在一起。 */
+const KTIERS = [['A', 1, '#e9b949'], ['B', 2, '#9fb4c7'], ['C', 3, '#d99a6c'], ['D', 6, '#8fc4a8'], ['E', 18, '#f2a7b8']];
+const KCOST = 8;
+const KPRIZES = { A: '對方包辦家事一整天', B: '一頓大餐（對方請客）', C: '按摩 30 分鐘', D: '買宵夜或飲料', E: ['親親', '抱抱', '撒嬌一次', '摸頭十下', '誇我三句'], last: '指定對方做一件事' };
+let kDrawing = null;
+const kInfo = () => { const k = PL('kuji') || {}; return { box: k.box || 0, tickets: k.tickets || [], prizes: Object.assign({}, KPRIZES, k.prizes || {}), cost: k.cost || KCOST, log: k.log || [], lastBy: k.lastBy || '' }; };
+function kMakeBox(prizes) {
+  const t = [];
+  KTIERS.forEach(([tier, n]) => { for (let i = 0; i < n; i++) t.push({ t: tier, p: tier === 'E' ? prizes.E[Math.floor(Math.random() * prizes.E.length)] : prizes[tier], d: false }); });
+  for (let i = t.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [t[i], t[j]] = [t[j], t[i]]; }
+  return t;
+}
+const kLeft = (tk, tier) => tk.filter(x => !x.d && (!tier || x.t === tier)).length;
+const kColor = tier => (KTIERS.find(x => x[0] === tier) || ['', 0, '#c3a6e8'])[2];
+function kujiCardHtml() {
+  const k = kInfo(), mk = meKey(), have = (bInfo().pts[mk] || 0), left = kLeft(k.tickets), empty = !k.tickets.length || left === 0;
+  const tiers = KTIERS.map(([tier, n, c]) => { const l = kLeft(k.tickets, tier); return '<li class="' + (k.tickets.length && !l ? 'gone' : '') + '"><b class="k-tier" style="background:' + c + '">' + tier + '</b><span class="k-prize">' + esc(tier === 'E' ? k.prizes.E.join('／') : k.prizes[tier]) + '</span><span class="k-left">' + (k.tickets.length ? l : n) + '/' + n + '</span></li>'; }).join('') +
+    '<li class="k-lastrow' + (k.lastBy ? ' gone' : '') + '"><b class="k-tier k-last">最後賞</b><span class="k-prize">' + esc(k.prizes.last) + '</span><span class="k-left">' + (k.lastBy ? esc(k.lastBy) + ' 拿走了' : '抽到最後一張') + '</span></li>';
+  let btn;
+  if (!k.tickets.length) btn = '<button class="btn" data-act="kNewBox">開第一箱</button>';
+  else if (empty) btn = '<p class="quiz-res">這一箱抽完了！</p><button class="btn" data-act="kNewBox">開新的一箱</button>';
+  else btn = '<button class="btn" data-act="kDraw"' + (have < k.cost ? ' disabled' : '') + '>' + (have < k.cost ? '點數不夠（' + k.cost + ' 點一抽，你有 ' + have + ' 點）' : '抽一張（' + k.cost + ' 點，你有 ' + have + ' 點）') + '</button>';
+  return '<div class="card play-card"><div class="row"><h3>一番賞 🎫</h3><span class="muted">' + (k.box ? '第 ' + k.box + ' 箱・剩 ' + left + '/30 張' : '') + '</span></div>' +
+    '<p class="muted">每抽必中！點數從射氣球來，抽到的獎品會變成兌換券。抽到最後一張的人另外拿「最後賞」。</p>' +
+    '<ul class="k-tiers">' + tiers + '</ul>' + btn +
+    (k.log.length ? '<details id="k-log"' + detOpen('k-log') + '><summary class="muted">最近抽到的</summary><ul class="k-log">' + k.log.slice(0, 15).map(l => '<li>' + byChip(l.by) + ' <b class="k-tier sm" style="background:' + (l.t === 'last' ? '#c3a6e8' : kColor(l.t)) + '">' + (l.t === 'last' ? '最後賞' : l.t) + '</b> ' + esc(l.p) + ' <span class="muted">' + md(new Date(l.ts)) + '</span></li>').join('') + '</ul></details>' : '') +
+    '<button class="btn ghost small" data-act="kEdit">編輯獎品（下一箱生效）</button></div>';
+}
+/* 撕籤：抽完先蓋著，手指往右撕（或按「撕開」）才看到是哪一賞 */
+function kShow(res) {
+  let ov = $('#kj');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'kj'; ov.className = 'kj'; document.body.appendChild(ov); }
+  const tierTxt = res.t + ' 賞', col = kColor(res.t);
+  ov.innerHTML = '<div class="kj-box"><p class="muted">第 ' + res.no + ' 張・往右撕開看看</p><div class="kj-ticket"><div class="kj-in" style="--kc:' + col + '"><span class="kj-tier">' + tierTxt + '</span><span class="kj-prize">' + esc(res.p) + '</span></div>' +
+    '<div class="kj-cover"><span>一番賞</span><i>➜ 撕</i></div></div>' +
+    (res.last ? '<div class="kj-lastone" hidden>🎉 最後一張！另外得到「最後賞」：' + esc(res.last) + '</div>' : '') +
+    '<div class="kj-btns"><button class="btn" data-act="kTear">撕開</button></div></div>';
+  ov.hidden = false; document.documentElement.classList.add('mg-open');
+  const cover = $('.kj-cover', ov); let sx = null;
+  cover.addEventListener('pointerdown', e => { sx = e.clientX; try { cover.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } });
+  cover.addEventListener('pointermove', e => { if (sx == null) return; const dx = Math.max(0, e.clientX - sx); cover.style.transform = 'translateX(' + dx + 'px) rotate(' + dx / 40 + 'deg)'; if (dx > cover.offsetWidth * 0.45) { sx = null; kTear(); } });
+  cover.addEventListener('pointerup', () => { if (sx != null) { sx = null; cover.style.transform = ''; } });
+}
+function kTear() {
+  const ov = $('#kj'); if (!ov || ov.classList.contains('torn')) return;
+  ov.classList.add('torn'); const lo = $('.kj-lastone', ov); if (lo) lo.hidden = false;
+  $('.kj-btns', ov).innerHTML = '<button class="btn" data-act="kClose">收下兌換券</button>';
+  try { navigator.vibrate && navigator.vibrate([30, 40, 30]); } catch (e) { /* ignore */ }
+}
+Object.assign(ACT, {
+  kNewBox() {
+    const k = kInfo(); if (k.tickets.length && kLeft(k.tickets)) return;
+    wr(setDoc(dref('play', 'kuji'), { box: k.box + 1, tickets: kMakeBox(k.prizes), lastBy: '' }, { merge: true }));
+    toast('新的一箱來了！');
+  },
+  kDraw() {
+    const k = kInfo(), mk = meKey(), have = bInfo().pts[mk] || 0;
+    if (kDrawing || have < k.cost) return;
+    const idx = k.tickets.map((x, i) => x.d ? -1 : i).filter(i => i >= 0); if (!idx.length) return;
+    const i = idx[Math.floor(Math.random() * idx.length)], tk = k.tickets.map(x => Object.assign({}, x)), tix = tk[i];
+    tix.d = true; tix.by = S.me; tix.ts = Date.now();
+    const isLast = idx.length === 1, other = S.me === '老公' ? '老婆' : '老公', no = 31 - idx.length;
+    const log = [{ by: S.me, t: tix.t, p: tix.p, ts: tix.ts }].concat(isLast ? [{ by: S.me, t: 'last', p: k.prizes.last, ts: tix.ts }] : []).concat(k.log).slice(0, 30);
+    const patch = { tickets: tk, log }; if (isLast) patch.lastBy = S.me;
+    wr(setDoc(dref('play', 'kuji'), patch, { merge: true }));
+    wr(setDoc(dref('play', 'balloon'), { pts: { [mk]: have - k.cost } }, { merge: true }));
+    wr(addDoc(col('coupons'), { to: S.me, from: other, what: '【' + tix.t + '賞】' + tix.p, ts: tix.ts, used: false, src: 'kuji' }));
+    if (isLast) wr(addDoc(col('coupons'), { to: S.me, from: other, what: '【最後賞】' + k.prizes.last, ts: tix.ts + 1, used: false, src: 'kuji' }));
+    kDrawing = { t: tix.t, p: tix.p, no, last: isLast ? k.prizes.last : '' };
+    kShow(kDrawing);
+  },
+  kTear() { kTear(); },
+  kClose() { kDrawing = null; const ov = $('#kj'); if (ov) { ov.hidden = true; ov.classList.remove('torn'); } document.documentElement.classList.remove('mg-open'); if (curTab === 'play') renderPlay(); },
+  kEdit() {
+    const p = kInfo().prizes;
+    openSheet('<h3>一番賞獎品</h3><p class="muted">改好後從「下一箱」開始生效。E 賞可以填好幾個，用逗號分開，抽到時隨機一個。</p>' +
+      ['A', 'B', 'C', 'D'].map(t => '<label class="f"><span>' + t + ' 賞</span><input id="kp-' + t + '" maxlength="30" value="' + esc(p[t]) + '"></label>').join('') +
+      '<label class="f"><span>E 賞（逗號分開）</span><input id="kp-E" maxlength="200" value="' + esc(p.E.join('，')) + '"></label>' +
+      '<label class="f"><span>最後賞</span><input id="kp-last" maxlength="30" value="' + esc(p.last) + '"></label>' +
+      '<label class="f"><span>一抽幾點</span><input id="kp-cost" type="number" inputmode="numeric" min="1" max="99" value="' + kInfo().cost + '"></label>' +
+      '<div class="actions"><button class="btn ghost" data-act="close">取消</button><button class="btn" data-act="kSave">存起來</button></div>');
+  },
+  kSave() {
+    const v = id => ($('#kp-' + id).value || '').trim(), E = v('E').split(/[,，、]/).map(s => s.trim()).filter(Boolean).slice(0, 10);
+    if (!v('A') || !v('B') || !v('C') || !v('D') || !E.length || !v('last')) { toast('每一賞都要填'); return; }
+    const cost = Math.max(1, Math.min(99, parseInt(v('cost'), 10) || KCOST));
+    wr(setDoc(dref('play', 'kuji'), { prizes: { A: v('A'), B: v('B'), C: v('C'), D: v('D'), E, last: v('last') }, cost }, { merge: true }));
+    closeSheet(); toast('存好了，下一箱生效（一抽 ' + cost + ' 點馬上生效）');
+  }
 });
 
 window.addEventListener('online', () => { setNet(); if (booted && !synced) boot(); });

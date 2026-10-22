@@ -1189,3 +1189,28 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .bl-cp .bl-cp-n{flex:1;font-size:17px}
 .bl-cp.used{opacity:.55}
 .bl-h{margin:10px 0 2px;font-size:15px;color:var(--muted)}
+/* 一番賞 */
+.k-tiers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.k-tiers li{display:flex;align-items:center;gap:8px}
+.k-tiers li.gone{opacity:.4;text-decoration:line-through}
+.k-tier{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 6px;border-radius:8px;color:#3b2a24;font-weight:700;font-size:16px;border:2px solid #4a3f45;box-sizing:border-box}
+.k-tier.sm{min-width:24px;height:24px;font-size:13px;border-width:1.5px}
+.k-tier.k-last{background:#c3a6e8;font-size:13px}
+.k-prize{flex:1;overflow-wrap:anywhere}
+.k-left{font-size:15px;color:var(--muted);white-space:nowrap}
+.k-log{list-style:none;margin:4px 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:15px}
+.kj{position:fixed;inset:0;z-index:60;background:rgba(40,30,28,.55);display:grid;place-items:center;padding:16px}
+.kj[hidden]{display:none}
+.kj-box{width:min(340px,100%);background:var(--bg);border-radius:var(--radius-card);padding:18px;display:flex;flex-direction:column;gap:12px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.kj-box p{margin:0}
+.kj-ticket{position:relative;width:100%;aspect-ratio:3/2;border-radius:12px;overflow:hidden;touch-action:none}
+.kj-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--kc);color:#3b2a24;border:3px solid #4a3f45;border-radius:12px}
+.kj-tier{font-size:48px;font-weight:700;line-height:1}
+.kj-prize{font-size:20px;text-align:center;padding:0 10px}
+.kj-cover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px;background:repeating-linear-gradient(45deg,#f6e7c8 0 12px,#f1dcb3 12px 24px);border:3px solid #4a3f45;border-radius:12px;font-size:30px;color:#7a5b3a;transition:transform .35s ease,opacity .35s;cursor:grab}
+.kj-cover i{font-style:normal;font-size:18px}
+.kj.torn .kj-cover{transform:translateX(120%) rotate(18deg)!important;opacity:0;pointer-events:none}
+.kj.torn .kj-in{animation:kjPop .5s ease}
+@keyframes kjPop{0%{transform:scale(.85)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+.kj-lastone{background:#efe6fb;border-radius:10px;padding:8px 12px;text-align:center}
+.kj-btns{width:100%}.kj-btns .btn{width:100%}
