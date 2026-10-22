@@ -1251,7 +1251,8 @@ const BN = 6, BDARTS = 7, BLINE = 4, BLINE_PTS = 5;
 const BCOL = ['#ff8fa3', '#ffd166', '#7cc6fe', '#9be39a', '#c3a6e8', '#ffad69'];
 const BREWARDS = [['親親', 10], ['抱抱', 10], ['撒嬌一次', 10], ['買飲料', 30], ['洗碗一次', 30], ['按摩 10 分鐘', 30], ['跑腿一次', 60], ['掃地', 60], ['陪看一部電影', 60], ['早餐服務', 60]];
 let BG = null, couponUnsub = null;
-const bInfo = () => { const b = PL('balloon') || {}; return { pts: b.pts || {}, best: b.best || {}, rewards: (b.rewards && b.rewards.length ? b.rewards : BREWARDS.map(r => ({ n: r[0], p: r[1] }))) }; };
+const BLIMIT = 3;
+const bInfo = () => { const b = PL('balloon') || {}; return { limit: b.limit || BLIMIT, daily: b.daily || {}, pts: b.pts || {}, best: b.best || {}, rewards: (b.rewards && b.rewards.length ? b.rewards : BREWARDS.map(r => ({ n: r[0], p: r[1] }))) }; };
 function subCoupons() {
   if (couponUnsub) { try { couponUnsub(); } catch (e) { /* ignore */ } }
   couponUnsub = onSnapshot(query(col('coupons'), orderBy('ts', 'desc'), limit(60)), snap => { S.coupons = snap.docs.map(d => Object.assign({ id: d.id }, d.data())); rerender(); }, syncErr);
@@ -1267,6 +1268,9 @@ function bLines(p) {
   }
   return n;
 }
+/* 每人每天可以玩幾局：射出第一支鏢才算一局 */
+function bPlayedToday(mk) { const d = bInfo().daily[mk]; return d && d.d === TODAY ? d.n || 0 : 0; }
+function bLeftToday() { return Math.max(0, bInfo().limit - bPlayedToday(meKey())); }
 function bNew() {
   return { popped: new Array(BN * BN).fill(false), col: Array.from({ length: BN * BN }, () => BCOL[Math.floor(Math.random() * BCOL.length)]), darts: BDARTS, stuck: [], fly: null, bursts: [], aim: null, t0: performance.now(), done: false, raf: 0 };
 }
@@ -1328,6 +1332,11 @@ function bAimPos() {
 }
 function bThrow() {
   const G = BG; if (!G || G.fly || G.darts <= 0 || !G.aim) return;
+  if (G.darts === BDARTS && !G.counted) {
+    if (bLeftToday() <= 0) { G.aim = null; toast('今天的次數用完了，明天再來'); return; }
+    G.counted = true; const mk = meKey();
+    wr(setDoc(dref('play', 'balloon'), { daily: { [mk]: { d: TODAY, n: bPlayedToday(mk) + 1 } } }, { merge: true }));
+  }
   const p = bAimPos(); G.darts--; G.fly = { x: p.x, y: p.y, t: performance.now(), a: (Math.random() - 0.5) * 0.5 }; G.aim = null;
 }
 function bLand() {
@@ -1348,11 +1357,12 @@ function bEnd() {
   const box = $('#bl-over');
   box.innerHTML = '<p class="mg-over-t">' + (sc.lines >= 2 ? '太神了！' : sc.lines ? '連線成功！' : sc.pops >= 5 ? '手感不錯！' : '再接再厲！') + '</p>' +
     '<p class="bl-res">破了 <b>' + sc.pops + '</b> 顆・連線 <b>' + sc.lines + '</b> 條</p><p class="mg-over-s">+' + sc.pts + ' 點</p>' +
-    '<p class="muted">你現在有 ' + total + ' 點' + (sc.pts > (info.best[mk] || 0) && sc.pts > 0 ? '・單局新紀錄！' : '') + '</p>' +
-    '<div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap"><button class="btn" data-act="blAgain">再來一局</button><button class="btn ghost" data-act="blShop">去換獎勵</button></div>';
+    '<p class="muted">你現在有 ' + total + ' 點' + (sc.pts > (info.best[mk] || 0) && sc.pts > 0 ? '・單局新紀錄！' : '') + '</p><p class="muted">今天還可以玩 ' + bLeftToday() + ' 局</p>' +
+    '<div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap">' + (bLeftToday() > 0 ? '<button class="btn" data-act="blAgain">再來一局</button>' : '<button class="btn" data-act="blClose">今天玩完了</button>') + '<button class="btn ghost" data-act="blShop">去換獎勵</button></div>';
   box.hidden = false;
 }
 function bOpen() {
+  if (bLeftToday() <= 0) { toast('今天 ' + bInfo().limit + ' 局都玩完了，明天再來！'); if (BG) bClose(false); return; }
   let ov = $('#bl');
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'bl'; ov.className = 'mg';
@@ -1388,10 +1398,10 @@ function balloonCardHtml() {
   const cps = S.coupons || [], myCp = cps.filter(c => c.to === S.me && !c.used), theirCp = cps.filter(c => c.to !== S.me && !c.used), used = cps.filter(c => c.used).slice(0, 10);
   return '<div class="card play-card"><div class="row"><h3>射氣球 🎈</h3><span class="muted">' + MARK.him + ' ' + (info.pts.him || 0) + ' 點　' + MARK.her + ' ' + (info.pts.her || 0) + ' 點</span></div>' +
     '<p class="muted">夜市玩法！一局 7 支鏢，破一顆 1 點，連成一條線再加 5 點。點數可以跟' + WHO[ok] + '換獎勵。</p>' +
-    '<button class="btn" data-act="blOpen">開始射氣球</button>' +
+    (bLeftToday() > 0 ? '<button class="btn" data-act="blOpen">開始射氣球（今天還有 ' + bLeftToday() + ' 局）</button>' : '<button class="btn" disabled>今天 ' + info.limit + ' 局都玩完了，明天再來</button>') +
     '<details class="bl-shop" id="bl-shop"' + detOpen('bl-shop') + '><summary>用點數換獎勵（你有 ' + mine + ' 點）</summary><ul class="bl-rw">' +
       info.rewards.map((r, i) => '<li><span>' + esc(r.n) + '</span><span class="muted">' + r.p + ' 點</span><button class="btn ghost small" data-act="blBuy" data-i="' + i + '"' + (mine < r.p ? ' disabled' : '') + '>換</button></li>').join('') +
-    '</ul><button class="btn ghost small" data-act="blEditRw">編輯獎勵清單</button></details>' +
+    '</ul><button class="btn ghost small" data-act="blEditRw">編輯獎勵和每日次數</button></details>' +
     '<div class="bl-cps"><p class="bl-h">你的兌換券（' + WHO[ok] + '要兌現）</p>' + (myCp.length ? '<ul>' + myCp.map(c => couponRow(c, true)).join('') + '</ul>' : '<p class="muted">還沒有，快去射氣球</p>') +
     '<p class="bl-h">' + WHO[ok] + '的兌換券（你要兌現）</p>' + (theirCp.length ? '<ul>' + theirCp.map(c => couponRow(c, false)).join('') + '</ul>' : '<p class="muted">目前沒有</p>') +
     (used.length ? '<details id="bl-used"' + detOpen('bl-used') + '><summary class="muted">最近兌換過的</summary><ul>' + used.map(c => couponRow(c, false)).join('') + '</ul></details>' : '') + '</div></div>';
@@ -1413,14 +1423,16 @@ Object.assign(ACT, {
     toast('已使用，叫' + c.from + '來兌現！');
   },
   blEditRw() {
-    openSheet('<h3>獎勵清單</h3><p class="muted">一行一個，格式：獎勵名稱,點數（例如：親親,10）。兩支手機共用。</p>' +
+    openSheet('<h3>射氣球設定</h3><p class="muted">一行一個，格式：獎勵名稱,點數（例如：親親,10）。兩支手機共用。</p>' +
+      '<label class="f"><span>每人每天可以玩幾局</span><input id="rw-limit" type="number" inputmode="numeric" min="1" max="20" value="' + bInfo().limit + '"></label>' +
       '<textarea id="rw-ta" rows="12" style="width:100%">' + esc(bInfo().rewards.map(r => r.n + ',' + r.p).join('\n')) + '</textarea>' +
       '<div class="actions"><button class="btn ghost" data-act="blRwReset">恢復預設</button><button class="btn ghost" data-act="close">取消</button><button class="btn" data-act="blRwSave">存起來</button></div>');
   },
   blRwSave() {
     const l = $('#rw-ta').value.split('\n').map(s => s.trim()).filter(Boolean).map(s => { const m = s.split(/[,，]/); return { n: m[0].trim().slice(0, 20), p: Math.max(1, Math.min(999, parseInt(m[1], 10) || 10)) }; }).filter(r => r.n).slice(0, 30);
     if (!l.length) { toast('至少要一個獎勵'); return; }
-    wr(setDoc(dref('play', 'balloon'), { rewards: l }, { merge: true })); closeSheet(); toast('獎勵清單存好了');
+    const lim = Math.max(1, Math.min(20, parseInt($('#rw-limit').value, 10) || BLIMIT));
+    wr(setDoc(dref('play', 'balloon'), { rewards: l, limit: lim }, { merge: true })); closeSheet(); toast('設定存好了');
   },
   blRwReset() { wr(setDoc(dref('play', 'balloon'), { rewards: deleteField() }, { merge: true })); closeSheet(); toast('已恢復預設'); }
 });
