@@ -77,7 +77,7 @@ function applyTheme() {
 
 /* ---------- 狀態 ---------- */
 let FID = LS.get('ourtwo.fid');
-const S = { me: LS.get('ourtwo.me') === '老婆' ? '老婆' : '老公', shifts: {}, events: [], memos: [], notes: [], love: [], board: [], mood: [], play: {}, truth: [], period: null };
+const S = { me: LS.get('ourtwo.me') === '老婆' ? '老婆' : '老公', shifts: {}, events: [], memos: [], notes: [], love: [], board: [], mood: [], play: {}, truth: [], coupons: [], period: null };
 const meKey = () => S.me === '老公' ? 'him' : 'her';
 let booted = false, synced = false, unsubs = [];
 let curTab = 'home', calY, calM, calSel = TODAY, perY, perM, memoMode = 'todo';
@@ -487,12 +487,13 @@ function startSync() {
   subBoard();
   subMood();
   subTruth();
+  subCoupons();
   unsubs.push(subPlay());
   cleanupOldFont();
   unsubs.push(onSnapshot(dref('settings', 'period'), snap => { S.period = snap.exists() ? snap.data() : null; rerender(); }, syncErr));
   synced = true;
 }
-function stopSync() { if (truthUnsub) { try { truthUnsub(); } catch (e) { /* ignore */ } truthUnsub = null; } if (moodUnsub) { try { moodUnsub(); } catch (e) { /* ignore */ } moodUnsub = null; } if (boardUnsub) { try { boardUnsub(); } catch (e) { /* ignore */ } boardUnsub = null; } unsubs.forEach(u => { try { u(); } catch (e) { /* ignore */ } }); unsubs = []; synced = false; }
+function stopSync() { if (couponUnsub) { try { couponUnsub(); } catch (e) { /* ignore */ } couponUnsub = null; } if (truthUnsub) { try { truthUnsub(); } catch (e) { /* ignore */ } truthUnsub = null; } if (moodUnsub) { try { moodUnsub(); } catch (e) { /* ignore */ } moodUnsub = null; } if (boardUnsub) { try { boardUnsub(); } catch (e) { /* ignore */ } boardUnsub = null; } unsubs.forEach(u => { try { u(); } catch (e) { /* ignore */ } }); unsubs = []; synced = false; }
 
 function ensureAuth() {
   return new Promise((resolve, reject) => {
@@ -580,7 +581,7 @@ const ACT = {
     try {
       const out = { app: 'ourtwo', version: 1, exported: new Date().toISOString(), data: {} };
       let n = 0;
-      for (const c of ['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play', 'truth']) {
+      for (const c of ['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play', 'truth', 'coupons']) {
         const snap = await getDocs(col(c)); out.data[c] = {};
         snap.forEach(d => { out.data[c][d.id] = d.data(); n++; });
       }
@@ -605,7 +606,7 @@ const ACT = {
         let n = 0; Object.keys(j.data).forEach(c => { n += Object.keys(j.data[c]).length; });
         if (!confirm('要把備份裡的 ' + n + ' 筆資料放回去嗎？\n同編號的資料會被備份內容蓋過，其他資料不會被刪除。')) return;
         for (const c of Object.keys(j.data)) {
-          if (!['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play', 'truth'].includes(c)) continue;
+          if (!['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play', 'truth', 'coupons'].includes(c)) continue;
           for (const id of Object.keys(j.data[c])) await setDoc(dref(c, id), j.data[c][id]);
         }
         toast('已還原 ' + n + ' 筆');
@@ -852,7 +853,6 @@ const EAT = ['便當', '拉麵', '火鍋', '滷肉飯', '牛肉麵', '壽司', '
 const DRINK = ['珍珠奶茶', '紅茶拿鐵', '四季春', '美式咖啡', '多多綠', '冬瓜檸檬', '水果茶', '奶蓋紅茶', '楊枝甘露', '烏龍鮮奶'];
 const WCOL = ['#f4b6c2', '#f9d98a', '#a9d4f0', '#b9e0ae', '#f7c08f', '#d3bdf0', '#f3a6a6', '#9fd8cf'];
 const QUIZ = [['週末最想怎麼過？', ['在家耍廢', '出去走走', '吃大餐', '睡到自然醒']], ['消夜首選？', ['鹹酥雞', '泡麵', '滷味', '不吃消夜']], ['旅行比較想去？', ['日本', '韓國', '海島', '台灣環島']], ['吵架後誰會先道歉？', ['老公', '老婆', '看情況', '都不會']], ['家裡誰比較會花錢？', ['老公', '老婆', '一樣', '都很省']], ['下雨天最適合？', ['看電影', '睡覺', '吃火鍋', '打電動']], ['理想的約會時間？', ['早上', '下午', '晚上', '半夜']], ['比較喜歡的寵物？', ['貓', '狗', '兔子', '都不要']], ['最常一起吃的？', ['火鍋', '拉麵', '便當', '燒肉']], ['生日最想收到？', ['驚喜派對', '一封手寫信', '想要很久的東西', '一起去旅行']], ['誰比較會賴床？', ['老公', '老婆', '一樣', '都不會']], ['誰比較會記仇？', ['老公', '老婆', '一樣', '都不會']], ['放假第一件事？', ['補眠', '追劇', '出門吃', '打掃']], ['最想一起學的？', ['煮飯', '游泳', '跳舞', '外語']], ['家裡誰負責找東西？', ['老公', '老婆', '一起找', '找不到就算了']], ['最喜歡的季節？', ['春天', '夏天', '秋天', '冬天']], ['手搖飲的甜度？', ['全糖', '半糖', '微糖', '無糖']], ['誰比較怕黑？', ['老公', '老婆', '一樣', '都不怕']], ['理想的家？', ['市區公寓', '郊區透天', '海邊小屋', '鄉下農舍']], ['一起看電影選？', ['喜劇', '恐怖片', '愛情片', '動畫']]];
-const RPS = [['rock', '✊', '石頭'], ['scissors', '✌️', '剪刀'], ['paper', '🖐️', '布']];
 const MARK = { him: '🐻', her: '🐰' };
 let playKind = 'eat', wheelRot = 0, wheelSpin = false, wheelResult = '';
 const otherKey = mk => mk === 'him' ? 'her' : 'him';
@@ -895,44 +895,15 @@ function quizHtml() {
   }
   return '<div class="card play-card"><div class="row"><h3>默契大考驗</h3><span class="muted">' + (sc.t ? '默契 ' + (sc.m || 0) + ' / ' + sc.t : '') + '</span></div>' + body + '</div>';
 }
-function tttWin(b) {
-  const L = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
-  for (const l of L) if (b[l[0]] !== '.' && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) return b[l[0]] === 'h' ? 'him' : 'her';
-  return b.includes('.') ? '' : 'draw';
-}
-function tttHtml() {
-  const t = PL('ttt'), mk = meKey(), sc = (t && t.sc) || {};
-  let body;
-  if (!t || !t.b) body = '<p class="muted">' + MARK.him + ' 老公 vs ' + MARK.her + ' 老婆，兩支手機輪流下。</p><button class="btn" data-act="tttNew">開一局</button>';
-  else {
-    const st = t.w ? (t.w === 'draw' ? '平手！' : WHO[t.w] + ' 贏了！🎉') : (t.turn === mk ? '輪到你下' : '等 ' + WHO[t.turn] + ' 下…');
-    body = '<p class="ttt-status">' + st + '</p><div class="ttt">' + t.b.split('').map((c, i) => '<button data-act="tttMove" data-i="' + i + '"' + (c !== '.' || t.w || t.turn !== mk ? ' disabled' : '') + '>' + (c === 'h' ? MARK.him : c === 'w' ? MARK.her : '') + '</button>').join('') + '</div>' +
-      (t.w ? '<button class="btn" data-act="tttNew">再來一局</button>' : '');
-  }
-  return '<div class="card play-card"><div class="row"><h3>井字遊戲</h3><span class="muted">' + (t ? MARK.him + ' ' + (sc.him || 0) + '：' + (sc.her || 0) + ' ' + MARK.her + (sc.draw ? '（平手 ' + sc.draw + '）' : '') : '') + '</span></div>' + body + '</div>';
-}
-function rpsResult(a, b) { if (a === b) return 'draw'; return (a === 'rock' && b === 'scissors') || (a === 'scissors' && b === 'paper') || (a === 'paper' && b === 'rock') ? 'him' : 'her'; }
-function rpsHtml() {
-  const p = PL('rps'), mk = meKey(), ok = otherKey(mk), c = (p && p.c) || {}, sc = (p && p.sc) || {};
-  const R = Object.fromEntries(RPS.map(x => [x[0], x]));
-  let body;
-  if (c[mk] && c[ok]) {
-    const w = rpsResult(c.him, c.her);
-    body = '<p class="rps-show">' + MARK.him + ' ' + R[c.him][1] + '　vs　' + R[c.her][1] + ' ' + MARK.her + '</p><p class="quiz-res">' + (w === 'draw' ? '平手！' : WHO[w] + ' 贏了！') + '</p><button class="btn" data-act="rpsAgain">再來</button>';
-  } else if (c[mk]) body = '<p class="muted">你出了 ' + R[c[mk]][1] + '，等 ' + WHO[ok] + ' 出拳…</p>';
-  else body = '<div class="rps-opts">' + RPS.map(x => '<button class="btn ghost" data-act="rpsPick" data-v="' + x[0] + '"><span>' + x[1] + '</span>' + x[2] + '</button>').join('') + '</div>' + (c[ok] ? '<p class="muted">' + WHO[ok] + ' 已經出好了</p>' : '');
-  return '<div class="card play-card"><div class="row"><h3>剪刀石頭布</h3><span class="muted">' + (p ? MARK.him + ' ' + (sc.him || 0) + '：' + (sc.her || 0) + ' ' + MARK.her : '') + '</span></div>' + body + '</div>';
-}
 function renderPlay() {
   const root = $('#play-body');
-  if (!root.childElementCount) root.innerHTML = ['merge', 'wheel', 'truth', 'quiz', 'ttt', 'rps'].map(k => '<div id="pw-' + k + '"></div>').join('');
+  if (!root.childElementCount) root.innerHTML = ['merge', 'balloon', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
   $('#pw-merge').innerHTML = mergeCardHtml();
+  $('#pw-balloon').innerHTML = balloonCardHtml();
   if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
   const ga = document.activeElement && document.activeElement.id === 'g-ta';
   if (!gWatch() && !gAnim && !ga) $('#pw-truth').innerHTML = truthHtml();
   $('#pw-quiz').innerHTML = quizHtml();
-  $('#pw-ttt').innerHTML = tttHtml();
-  $('#pw-rps').innerHTML = rpsHtml();
 }
 function subPlay() {
   return onSnapshot(col('play'), snap => { const o = {}; snap.forEach(d => { o[d.id] = d.data(); }); S.play = o; rerender(); }, syncErr);
@@ -994,26 +965,6 @@ Object.assign(ACT, {
     if (o != null) { const sc = z.score || {}; patch['score.t'] = (sc.t || 0) + 1; patch['score.m'] = (sc.m || 0) + (o === v ? 1 : 0); }
     wr(updateDoc(dref('play', 'quiz'), patch));
   },
-  tttNew() {
-    const t = PL('ttt'), st = t && t.st ? otherKey(t.st) : 'her';
-    wr(setDoc(dref('play', 'ttt'), { b: '.........', st, turn: st, w: '' }, { merge: true }));
-  },
-  tttMove(el) {
-    const t = PL('ttt'), mk = meKey(), i = Number(el.dataset.i);
-    if (!t || t.w || t.turn !== mk || t.b[i] !== '.') return;
-    const b = t.b.slice(0, i) + (mk === 'him' ? 'h' : 'w') + t.b.slice(i + 1), w = tttWin(b), patch = { b, turn: otherKey(mk), w };
-    if (w) patch['sc.' + w] = ((t.sc || {})[w] || 0) + 1;
-    wr(updateDoc(dref('play', 'ttt'), patch));
-  },
-  rpsPick(el) {
-    const p = PL('rps') || {}, mk = meKey(), ok = otherKey(mk), c = p.c || {};
-    if (c[mk]) return;
-    if (!PL('rps')) { wr(setDoc(dref('play', 'rps'), { c: { [mk]: el.dataset.v }, sc: {} })); return; }
-    const patch = { ['c.' + mk]: el.dataset.v };
-    if (c[ok]) { const both = Object.assign({}, c, { [mk]: el.dataset.v }), w = rpsResult(both.him, both.her); patch['sc.' + w] = ((p.sc || {})[w] || 0) + 1; }
-    wr(updateDoc(dref('play', 'rps'), patch));
-  },
-  rpsAgain() { wr(updateDoc(dref('play', 'rps'), { 'c.him': deleteField(), 'c.her': deleteField() })); }
 });
 RENDER.mood = renderMood; RENDER.play = renderPlay;
 
@@ -1236,7 +1187,7 @@ function truthHtml() {
   else body = gMachine() + '<div class="g-result">' + gCapsule(c, true) + '</div>' + gAnswerHtml(c);
   return '<div class="card play-card" id="g-card"><div class="row"><h3>真心話扭蛋機</h3><span class="muted">' + (list.length ? '已收藏 ' + list.length + (list.length >= truthLimit ? '+' : '') + ' 顆' : '') + '</span></div>' + body +
     '<button class="btn g-spin" data-act="gSpin"' + (busy ? ' disabled' : '') + '>' + (busy ? '兩個人都回答完才能再扭' : '扭一顆！') + '</button>' +
-    (list.length ? '<details class="g-hist"><summary>回答紀錄</summary>' + list.map(t => {
+    (list.length ? '<details class="g-hist" id="g-hist"' + detOpen('g-hist') + '><summary>回答紀錄</summary>' + list.map(t => {
       const col = GCATS[t.c] ? GCATS[t.c][2] : '#ccc';
       return '<div class="g-item"><p class="g-q"><i style="background:' + col + '"></i>' + esc(t.q) + '</p>' + ['him', 'her'].map(w => '<p class="g-a">' + chip(w) + ' ' + esc((t.ans || {})[w] || '') + '</p>').join('') + '<p class="muted g-date">' + md(new Date(t.ts)) + '・' + esc(t.by || '') + ' 扭的</p></div>';
     }).join('') + (list.length >= truthLimit ? '<button class="btn ghost small" data-act="gMore">看更早的</button>' : '') + '</details>' : '') + '</div>';
@@ -1286,6 +1237,193 @@ Object.assign(ACT, {
 });
 
 document.addEventListener('input', e => { if (e.target && e.target.id === 'g-ta') gDraft = e.target.value; });
+
+/* 畫面重畫時記住哪些摺疊區塊是打開的（另一支手機更新資料時，不會把你正在看的清單收起來） */
+const OPEN_DET = new Set();
+document.addEventListener('toggle', e => { const d = e.target; if (d && d.tagName === 'DETAILS' && d.id) { if (d.open) OPEN_DET.add(d.id); else OPEN_DET.delete(d.id); } }, true);
+const detOpen = id => OPEN_DET.has(id) ? ' open' : '';
+
+/* ---------- 射氣球 ---------- */
+/* 夜市玩法：一局 7 支鏢、6×6 氣球。手指按住瞄準（準星會像手一樣微微晃），放開射出；射在氣球身上才會破。
+   得分：每破一顆 1 點，橫／直／斜連續 4 顆以上算一條線，每條線加 5 點。
+   點數存在 play/balloon.pts，各自累積；用點數向另一半換獎勵，換到的變成「兌換券」（coupons）。 */
+const BN = 6, BDARTS = 7, BLINE = 4, BLINE_PTS = 5;
+const BCOL = ['#ff8fa3', '#ffd166', '#7cc6fe', '#9be39a', '#c3a6e8', '#ffad69'];
+const BREWARDS = [['親親', 10], ['抱抱', 10], ['撒嬌一次', 10], ['買飲料', 30], ['洗碗一次', 30], ['按摩 10 分鐘', 30], ['跑腿一次', 60], ['掃地', 60], ['陪看一部電影', 60], ['早餐服務', 60]];
+let BG = null, couponUnsub = null;
+const bInfo = () => { const b = PL('balloon') || {}; return { pts: b.pts || {}, best: b.best || {}, rewards: (b.rewards && b.rewards.length ? b.rewards : BREWARDS.map(r => ({ n: r[0], p: r[1] }))) }; };
+function subCoupons() {
+  if (couponUnsub) { try { couponUnsub(); } catch (e) { /* ignore */ } }
+  couponUnsub = onSnapshot(query(col('coupons'), orderBy('ts', 'desc'), limit(60)), snap => { S.coupons = snap.docs.map(d => Object.assign({ id: d.id }, d.data())); rerender(); }, syncErr);
+}
+function bLines(p) {
+  let n = 0; const at = (r, c) => r >= 0 && c >= 0 && r < BN && c < BN && p[r * BN + c];
+  for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+    for (let r = 0; r < BN; r++) for (let c = 0; c < BN; c++) {
+      if (!at(r, c) || at(r - dr, c - dc)) continue; /* 只從一段連續的起點開始數 */
+      let k = 0; while (at(r + dr * k, c + dc * k)) k++;
+      if (k >= BLINE) n++;
+    }
+  }
+  return n;
+}
+function bNew() {
+  return { popped: new Array(BN * BN).fill(false), col: Array.from({ length: BN * BN }, () => BCOL[Math.floor(Math.random() * BCOL.length)]), darts: BDARTS, stuck: [], fly: null, bursts: [], aim: null, t0: performance.now(), done: false, raf: 0 };
+}
+function bScore(G) { const pops = G.popped.filter(Boolean).length, lines = bLines(G.popped); return { pops, lines, pts: pops + lines * BLINE_PTS }; }
+function bDraw() {
+  const G = BG, cv = $('#bl-cv'); if (!G || !cv) return;
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, S_ = r.width;
+  if (cv.width !== Math.round(S_ * dpr)) { cv.width = Math.round(S_ * dpr); cv.height = Math.round(S_ * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cell = S_ / BN, now = performance.now();
+  g.fillStyle = '#e8c48c'; g.fillRect(0, 0, S_, S_);
+  g.strokeStyle = 'rgba(120,80,40,.12)'; g.lineWidth = 1;
+  for (let i = 1; i < 14; i++) { g.beginPath(); g.moveTo(0, i * S_ / 14 + Math.sin(i) * 3); g.bezierCurveTo(S_ / 3, i * S_ / 14 - 4, S_ * 2 / 3, i * S_ / 14 + 4, S_, i * S_ / 14); g.stroke(); }
+  for (let i = 0; i < BN * BN; i++) {
+    const cx = (i % BN + 0.5) * cell, cy = (Math.floor(i / BN) + 0.5) * cell, rx = cell * 0.4, ry = cell * 0.45;
+    if (G.popped[i]) {
+      g.fillStyle = G.col[i]; g.globalAlpha = 0.85;
+      for (let k = 0; k < 5; k++) { const a = k * 1.3 + i; g.beginPath(); g.ellipse(cx + Math.cos(a) * rx * 0.35, cy + Math.sin(a) * ry * 0.3, rx * 0.16, ry * 0.08, a, 0, Math.PI * 2); g.fill(); }
+      g.globalAlpha = 1; continue;
+    }
+    const wob = Math.sin(now / 700 + i) * 1.2;
+    const gr = g.createRadialGradient(cx - rx * 0.35, cy - ry * 0.4 + wob, rx * 0.1, cx, cy + wob, ry * 1.1);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.25, G.col[i]); gr.addColorStop(1, G.col[i]);
+    g.fillStyle = gr; g.beginPath(); g.ellipse(cx, cy + wob, rx, ry, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = 'rgba(74,63,69,.55)'; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = G.col[i]; g.beginPath(); g.moveTo(cx, cy + ry + wob - 2); g.lineTo(cx - 4, cy + ry + wob + 5); g.lineTo(cx + 4, cy + ry + wob + 5); g.closePath(); g.fill(); g.stroke();
+  }
+  const dart = (x, y, s, ang) => {
+    g.save(); g.translate(x, y); g.rotate(ang); g.scale(s, s);
+    g.strokeStyle = '#4a3f45'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 22); g.stroke();
+    g.fillStyle = '#e76f6f'; g.beginPath(); g.moveTo(0, 14); g.lineTo(-6, 24); g.lineTo(0, 21); g.lineTo(6, 24); g.closePath(); g.fill();
+    g.fillStyle = '#9aa3ad'; g.beginPath(); g.arc(0, 0, 1.6, 0, Math.PI * 2); g.fill(); g.restore();
+  };
+  G.stuck.forEach(d => dart(d.x * S_, d.y * S_, 0.9, d.a));
+  G.bursts = G.bursts.filter(b => now - b.t < 450);
+  G.bursts.forEach(b => {
+    const k = (now - b.t) / 450; g.strokeStyle = b.c; g.lineWidth = 3 * (1 - k); g.globalAlpha = 1 - k;
+    for (let j = 0; j < 8; j++) { const a = j * Math.PI / 4; g.beginPath(); g.moveTo(b.x * S_ + Math.cos(a) * cell * 0.2 * (1 + k), b.y * S_ + Math.sin(a) * cell * 0.2 * (1 + k)); g.lineTo(b.x * S_ + Math.cos(a) * cell * 0.5 * (0.5 + k), b.y * S_ + Math.sin(a) * cell * 0.5 * (0.5 + k)); g.stroke(); }
+    g.globalAlpha = 1;
+  });
+  if (G.fly) {
+    const k = Math.min(1, (now - G.fly.t) / 220), x = 0.5 + (G.fly.x - 0.5) * k, y = 1.15 + (G.fly.y - 1.15) * k;
+    dart(x * S_, y * S_, 1.6 - 0.7 * k, G.fly.a);
+    if (k >= 1) bLand();
+  }
+  if (G.aim && !G.fly && G.darts > 0) {
+    const p = bAimPos(); g.strokeStyle = 'rgba(192,40,60,.9)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(p.x * S_, p.y * S_, cell * 0.16, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.moveTo(p.x * S_ - cell * 0.28, p.y * S_); g.lineTo(p.x * S_ + cell * 0.28, p.y * S_); g.moveTo(p.x * S_, p.y * S_ - cell * 0.28); g.lineTo(p.x * S_, p.y * S_ + cell * 0.28); g.stroke();
+  }
+  const sc = bScore(G);
+  $('#bl-darts').textContent = '🎯'.repeat(G.darts) || '—';
+  $('#bl-score').textContent = sc.pts; $('#bl-lines').textContent = sc.lines;
+}
+/* 手會抖：準星在手指位置附近慢慢晃（約 0.22 格） */
+function bAimPos() {
+  const G = BG, t = (performance.now() - G.t0) / 1000, A = 0.22 / BN;
+  return { x: G.aim.x + A * (Math.sin(t * 2.3) + 0.6 * Math.sin(t * 3.9 + 1.3)) / 1.6, y: G.aim.y + A * (Math.sin(t * 1.9 + 2) + 0.6 * Math.sin(t * 4.4)) / 1.6 };
+}
+function bThrow() {
+  const G = BG; if (!G || G.fly || G.darts <= 0 || !G.aim) return;
+  const p = bAimPos(); G.darts--; G.fly = { x: p.x, y: p.y, t: performance.now(), a: (Math.random() - 0.5) * 0.5 }; G.aim = null;
+}
+function bLand() {
+  const G = BG, f = G.fly; G.fly = null;
+  G.stuck.push({ x: f.x, y: f.y, a: f.a });
+  const c = Math.floor(f.x * BN), r = Math.floor(f.y * BN);
+  if (c >= 0 && r >= 0 && c < BN && r < BN) {
+    const i = r * BN + c, dx = (f.x * BN - c - 0.5) / 0.4, dy = (f.y * BN - r - 0.5) / 0.45;
+    if (!G.popped[i] && dx * dx + dy * dy <= 1) { G.popped[i] = true; G.bursts.push({ x: f.x, y: f.y, t: performance.now(), c: G.col[i] }); try { navigator.vibrate && navigator.vibrate(30); } catch (e) { /* ignore */ } }
+  }
+  if (G.darts === 0 && !G.done) { G.done = true; setTimeout(bEnd, 700); }
+}
+function bLoop() { if (!BG) return; bDraw(); BG.raf = requestAnimationFrame(bLoop); }
+function bEnd() {
+  const G = BG; if (!G) return;
+  const sc = bScore(G), mk = meKey(), info = bInfo(), total = (info.pts[mk] || 0) + sc.pts, best = Math.max(info.best[mk] || 0, sc.pts);
+  wr(setDoc(dref('play', 'balloon'), { pts: { [mk]: total }, best: { [mk]: best } }, { merge: true }));
+  const box = $('#bl-over');
+  box.innerHTML = '<p class="mg-over-t">' + (sc.lines >= 2 ? '太神了！' : sc.lines ? '連線成功！' : sc.pops >= 5 ? '手感不錯！' : '再接再厲！') + '</p>' +
+    '<p class="bl-res">破了 <b>' + sc.pops + '</b> 顆・連線 <b>' + sc.lines + '</b> 條</p><p class="mg-over-s">+' + sc.pts + ' 點</p>' +
+    '<p class="muted">你現在有 ' + total + ' 點' + (sc.pts > (info.best[mk] || 0) && sc.pts > 0 ? '・單局新紀錄！' : '') + '</p>' +
+    '<div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap"><button class="btn" data-act="blAgain">再來一局</button><button class="btn ghost" data-act="blShop">去換獎勵</button></div>';
+  box.hidden = false;
+}
+function bOpen() {
+  let ov = $('#bl');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'bl'; ov.className = 'mg';
+    ov.innerHTML = '<div class="mg-top-bar"><button class="btn ghost small" data-act="blClose">‹ 離開</button><span class="mg-sc">點數 <b id="bl-score">0</b></span><span class="mg-nx">連線 <b id="bl-lines">0</b></span></div>' +
+      '<p class="bl-darts" id="bl-darts"></p><div class="bl-stage"><canvas id="bl-cv"></canvas><div class="mg-over" id="bl-over" hidden></div></div>' +
+      '<p class="mg-tip">手指按住瞄準，準星會微微晃，看準了放開就射出去<br>射在氣球身上才會破・連續 4 顆算一條線（+5 點）</p>';
+    document.body.appendChild(ov);
+    const cv = $('#bl-cv');
+    /* 準星在手指上方一點，手指才不會擋住 */
+    const aim = e => { const r = cv.getBoundingClientRect(); if (BG && !BG.fly && BG.darts > 0) BG.aim = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top - 56) / r.width }; };
+    ov.addEventListener('pointerdown', e => { if (e.target.closest('button') || !BG || BG.done) return; e.preventDefault(); aim(e); });
+    ov.addEventListener('pointermove', e => { if (BG && BG.aim) aim(e); });
+    ov.addEventListener('pointerup', e => { if (BG && BG.aim) { aim(e); bThrow(); } });
+    ov.addEventListener('pointercancel', () => { if (BG) BG.aim = null; });
+    ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => e.preventDefault(), { passive: false }));
+  }
+  ov.hidden = false; document.documentElement.classList.add('mg-open');
+  if (BG) cancelAnimationFrame(BG.raf);
+  BG = bNew(); $('#bl-over').hidden = true; bLoop();
+}
+function bClose(toShop) {
+  if (BG) { cancelAnimationFrame(BG.raf); if (!BG.done && BG.darts < BDARTS) { BG.done = true; const sc = bScore(BG); if (sc.pts) { const mk = meKey(), info = bInfo(); wr(setDoc(dref('play', 'balloon'), { pts: { [mk]: (info.pts[mk] || 0) + sc.pts }, best: { [mk]: Math.max(info.best[mk] || 0, sc.pts) } }, { merge: true })); } } BG = null; }
+  const ov = $('#bl'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
+  if (curTab === 'play') renderPlay();
+  if (toShop) setTimeout(() => { const s = $('#bl-shop'); if (s) { s.open = true; OPEN_DET.add('bl-shop'); s.scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); } }, 50);
+}
+function couponRow(c, mine) {
+  return '<li class="bl-cp' + (c.used ? ' used' : '') + '"><span class="bl-cp-n">🎟️ ' + esc(c.what) + '</span><span class="muted">' + (c.used ? md(new Date(c.usedAt || c.ts)) + ' 兌換了' : (c.from === S.me ? '你要兌現' : '由 ' + c.from + ' 兌現')) + '</span>' +
+    (!c.used && mine ? '<button class="btn small" data-act="blUse" data-id="' + c.id + '">使用</button>' : '') + '</li>';
+}
+function balloonCardHtml() {
+  const info = bInfo(), mk = meKey(), ok = otherKey(mk), mine = info.pts[mk] || 0;
+  const cps = S.coupons || [], myCp = cps.filter(c => c.to === S.me && !c.used), theirCp = cps.filter(c => c.to !== S.me && !c.used), used = cps.filter(c => c.used).slice(0, 10);
+  return '<div class="card play-card"><div class="row"><h3>射氣球 🎈</h3><span class="muted">' + MARK.him + ' ' + (info.pts.him || 0) + ' 點　' + MARK.her + ' ' + (info.pts.her || 0) + ' 點</span></div>' +
+    '<p class="muted">夜市玩法！一局 7 支鏢，破一顆 1 點，連成一條線再加 5 點。點數可以跟' + WHO[ok] + '換獎勵。</p>' +
+    '<button class="btn" data-act="blOpen">開始射氣球</button>' +
+    '<details class="bl-shop" id="bl-shop"' + detOpen('bl-shop') + '><summary>用點數換獎勵（你有 ' + mine + ' 點）</summary><ul class="bl-rw">' +
+      info.rewards.map((r, i) => '<li><span>' + esc(r.n) + '</span><span class="muted">' + r.p + ' 點</span><button class="btn ghost small" data-act="blBuy" data-i="' + i + '"' + (mine < r.p ? ' disabled' : '') + '>換</button></li>').join('') +
+    '</ul><button class="btn ghost small" data-act="blEditRw">編輯獎勵清單</button></details>' +
+    '<div class="bl-cps"><p class="bl-h">你的兌換券（' + WHO[ok] + '要兌現）</p>' + (myCp.length ? '<ul>' + myCp.map(c => couponRow(c, true)).join('') + '</ul>' : '<p class="muted">還沒有，快去射氣球</p>') +
+    '<p class="bl-h">' + WHO[ok] + '的兌換券（你要兌現）</p>' + (theirCp.length ? '<ul>' + theirCp.map(c => couponRow(c, false)).join('') + '</ul>' : '<p class="muted">目前沒有</p>') +
+    (used.length ? '<details id="bl-used"' + detOpen('bl-used') + '><summary class="muted">最近兌換過的</summary><ul>' + used.map(c => couponRow(c, false)).join('') + '</ul></details>' : '') + '</div></div>';
+}
+Object.assign(ACT, {
+  blOpen() { bOpen(); }, blAgain() { bOpen(); }, blClose() { bClose(false); }, blShop() { bClose(true); },
+  blBuy(el) {
+    const info = bInfo(), r = info.rewards[Number(el.dataset.i)], mk = meKey(), have = info.pts[mk] || 0, other = S.me === '老公' ? '老婆' : '老公';
+    if (!r || have < r.p) { toast('點數不夠喔'); return; }
+    if (!confirm('用 ' + r.p + ' 點跟' + other + '換「' + r.n + '」？')) return;
+    wr(setDoc(dref('play', 'balloon'), { pts: { [mk]: have - r.p } }, { merge: true }));
+    wr(addDoc(col('coupons'), { to: S.me, from: other, what: r.n, cost: r.p, ts: Date.now(), used: false }));
+    toast('換到了！兌換券放在下面，想用的時候按「使用」');
+  },
+  blUse(el) {
+    const c = (S.coupons || []).find(x => x.id === el.dataset.id); if (!c) return;
+    if (!confirm('現在要使用「' + c.what + '」嗎？')) return;
+    wr(updateDoc(dref('coupons', c.id), { used: true, usedAt: Date.now() }));
+    toast('已使用，叫' + c.from + '來兌現！');
+  },
+  blEditRw() {
+    openSheet('<h3>獎勵清單</h3><p class="muted">一行一個，格式：獎勵名稱,點數（例如：親親,10）。兩支手機共用。</p>' +
+      '<textarea id="rw-ta" rows="12" style="width:100%">' + esc(bInfo().rewards.map(r => r.n + ',' + r.p).join('\n')) + '</textarea>' +
+      '<div class="actions"><button class="btn ghost" data-act="blRwReset">恢復預設</button><button class="btn ghost" data-act="close">取消</button><button class="btn" data-act="blRwSave">存起來</button></div>');
+  },
+  blRwSave() {
+    const l = $('#rw-ta').value.split('\n').map(s => s.trim()).filter(Boolean).map(s => { const m = s.split(/[,，]/); return { n: m[0].trim().slice(0, 20), p: Math.max(1, Math.min(999, parseInt(m[1], 10) || 10)) }; }).filter(r => r.n).slice(0, 30);
+    if (!l.length) { toast('至少要一個獎勵'); return; }
+    wr(setDoc(dref('play', 'balloon'), { rewards: l }, { merge: true })); closeSheet(); toast('獎勵清單存好了');
+  },
+  blRwReset() { wr(setDoc(dref('play', 'balloon'), { rewards: deleteField() }, { merge: true })); closeSheet(); toast('已恢復預設'); }
+});
 
 window.addEventListener('online', () => { setNet(); if (booted && !synced) boot(); });
 window.addEventListener('offline', setNet);
