@@ -1142,3 +1142,37 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .mg-tip{font-size:13px;color:var(--muted);margin:6px 0 0}
 .mg-top{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:4px}
 .mg-top b{font-size:17px}
+/* 真心話扭蛋機（工程先做的造型與動畫，美術可再換） */
+.gacha{position:relative;width:min(220px,62vw);margin:4px auto 0}
+.gacha svg{width:100%;display:block;overflow:visible}
+.gacha .g-knob{transform-origin:78px 210px;transform-box:view-box}
+.gacha .g-balls{transform-origin:100px 98px;transform-box:view-box}
+.gacha.spinning .g-knob{animation:gKnob .9s cubic-bezier(.4,0,.2,1)}
+.gacha.spinning .g-balls{animation:gShake .9s ease-in-out}
+@keyframes gKnob{to{transform:rotate(360deg)}}
+@keyframes gShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-6deg) translateY(-2px)}40%{transform:rotate(5deg)}60%{transform:rotate(-4deg) translateY(-1px)}80%{transform:rotate(3deg)}}
+.g-hint{text-align:center;margin:0}
+.g-result{position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:-6px}
+.g-capsule{position:relative;width:64px;height:64px}
+.g-capsule .g-top,.g-capsule .g-bot{position:absolute;left:0;width:64px;height:32px;border:3px solid #4a3f45;box-sizing:border-box;transition:transform .5s cubic-bezier(.3,1.4,.5,1)}
+.g-capsule .g-top{top:0;border-radius:32px 32px 0 0;background:var(--cc)}
+.g-capsule .g-bot{bottom:0;border-radius:0 0 32px 32px;background:#fffaf3}
+.g-capsule.open .g-top{transform:translate(-30px,-8px) rotate(-35deg)}
+.g-capsule.open .g-bot{transform:translate(30px,4px) rotate(25deg)}
+.g-result.falling .g-capsule{animation:gFall .8s .9s cubic-bezier(.3,0,.6,1) both}
+@keyframes gFall{0%{transform:translateY(-70px) scale(.6);opacity:0}55%{transform:translateY(6px) scale(1);opacity:1}75%{transform:translateY(-10px)}100%{transform:translateY(0)}}
+.g-paper{width:100%;box-sizing:border-box;padding:16px 16px 12px;border-radius:var(--radius-card);background:var(--paper-note);text-align:center;opacity:0;transform:scale(.9);transition:opacity .4s,transform .4s}
+.g-paper.show{opacity:1;transform:none}
+.g-paper p{margin:6px 0;font-size:20px;line-height:1.6;color:var(--fg)}
+.g-tag{display:inline-block;padding:1px 10px;border-radius:999px;font-size:13px;color:#4a3f45}
+.g-by{font-size:13px}
+.g-answers{display:flex;flex-direction:column;gap:8px}
+.g-ans{display:flex;gap:8px;align-items:flex-start}
+.g-ans p{margin:0;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;flex:1}
+.g-spin{width:100%}
+.g-hist summary{cursor:pointer;color:var(--accent);padding:6px 0}
+.g-item{border-top:1px dashed var(--line);padding:10px 0;display:flex;flex-direction:column;gap:4px}
+.g-q{margin:0;font-size:17px}
+.g-q i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.g-a{margin:0;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.g-date{margin:0;font-size:12px}

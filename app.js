@@ -77,7 +77,7 @@ function applyTheme() {
 
 /* ---------- 狀態 ---------- */
 let FID = LS.get('ourtwo.fid');
-const S = { me: LS.get('ourtwo.me') === '老婆' ? '老婆' : '老公', shifts: {}, events: [], memos: [], notes: [], love: [], board: [], mood: [], play: {}, period: null };
+const S = { me: LS.get('ourtwo.me') === '老婆' ? '老婆' : '老公', shifts: {}, events: [], memos: [], notes: [], love: [], board: [], mood: [], play: {}, truth: [], period: null };
 const meKey = () => S.me === '老公' ? 'him' : 'her';
 let booted = false, synced = false, unsubs = [];
 let curTab = 'home', calY, calM, calSel = TODAY, perY, perM, memoMode = 'todo';
@@ -486,12 +486,13 @@ function startSync() {
   unsubs.push(listItems('love', 'love'));
   subBoard();
   subMood();
+  subTruth();
   unsubs.push(subPlay());
   cleanupOldFont();
   unsubs.push(onSnapshot(dref('settings', 'period'), snap => { S.period = snap.exists() ? snap.data() : null; rerender(); }, syncErr));
   synced = true;
 }
-function stopSync() { if (moodUnsub) { try { moodUnsub(); } catch (e) { /* ignore */ } moodUnsub = null; } if (boardUnsub) { try { boardUnsub(); } catch (e) { /* ignore */ } boardUnsub = null; } unsubs.forEach(u => { try { u(); } catch (e) { /* ignore */ } }); unsubs = []; synced = false; }
+function stopSync() { if (truthUnsub) { try { truthUnsub(); } catch (e) { /* ignore */ } truthUnsub = null; } if (moodUnsub) { try { moodUnsub(); } catch (e) { /* ignore */ } moodUnsub = null; } if (boardUnsub) { try { boardUnsub(); } catch (e) { /* ignore */ } boardUnsub = null; } unsubs.forEach(u => { try { u(); } catch (e) { /* ignore */ } }); unsubs = []; synced = false; }
 
 function ensureAuth() {
   return new Promise((resolve, reject) => {
@@ -579,7 +580,7 @@ const ACT = {
     try {
       const out = { app: 'ourtwo', version: 1, exported: new Date().toISOString(), data: {} };
       let n = 0;
-      for (const c of ['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play']) {
+      for (const c of ['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play', 'truth']) {
         const snap = await getDocs(col(c)); out.data[c] = {};
         snap.forEach(d => { out.data[c][d.id] = d.data(); n++; });
       }
@@ -604,7 +605,7 @@ const ACT = {
         let n = 0; Object.keys(j.data).forEach(c => { n += Object.keys(j.data[c]).length; });
         if (!confirm('要把備份裡的 ' + n + ' 筆資料放回去嗎？\n同編號的資料會被備份內容蓋過，其他資料不會被刪除。')) return;
         for (const c of Object.keys(j.data)) {
-          if (!['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play'].includes(c)) continue;
+          if (!['shifts', 'events', 'memos', 'notes', 'love', 'settings', 'board', 'mood', 'play', 'truth'].includes(c)) continue;
           for (const id of Object.keys(j.data[c])) await setDoc(dref(c, id), j.data[c][id]);
         }
         toast('已還原 ' + n + ' 筆');
@@ -850,11 +851,10 @@ function homeMoodCard() {
 const EAT = ['便當', '拉麵', '火鍋', '滷肉飯', '牛肉麵', '壽司', '麥當勞', '義大利麵', '炒飯', '鍋燒意麵', '韓式料理', '咖哩飯'];
 const DRINK = ['珍珠奶茶', '紅茶拿鐵', '四季春', '美式咖啡', '多多綠', '冬瓜檸檬', '水果茶', '奶蓋紅茶', '楊枝甘露', '烏龍鮮奶'];
 const WCOL = ['#f4b6c2', '#f9d98a', '#a9d4f0', '#b9e0ae', '#f7c08f', '#d3bdf0', '#f3a6a6', '#9fd8cf'];
-const TRUTH = ['第一次見到我的時候，你心裡在想什麼？', '我做過最讓你心動的一件小事是什麼？', '你最喜歡我身上的哪個地方？', '如果明天放假一整天，你最想跟我做什麼？', '我哪個習慣你其實偷偷覺得很可愛？', '最近一次被我惹生氣是什麼時候？', '你覺得我們最像的地方是什麼？', '你最想跟我一起去的國家是哪裡？', '如果可以回到過去，你想重來我們的哪一天？', '我做的哪道菜（或買的哪樣東西）你最喜歡？', '你覺得十年後的我們會在做什麼？', '你最想對我說，但一直沒說出口的話？', '我們吵架時，你最希望我怎麼做？', '你覺得我最近壓力大的原因是什麼？', '你記得我們第一次約會吃了什麼嗎？', '用三個詞形容我。', '你最喜歡我們的哪張合照？為什麼？', '最近有什麼事讓你覺得「還好有你」？', '你小時候的夢想是什麼？', '如果我變成一隻動物，你覺得會是什麼？', '你最想跟我一起完成的一件事？', '你覺得我們家最需要添購的東西是什麼？', '今天上班最累的瞬間是什麼時候？', '如果只能選一樣，你選消夜還是早餐約會？', '我讓你覺得最安心的是什麼時候？', '你覺得我最近有哪裡變了？', '有什麼小事是你希望我多做一點的？', '最想收到我送的什麼禮物？', '週末早上，你理想的起床方式是？', '說一件今天想謝謝我的事。'];
 const QUIZ = [['週末最想怎麼過？', ['在家耍廢', '出去走走', '吃大餐', '睡到自然醒']], ['消夜首選？', ['鹹酥雞', '泡麵', '滷味', '不吃消夜']], ['旅行比較想去？', ['日本', '韓國', '海島', '台灣環島']], ['吵架後誰會先道歉？', ['老公', '老婆', '看情況', '都不會']], ['家裡誰比較會花錢？', ['老公', '老婆', '一樣', '都很省']], ['下雨天最適合？', ['看電影', '睡覺', '吃火鍋', '打電動']], ['理想的約會時間？', ['早上', '下午', '晚上', '半夜']], ['比較喜歡的寵物？', ['貓', '狗', '兔子', '都不要']], ['最常一起吃的？', ['火鍋', '拉麵', '便當', '燒肉']], ['生日最想收到？', ['驚喜派對', '一封手寫信', '想要很久的東西', '一起去旅行']], ['誰比較會賴床？', ['老公', '老婆', '一樣', '都不會']], ['誰比較會記仇？', ['老公', '老婆', '一樣', '都不會']], ['放假第一件事？', ['補眠', '追劇', '出門吃', '打掃']], ['最想一起學的？', ['煮飯', '游泳', '跳舞', '外語']], ['家裡誰負責找東西？', ['老公', '老婆', '一起找', '找不到就算了']], ['最喜歡的季節？', ['春天', '夏天', '秋天', '冬天']], ['手搖飲的甜度？', ['全糖', '半糖', '微糖', '無糖']], ['誰比較怕黑？', ['老公', '老婆', '一樣', '都不怕']], ['理想的家？', ['市區公寓', '郊區透天', '海邊小屋', '鄉下農舍']], ['一起看電影選？', ['喜劇', '恐怖片', '愛情片', '動畫']]];
 const RPS = [['rock', '✊', '石頭'], ['scissors', '✌️', '剪刀'], ['paper', '🖐️', '布']];
 const MARK = { him: '🐻', her: '🐰' };
-let playKind = 'eat', wheelRot = 0, wheelSpin = false, wheelResult = '', truthIdx = -1;
+let playKind = 'eat', wheelRot = 0, wheelSpin = false, wheelResult = '';
 const otherKey = mk => mk === 'him' ? 'her' : 'him';
 const PL = k => (S.play && S.play[k]) || null;
 function wheelList() { const w = PL('wheel') || {}; const l = w[playKind]; return (l && l.length ? l : (playKind === 'eat' ? EAT : DRINK)).slice(0, 24); }
@@ -881,11 +881,6 @@ function wheelHtml() {
     '<div class="wheelwrap"><div class="wheel-pin">▼</div><canvas id="wheel"></canvas></div>' +
     '<p class="wheel-result" id="wheel-result">' + (wheelResult ? '就決定是：<b>' + esc(wheelResult) + '</b>！' : '按下面的按鈕轉轉看') + '</p>' +
     '<div class="row"><button class="btn" data-act="wSpin">轉！</button><button class="btn ghost small" data-act="wEdit">編輯選項</button></div></div>';
-}
-function truthHtml() {
-  return '<div class="card play-card"><div class="row"><h3>真心話小卡</h3><span class="muted">輪流回答</span></div>' +
-    '<div class="truth-card">' + (truthIdx < 0 ? '抽一張卡，看看今天要回答什麼' : esc(TRUTH[truthIdx])) + '</div>' +
-    '<button class="btn" data-act="tDraw">' + (truthIdx < 0 ? '抽一張' : '換一張') + '</button></div>';
 }
 function quizHtml() {
   const z = PL('quiz'), mk = meKey(), ok = otherKey(mk), sc = (z && z.score) || {};
@@ -933,7 +928,8 @@ function renderPlay() {
   if (!root.childElementCount) root.innerHTML = ['merge', 'wheel', 'truth', 'quiz', 'ttt', 'rps'].map(k => '<div id="pw-' + k + '"></div>').join('');
   $('#pw-merge').innerHTML = mergeCardHtml();
   if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
-  $('#pw-truth').innerHTML = truthHtml();
+  const ga = document.activeElement && document.activeElement.id === 'g-ta';
+  if (!gWatch() && !gAnim && !ga) $('#pw-truth').innerHTML = truthHtml();
   $('#pw-quiz').innerHTML = quizHtml();
   $('#pw-ttt').innerHTML = tttHtml();
   $('#pw-rps').innerHTML = rpsHtml();
@@ -987,7 +983,6 @@ Object.assign(ACT, {
     wr(setDoc(dref('play', 'wheel'), { [playKind]: l }, { merge: true })); wheelResult = ''; closeSheet(); toast('選項存好了');
   },
   wReset() { wr(setDoc(dref('play', 'wheel'), { [playKind]: deleteField() }, { merge: true })); wheelResult = ''; closeSheet(); toast('已恢復預設'); },
-  tDraw() { let n; do { n = Math.floor(Math.random() * TRUTH.length); } while (n === truthIdx && TRUTH.length > 1); truthIdx = n; renderPlay(); },
   qNew() {
     const z = PL('quiz'); let n; do { n = Math.floor(Math.random() * QUIZ.length); } while (z && n === z.i && QUIZ.length > 1);
     if (z) wr(updateDoc(dref('play', 'quiz'), { i: n, 'a.him': deleteField(), 'a.her': deleteField() }));
@@ -1176,6 +1171,129 @@ function mergeClose() {
   if (curTab === 'play') renderPlay();
 }
 Object.assign(ACT, { mgOpen: mergeOpen, mgClose: mergeClose, mgAgain: mergeOpen });
+
+/* ---------- 真心話扭蛋機 ---------- */
+/* 兩人共用一顆「目前的扭蛋」（play/gacha.cur）。誰都可以扭，但兩個人都回答完才能扭下一顆。
+   兩人都答完時，整顆扭蛋（題目＋兩人回答）存進 truth 收藏，下面的「回答紀錄」可以回顧。
+   先回答的人看不到對方答案，自己回答後才看得到，避免被影響。 */
+const GCATS = [['sweet', '甜蜜', '#f4a3b5'], ['memory', '回憶', '#f6d36b'], ['future', '未來', '#8fc8ec'], ['fun', '好笑', '#a8d8a0'], ['deep', '真心', '#c3a6e8']];
+const GACHA = [
+  [0, '你最喜歡我身上的哪個地方？'], [0, '我做過最讓你心動的一件小事是什麼？'], [0, '我哪個習慣你其實偷偷覺得很可愛？'], [0, '用三個詞形容我。'], [0, '我讓你覺得最安心的是什麼時候？'],
+  [0, '最近有什麼事讓你覺得「還好有你」？'], [0, '最想收到我送的什麼禮物？'], [0, '說一件今天想謝謝我的事。'], [0, '你覺得我穿什麼最好看？'], [0, '如果要幫我取一個新暱稱，你會取什麼？'],
+  [0, '你最喜歡我們一起做的哪件小事？'], [0, '我們之間你最喜歡的一個小儀式是什麼？'], [0, '你什麼時候會突然很想我？'], [0, '你覺得我們最像的地方是什麼？'], [0, '如果可以為我做一件事，你想做什麼？'], [0, '我說過哪一句話讓你記到現在？'],
+  [1, '第一次見到我的時候，你心裡在想什麼？'], [1, '你記得我們第一次約會吃了什麼嗎？'], [1, '如果可以回到過去，你想重來我們的哪一天？'], [1, '你最喜歡我們的哪張合照？為什麼？'], [1, '什麼時候你確定「就是這個人了」？'],
+  [1, '我們一起去過最好玩的地方是哪裡？'], [1, '我們第一次吵架是為了什麼？'], [1, '你印象最深的一次一起過節是哪次？'], [1, '我第一次讓你感動是什麼時候？'], [1, '一起上班以來，最難忘的一天是哪天？'],
+  [1, '你小時候的夢想是什麼？'], [1, '你學生時代最糗的一件事是什麼？'], [1, '說一個我可能不知道的你的小秘密。'], [1, '你最懷念的一道家鄉味或媽媽的菜是什麼？'], [1, '你記得我們交往後的第一份禮物嗎？'], [1, '最近一次被我逗笑是因為什麼？'],
+  [2, '你覺得十年後的我們會在做什麼？'], [2, '你最想跟我一起去的國家是哪裡？'], [2, '你最想跟我一起完成的一件事？'], [2, '理想中我們的家長什麼樣子？'], [2, '退休後你最想過什麼樣的生活？'],
+  [2, '明年你最想跟我一起達成的目標是什麼？'], [2, '如果中了一千萬，你第一件事想做什麼？'], [2, '想不想養寵物？想養什麼？叫什麼名字？'], [2, '你覺得我們家最需要添購的東西是什麼？'], [2, '如果可以一起開一間店，你想開什麼？'],
+  [2, '下一次放長假，你想怎麼過？'], [2, '有什麼新東西是你想跟我一起學的？'], [2, '五年後，你希望我們的生活哪裡不一樣？'], [2, '你想跟我一起完成的「人生清單」第一項是什麼？'], [2, '老了以後，你最想跟我每天做什麼？'], [2, '如果明天放假一整天，你最想跟我做什麼？'],
+  [3, '如果我變成一隻動物，你覺得會是什麼？'], [3, '如果我們交換身體一天，你第一件事要做什麼？'], [3, '我做過最好笑的一件蠢事是什麼？'], [3, '如果你是店長，第一條新規定是什麼？'], [3, '店裡哪位客人讓你最印象深刻？'],
+  [3, '模仿我生氣的樣子，然後描述一下。'], [3, '你覺得我們家誰比較像小孩？為什麼？'], [3, '如果只能選一樣，你選消夜還是早餐約會？'], [3, '我們之中誰比較會撒嬌？舉個例子。'], [3, '你覺得我上輩子是什麼？'],
+  [3, '如果要拍一部我們的電影，片名叫什麼？'], [3, '你在我面前做過最不在乎形象的事？'], [3, '週末早上，你理想的起床方式是？'], [3, '你最想吐槽我的一個習慣是什麼？'], [3, '如果我們是一道料理，會是什麼？'], [3, '用一個 emoji 形容今天的我。'],
+  [4, '你最想對我說，但一直沒說出口的話？'], [4, '我們吵架時，你最希望我怎麼做？'], [4, '最近有沒有什麼壓力是你還沒跟我說的？'], [4, '你覺得我最近有哪裡變了？'], [4, '有什麼小事是你希望我多做一點的？'],
+  [4, '你最怕失去什麼？'], [4, '你覺得自己最需要被理解的地方是什麼？'], [4, '最近一次被我惹生氣是什麼時候？現在還氣嗎？'], [4, '你覺得我們關係中最需要努力的是什麼？'], [4, '什麼樣的時候你會覺得被我忽略？'],
+  [4, '如果可以改變自己的一個個性，你想改什麼？'], [4, '你心目中「好的另一半」最重要的是什麼？'], [4, '你覺得我最近壓力大的原因是什麼？'], [4, '最近一次哭是為了什麼？'], [4, '你希望我在你累的時候怎麼陪你？'], [4, '有什麼話想對一年後的我們說？']
+];
+let gAnim = false, gSeenTs = 0, truthLimit = 20, truthUnsub = null, gDraft = '';
+function subTruth() {
+  if (truthUnsub) { try { truthUnsub(); } catch (e) { /* ignore */ } }
+  truthUnsub = onSnapshot(query(col('truth'), orderBy('ts', 'desc'), limit(truthLimit)), snap => {
+    S.truth = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    rerender();
+  }, syncErr);
+}
+const gCur = () => { const g = PL('gacha'); return g && g.cur && g.cur.q ? g.cur : null; };
+const gDone = c => !!(c && c.ans && c.ans.him && c.ans.her);
+/* 兩人都答完、但還沒存進紀錄 → 看到的那一方幫忙存（同一個編號，重複存也沒關係） */
+function gArchive() {
+  const c = gCur(); if (!gDone(c) || c.done) return;
+  wr(setDoc(dref('truth', String(c.ts)), { q: c.q, c: c.c, by: c.by, ts: c.ts, ans: { him: c.ans.him, her: c.ans.her }, at: Date.now() }));
+  wr(updateDoc(dref('play', 'gacha'), { 'cur.done': true }));
+}
+function gMachine(cls) {
+  const balls = [[62, 64, 0], [92, 52, 1], [124, 62, 2], [76, 92, 3], [108, 88, 4], [140, 92, 0], [58, 118, 2], [90, 120, 4], [122, 118, 1], [150, 124, 3], [104, 140, 0], [72, 142, 1], [136, 146, 2]];
+  return '<div class="gacha ' + (cls || '') + '"><svg viewBox="0 0 200 270" aria-hidden="true">' +
+    '<rect x="44" y="160" width="112" height="16" rx="6" fill="#e78fa3"/>' +
+    '<circle cx="100" cy="98" r="74" fill="#eef7fc" stroke="#4a3f45" stroke-width="3"/>' +
+    '<g class="g-balls">' + balls.map(b => { const col = GCATS[b[2]][2]; return '<g transform="translate(' + b[0] + ' ' + b[1] + ')"><circle r="14" fill="#fffaf3" stroke="#4a3f45" stroke-width="2"/><path d="M-14 0a14 14 0 0 1 28 0z" fill="' + col + '" stroke="#4a3f45" stroke-width="2"/></g>'; }).join('') + '</g>' +
+    '<path d="M54 64a56 56 0 0 1 40-36" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".8"/>' +
+    '<rect x="36" y="168" width="128" height="88" rx="14" fill="#f4a3b5" stroke="#4a3f45" stroke-width="3"/>' +
+    '<rect x="112" y="222" width="38" height="26" rx="6" fill="#4a3f45"/>' +
+    '<g class="g-knob"><circle cx="78" cy="210" r="22" fill="#fff4d6" stroke="#4a3f45" stroke-width="3"/><rect x="74" y="192" width="8" height="36" rx="4" fill="#e9c24a" stroke="#4a3f45" stroke-width="2"/></g>' +
+    '<text x="100" y="186" text-anchor="middle" font-size="12" fill="#4a3f45">真心話</text>' +
+    '</svg><div class="g-drop"></div></div>';
+}
+function gCapsule(c, open) {
+  const col = GCATS[c.c] ? GCATS[c.c][2] : '#f4a3b5', name = GCATS[c.c] ? GCATS[c.c][1] : '';
+  return '<div class="g-capsule' + (open ? ' open' : '') + '" style="--cc:' + col + '"><span class="g-top"></span><span class="g-bot"></span></div>' +
+    '<div class="g-paper' + (open ? ' show' : '') + '"><span class="g-tag" style="background:' + col + '">' + name + '</span><p>' + esc(c.q) + '</p><span class="muted g-by">' + esc(c.by) + ' 扭到的</span></div>';
+}
+function gAnswerHtml(c) {
+  const mk = meKey(), ok = otherKey(mk), a = c.ans || {}, mine = a[mk], theirs = a[ok];
+  if (gDone(c)) return '<div class="g-answers">' + ['him', 'her'].map(w => '<div class="g-ans">' + chip(w) + '<p>' + esc(a[w]) + '</p></div>').join('') + '</div>';
+  let h = '';
+  if (!mine) h += '<label class="f"><span>你的回答</span><textarea id="g-ta" maxlength="500" placeholder="寫下你的答案">' + esc(gDraft) + '</textarea></label><button class="btn" data-act="gAnswer">送出回答</button>';
+  else h += '<div class="g-ans">' + chip(mk) + '<p>' + esc(mine) + '</p></div><button class="btn ghost small" data-act="gEdit">修改我的回答</button>';
+  h += '<p class="muted">' + (theirs ? WHO[ok] + ' 已經回答了' + (mine ? '' : '，你回答後就看得到') : '等 ' + WHO[ok] + ' 回答…') + '</p>';
+  return h;
+}
+function truthHtml() {
+  const c = gCur(), busy = c && !gDone(c), list = S.truth || [];
+  let body;
+  if (!c) body = gMachine() + '<p class="muted g-hint">扭一顆扭蛋，兩個人都要回答喔</p>';
+  else body = gMachine() + '<div class="g-result">' + gCapsule(c, true) + '</div>' + gAnswerHtml(c);
+  return '<div class="card play-card" id="g-card"><div class="row"><h3>真心話扭蛋機</h3><span class="muted">' + (list.length ? '已收藏 ' + list.length + (list.length >= truthLimit ? '+' : '') + ' 顆' : '') + '</span></div>' + body +
+    '<button class="btn g-spin" data-act="gSpin"' + (busy ? ' disabled' : '') + '>' + (busy ? '兩個人都回答完才能再扭' : '扭一顆！') + '</button>' +
+    (list.length ? '<details class="g-hist"><summary>回答紀錄</summary>' + list.map(t => {
+      const col = GCATS[t.c] ? GCATS[t.c][2] : '#ccc';
+      return '<div class="g-item"><p class="g-q"><i style="background:' + col + '"></i>' + esc(t.q) + '</p>' + ['him', 'her'].map(w => '<p class="g-a">' + chip(w) + ' ' + esc((t.ans || {})[w] || '') + '</p>').join('') + '<p class="muted g-date">' + md(new Date(t.ts)) + '・' + esc(t.by || '') + ' 扭的</p></div>';
+    }).join('') + (list.length >= truthLimit ? '<button class="btn ghost small" data-act="gMore">看更早的</button>' : '') + '</details>' : '') + '</div>';
+}
+/* 扭蛋動畫：轉把手、扭蛋晃動 → 掉出一顆 → 打開看到題目 */
+function gPlay(c, done) {
+  const box = $('#pw-truth'); if (!box) { done(); return; }
+  gAnim = true;
+  box.innerHTML = '<div class="card play-card" id="g-card"><div class="row"><h3>真心話扭蛋機</h3></div>' + gMachine('spinning') + '<div class="g-result">' + gCapsule(c, false) + '</div><button class="btn g-spin" disabled>扭扭扭…</button></div>';
+  const res = $('.g-result', box); res.classList.add('falling');
+  setTimeout(() => { const cap = $('.g-capsule', box); if (cap) cap.classList.add('open'); const p = $('.g-paper', box); if (p) p.classList.add('show'); }, 1700);
+  setTimeout(() => { gAnim = false; done(); }, 2500);
+}
+function gWatch() {
+  const c = gCur();
+  if (c && c.ts !== gSeenTs) {
+    const first = gSeenTs === 0; gSeenTs = c.ts;
+    if (!first && c.by !== S.me && curTab === 'play' && !gAnim) { gPlay(c, () => renderPlay()); return true; }
+  }
+  if (c && gDone(c) && !c.done) gArchive();
+  return false;
+}
+Object.assign(ACT, {
+  gSpin() {
+    const g = PL('gacha') || {}, c = gCur();
+    if (gAnim || (c && !gDone(c))) return;
+    let used = (g.used || []).filter(n => n < GACHA.length);
+    if (used.length >= GACHA.length) used = [];
+    const pool = GACHA.map((x, i) => i).filter(i => !used.includes(i)), n = pool[Math.floor(Math.random() * pool.length)];
+    const cur = { n, c: GACHA[n][0], q: GACHA[n][1], by: S.me, ts: Date.now(), ans: {} };
+    gSeenTs = cur.ts; gDraft = '';
+    wr(setDoc(dref('play', 'gacha'), { cur, used: used.concat([n]) }));
+    gPlay(cur, () => renderPlay());
+  },
+  gAnswer() {
+    const c = gCur(), v = ($('#g-ta') || {}).value; if (!c) return;
+    const t = (v || '').trim(); if (!t) { toast('先寫下你的答案'); return; }
+    gDraft = '';
+    wr(updateDoc(dref('play', 'gacha'), { ['cur.ans.' + meKey()]: t }));
+  },
+  gEdit() {
+    const c = gCur(); if (!c || gDone(c)) return;
+    gDraft = (c.ans || {})[meKey()] || '';
+    wr(updateDoc(dref('play', 'gacha'), { ['cur.ans.' + meKey()]: deleteField() }));
+  },
+  gMore() { truthLimit += 20; subTruth(); }
+});
+
+document.addEventListener('input', e => { if (e.target && e.target.id === 'g-ta') gDraft = e.target.value; });
 
 window.addEventListener('online', () => { setNet(); if (booted && !synced) boot(); });
 window.addEventListener('offline', setNet);
