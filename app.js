@@ -1176,7 +1176,7 @@ Object.assign(ACT, { mgOpen: mergeOpen, mgClose: mergeClose, mgAgain: mergeOpen 
 /* 兩人共用一顆「目前的扭蛋」（play/gacha.cur）。誰都可以扭，但兩個人都回答完才能扭下一顆。
    兩人都答完時，整顆扭蛋（題目＋兩人回答）存進 truth 收藏，下面的「回答紀錄」可以回顧。
    先回答的人看不到對方答案，自己回答後才看得到，避免被影響。 */
-const GCATS = [['sweet', '甜蜜', '#f4a3b5'], ['memory', '回憶', '#f6d36b'], ['future', '未來', '#8fc8ec'], ['fun', '好笑', '#a8d8a0'], ['deep', '真心', '#c3a6e8']];
+const GCATS = [['sweet', '甜蜜', '#DF7F91'], ['memory', '回憶', '#7FA7D5'], ['future', '未來', '#69B5A4'], ['fun', '好笑', '#E5B857'], ['deep', '真心', '#AB90CA']];
 const GACHA = [
   [0, '你最喜歡我身上的哪個地方？'], [0, '我做過最讓你心動的一件小事是什麼？'], [0, '我哪個習慣你其實偷偷覺得很可愛？'], [0, '用三個詞形容我。'], [0, '我讓你覺得最安心的是什麼時候？'],
   [0, '最近有什麼事讓你覺得「還好有你」？'], [0, '最想收到我送的什麼禮物？'], [0, '說一件今天想謝謝我的事。'], [0, '你覺得我穿什麼最好看？'], [0, '如果要幫我取一個新暱稱，你會取什麼？'],
@@ -1210,22 +1210,14 @@ function gArchive() {
   wr(setDoc(dref('truth', String(c.ts)), { q: c.q, c: c.c, by: c.by, ts: c.ts, ans: { him: c.ans.him, her: c.ans.her }, at: Date.now() }));
   wr(updateDoc(dref('play', 'gacha'), { 'cur.done': true }));
 }
+/* 扭蛋機：美術給的三層圖（600×810 同一畫布疊放），扭蛋群晃動、把手旋轉 */
 function gMachine(cls) {
-  const balls = [[62, 64, 0], [92, 52, 1], [124, 62, 2], [76, 92, 3], [108, 88, 4], [140, 92, 0], [58, 118, 2], [90, 120, 4], [122, 118, 1], [150, 124, 3], [104, 140, 0], [72, 142, 1], [136, 146, 2]];
-  return '<div class="gacha ' + (cls || '') + '"><svg viewBox="0 0 200 270" aria-hidden="true">' +
-    '<rect x="44" y="160" width="112" height="16" rx="6" fill="#e78fa3"/>' +
-    '<circle cx="100" cy="98" r="74" fill="#eef7fc" stroke="#4a3f45" stroke-width="3"/>' +
-    '<g class="g-balls">' + balls.map(b => { const col = GCATS[b[2]][2]; return '<g transform="translate(' + b[0] + ' ' + b[1] + ')"><circle r="14" fill="#fffaf3" stroke="#4a3f45" stroke-width="2"/><path d="M-14 0a14 14 0 0 1 28 0z" fill="' + col + '" stroke="#4a3f45" stroke-width="2"/></g>'; }).join('') + '</g>' +
-    '<path d="M54 64a56 56 0 0 1 40-36" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".8"/>' +
-    '<rect x="36" y="168" width="128" height="88" rx="14" fill="#f4a3b5" stroke="#4a3f45" stroke-width="3"/>' +
-    '<rect x="112" y="222" width="38" height="26" rx="6" fill="#4a3f45"/>' +
-    '<g class="g-knob"><circle cx="78" cy="210" r="22" fill="#fff4d6" stroke="#4a3f45" stroke-width="3"/><rect x="74" y="192" width="8" height="36" rx="4" fill="#e9c24a" stroke="#4a3f45" stroke-width="2"/></g>' +
-    '<text x="100" y="186" text-anchor="middle" font-size="12" fill="#4a3f45">真心話</text>' +
-    '</svg><div class="g-drop"></div></div>';
+  return '<div class="gacha ' + (cls || '') + '" aria-hidden="true"><img class="g-balls" src="gacha/gacha_balls.webp" alt=""><img class="g-body" src="gacha/gacha_body.webp" alt=""><img class="g-knob" src="gacha/gacha_knob.webp" alt=""></div>';
 }
 function gCapsule(c, open) {
   const col = GCATS[c.c] ? GCATS[c.c][2] : '#f4a3b5', name = GCATS[c.c] ? GCATS[c.c][1] : '';
-  return '<div class="g-capsule' + (open ? ' open' : '') + '" style="--cc:' + col + '"><span class="g-top"></span><span class="g-bot"></span></div>' +
+  const key = GCATS[c.c] ? GCATS[c.c][0] : 'sweet';
+  return '<div class="g-capsule' + (open ? ' open' : '') + '"><img class="g-top" src="gacha/capsule_top_' + key + '.webp" alt=""><img class="g-bot" src="gacha/capsule_bottom.webp" alt=""></div>' +
     '<div class="g-paper' + (open ? ' show' : '') + '"><span class="g-tag" style="background:' + col + '">' + name + '</span><p>' + esc(c.q) + '</p><span class="muted g-by">' + esc(c.by) + ' 扭到的</span></div>';
 }
 function gAnswerHtml(c) {
