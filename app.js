@@ -1469,24 +1469,58 @@ function kujiCardHtml() {
     (k.log.length ? '<details id="k-log"' + detOpen('k-log') + '><summary class="muted">最近抽到的</summary><ul class="k-log">' + k.log.slice(0, 15).map(l => '<li>' + byChip(l.by) + ' <b class="k-tier sm" style="background:' + (l.t === 'last' ? '#c3a6e8' : kColor(l.t)) + '">' + (l.t === 'last' ? '最後賞' : l.t) + '</b> ' + esc(l.p) + ' <span class="muted">' + md(new Date(l.ts)) + '</span></li>').join('') + '</ul></details>' : '') +
     '<button class="btn ghost small" data-act="kEdit">編輯獎品（下一箱生效）</button></div>';
 }
-/* 撕籤：抽完先蓋著，手指往右撕（或按「撕開」）才看到是哪一賞 */
-function kShow(res) {
+/* 抽籤流程（像真的一番賞）：
+   ① 箱子裡攤開剩下的籤，自己挑一張（每張背後對應箱子裡一張真的籤）
+   ② 沿著右邊的虛線把封條撕掉
+   ③ 把折起來的籤往上掀開，才看到是哪一賞 */
+let kStep = 0;
+function kBoxView() {
+  const k = kInfo(), idx = k.tickets.map((x, i) => x.d ? -1 : i).filter(i => i >= 0);
   let ov = $('#kj');
   if (!ov) { ov = document.createElement('div'); ov.id = 'kj'; ov.className = 'kj'; document.body.appendChild(ov); }
-  const tierTxt = res.t + ' 賞', col = kColor(res.t);
-  ov.innerHTML = '<div class="kj-box"><p class="muted">第 ' + res.no + ' 張・往右撕開看看</p><div class="kj-ticket"><div class="kj-in" style="--kc:' + col + '"><span class="kj-tier">' + tierTxt + '</span><span class="kj-prize">' + esc(res.p) + '</span></div>' +
-    '<div class="kj-cover"><span>一番賞</span><i>➜ 撕</i></div></div>' +
-    (res.last ? '<div class="kj-lastone" hidden>🎉 最後一張！另外得到「最後賞」：' + esc(res.last) + '</div>' : '') +
-    '<div class="kj-btns"><button class="btn" data-act="kTear">撕開</button></div></div>';
+  /* 籤在箱子裡的位置每次打亂，避免記住哪個位置是 A 賞 */
+  const order = idx.slice().sort(() => Math.random() - 0.5);
+  ov.className = 'kj';
+  ov.innerHTML = '<div class="kj-box"><p class="kj-title">從箱子裡挑一張（剩 ' + idx.length + ' 張）</p>' +
+    '<div class="kj-pile">' + order.map(i => '<button class="kt" data-act="kPick" data-i="' + i + '" style="--r:' + (Math.random() * 16 - 8).toFixed(1) + 'deg" aria-label="選這張籤"></button>').join('') + '</div>' +
+    '<button class="btn ghost" data-act="kClose">先不抽</button></div>';
   ov.hidden = false; document.documentElement.classList.add('mg-open');
-  const cover = $('.kj-cover', ov); let sx = null;
-  cover.addEventListener('pointerdown', e => { sx = e.clientX; try { cover.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } });
-  cover.addEventListener('pointermove', e => { if (sx == null) return; const dx = Math.max(0, e.clientX - sx); cover.style.transform = 'translateX(' + dx + 'px) rotate(' + dx / 40 + 'deg)'; if (dx > cover.offsetWidth * 0.45) { sx = null; kTear(); } });
-  cover.addEventListener('pointerup', () => { if (sx != null) { sx = null; cover.style.transform = ''; } });
 }
-function kTear() {
-  const ov = $('#kj'); if (!ov || ov.classList.contains('torn')) return;
-  ov.classList.add('torn'); const lo = $('.kj-lastone', ov); if (lo) lo.hidden = false;
+function kTicketView(res) {
+  const ov = $('#kj'), col = res.t === 'last' ? '#c3a6e8' : kColor(res.t);
+  kStep = 1; ov.className = 'kj';
+  ov.innerHTML = '<div class="kj-box"><p class="kj-title" id="kj-step">① 沿著右邊的虛線，把封條撕掉</p>' +
+    '<div class="kj-ticket"><div class="kj-in" style="--kc:' + col + '"><span class="kj-tier">' + res.t + ' 賞</span><span class="kj-prize">' + esc(res.p) + '</span></div>' +
+    '<div class="kj-flap"><span class="kj-logo">一番賞</span><span class="kj-no">No.' + String(res.no).padStart(2, '0') + '</span></div>' +
+    '<div class="kj-strip"><i>撕</i></div></div>' +
+    (res.last ? '<div class="kj-lastone" hidden>🎉 最後一張！另外得到「最後賞」：' + esc(res.last) + '</div>' : '') +
+    '<div class="kj-btns"><button class="btn ghost" data-act="kTear">撕掉封條</button></div></div>';
+  const strip = $('.kj-strip', ov), flap = $('.kj-flap', ov);
+  let s0 = null;
+  strip.addEventListener('pointerdown', e => { e.preventDefault(); s0 = { x: e.clientX, y: e.clientY }; try { strip.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } });
+  strip.addEventListener('pointermove', e => {
+    if (!s0) return; const dy = e.clientY - s0.y, dx = e.clientX - s0.x, d = Math.max(Math.abs(dy), dx);
+    strip.style.transform = 'translate(' + Math.max(0, dx) * 0.5 + 'px,' + dy * 0.6 + 'px) rotate(' + (dy / 12) + 'deg)';
+    if (d > strip.offsetHeight * 0.45) { s0 = null; kTearStrip(); }
+  });
+  strip.addEventListener('pointerup', () => { if (s0) { s0 = null; strip.style.transform = ''; } });
+  let f0 = null;
+  flap.addEventListener('pointerdown', e => { if (kStep !== 2) return; e.preventDefault(); f0 = e.clientY; try { flap.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } });
+  flap.addEventListener('pointermove', e => { if (f0 == null) return; const dy = f0 - e.clientY; flap.style.transform = 'rotateX(' + Math.min(170, Math.max(0, dy * 1.4)) + 'deg)'; if (dy > 70) { f0 = null; kOpen(); } });
+  flap.addEventListener('pointerup', () => { if (f0 != null) { f0 = null; flap.style.transform = ''; kOpen(); } });
+}
+function kTearStrip() {
+  const ov = $('#kj'); if (!ov || kStep !== 1) return;
+  kStep = 2; ov.classList.add('stripped');
+  $('#kj-step').textContent = '② 把折起來的籤往上掀開';
+  $('.kj-btns', ov).innerHTML = '<button class="btn ghost" data-act="kOpen">打開</button>';
+  try { navigator.vibrate && navigator.vibrate(20); } catch (e) { /* ignore */ }
+}
+function kOpen() {
+  const ov = $('#kj'); if (!ov || kStep !== 2) return;
+  kStep = 3; ov.classList.add('opened'); const fl = $('.kj-flap', ov); if (fl) fl.style.transform = '';
+  $('#kj-step').textContent = '第 ' + kDrawing.no + ' 張';
+  const lo = $('.kj-lastone', ov); if (lo) lo.hidden = false;
   $('.kj-btns', ov).innerHTML = '<button class="btn" data-act="kClose">收下兌換券</button>';
   try { navigator.vibrate && navigator.vibrate([30, 40, 30]); } catch (e) { /* ignore */ }
 }
@@ -1497,23 +1531,30 @@ Object.assign(ACT, {
     toast('新的一箱來了！');
   },
   kDraw() {
-    const k = kInfo(), mk = meKey(), have = bInfo().pts[mk] || 0;
+    const k = kInfo(), have = bInfo().pts[meKey()] || 0;
+    if (kDrawing || have < k.cost || !kLeft(k.tickets)) return;
+    kBoxView();
+  },
+  kPick(el) {
+    const k = kInfo(), mk = meKey(), have = bInfo().pts[mk] || 0, i = Number(el.dataset.i);
     if (kDrawing || have < k.cost) return;
-    const idx = k.tickets.map((x, i) => x.d ? -1 : i).filter(i => i >= 0); if (!idx.length) return;
-    const i = idx[Math.floor(Math.random() * idx.length)], tk = k.tickets.map(x => Object.assign({}, x)), tix = tk[i];
+    if (!k.tickets[i] || k.tickets[i].d) { toast('這張剛被抽走了，換一張'); kBoxView(); return; }
+    const left = kLeft(k.tickets), tk = k.tickets.map(x => Object.assign({}, x)), tix = tk[i];
     tix.d = true; tix.by = S.me; tix.ts = Date.now();
-    const isLast = idx.length === 1, other = S.me === '老公' ? '老婆' : '老公', no = 31 - idx.length;
+    const isLast = left === 1, other = S.me === '老公' ? '老婆' : '老公', no = 31 - left;
     const log = [{ by: S.me, t: tix.t, p: tix.p, ts: tix.ts }].concat(isLast ? [{ by: S.me, t: 'last', p: k.prizes.last, ts: tix.ts }] : []).concat(k.log).slice(0, 30);
     const patch = { tickets: tk, log }; if (isLast) patch.lastBy = S.me;
+    kDrawing = { t: tix.t, p: tix.p, no, last: isLast ? k.prizes.last : '' };
     wr(setDoc(dref('play', 'kuji'), patch, { merge: true }));
     wr(setDoc(dref('play', 'balloon'), { pts: { [mk]: have - k.cost } }, { merge: true }));
     wr(addDoc(col('coupons'), { to: S.me, from: other, what: '【' + tix.t + '賞】' + tix.p, ts: tix.ts, used: false, src: 'kuji' }));
     if (isLast) wr(addDoc(col('coupons'), { to: S.me, from: other, what: '【最後賞】' + k.prizes.last, ts: tix.ts + 1, used: false, src: 'kuji' }));
-    kDrawing = { t: tix.t, p: tix.p, no, last: isLast ? k.prizes.last : '' };
-    kShow(kDrawing);
+    el.classList.add('picked');
+    setTimeout(() => kTicketView(kDrawing), 450);
   },
-  kTear() { kTear(); },
-  kClose() { kDrawing = null; const ov = $('#kj'); if (ov) { ov.hidden = true; ov.classList.remove('torn'); } document.documentElement.classList.remove('mg-open'); if (curTab === 'play') renderPlay(); },
+  kTear() { kTearStrip(); },
+  kOpen() { kOpen(); },
+  kClose() { kDrawing = null; kStep = 0; const ov = $('#kj'); if (ov) { ov.hidden = true; ov.className = 'kj'; } document.documentElement.classList.remove('mg-open'); if (curTab === 'play') renderPlay(); },
   kEdit() {
     const p = kInfo().prizes;
     openSheet('<h3>一番賞獎品</h3><p class="muted">改好後從「下一箱」開始生效。E 賞可以填好幾個，用逗號分開，抽到時隨機一個。</p>' +
