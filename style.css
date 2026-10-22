@@ -1204,23 +1204,27 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .kj-box{width:min(340px,100%);background:var(--bg);border-radius:var(--radius-card);padding:18px;display:flex;flex-direction:column;gap:12px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.25)}
 .kj-box p{margin:0}
 .kj-title{font-size:17px;text-align:center}
-.kj-pile{display:grid;grid-template-columns:repeat(6,1fr);gap:8px 6px;width:100%;padding:12px 10px;box-sizing:border-box;border-radius:12px;background:#b7854f;box-shadow:inset 0 4px 10px rgba(0,0,0,.25);max-height:52vh;overflow:auto}
-.kt{aspect-ratio:3/4;border:2px solid #4a3f45;border-radius:4px;padding:0;background:linear-gradient(180deg,#fff7e6 0 62%,#f2a7b8 62% 70%,#fff7e6 70%);transform:rotate(var(--r));box-shadow:0 2px 3px rgba(0,0,0,.25);transition:transform .35s ease,opacity .35s}
+.kj-pile{display:grid;grid-template-columns:repeat(6,1fr);align-content:center;gap:6px 4px;width:100%;aspect-ratio:1;padding:6.5%;box-sizing:border-box;background:url(kuji/kuji_box.webp) center/100% 100% no-repeat}
+.kt{aspect-ratio:3/4;border:0;padding:0;background:url(kuji/kuji_small.webp) center/contain no-repeat;transform:rotate(var(--r));filter:drop-shadow(0 2px 2px rgba(0,0,0,.2));transition:transform .35s ease,opacity .35s}
 .kt:active{transform:rotate(var(--r)) translateY(-4px) scale(1.05)}
 .kt.picked{transform:translateY(-30px) scale(1.6) rotate(0);opacity:0}
 .kj-ticket{position:relative;width:100%;aspect-ratio:3/2;perspective:900px;touch-action:none}
-.kj-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--kc);color:#3b2a24;border:3px solid #4a3f45;border-radius:12px}
+.kj-in{position:absolute;inset:0;background:center/100% 100% no-repeat;color:#3B2A24}
 .kj-tier{font-size:48px;font-weight:700;line-height:1}
-.kj-prize{font-size:20px;text-align:center;padding:0 10px}
-.kj-flap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:repeating-linear-gradient(45deg,#f6e7c8 0 12px,#f1dcb3 12px 24px);border:3px solid #4a3f45;border-radius:12px;color:#7a5b3a;transform-origin:50% 0;transition:transform .55s cubic-bezier(.3,.8,.3,1);backface-visibility:hidden;cursor:grab}
+.kj-prize{position:absolute;left:6.7%;right:6.7%;top:57.5%;bottom:7.5%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:20px;line-height:1.35;overflow:hidden}
+.kj-flap{position:absolute;inset:0;background:url(kuji/kuji_flap.webp) center/100% 100% no-repeat;color:#7a5b3a;transform-origin:50% 0;transition:transform .55s cubic-bezier(.3,.8,.3,1);backface-visibility:hidden;cursor:grab}
 .kj-logo{font-size:32px;letter-spacing:4px}
-.kj-no{font-size:14px;opacity:.8}
-.kj-strip{position:absolute;top:0;right:0;bottom:0;width:20%;display:grid;place-items:center;background:#f2a7b8;border:3px solid #4a3f45;border-left:3px dashed #4a3f45;border-radius:0 12px 12px 0;color:#4a3f45;transition:transform .45s ease,opacity .45s;cursor:grab;touch-action:none}
+.kj-no{position:absolute;left:47%;top:76.75%;transform:translate(-50%,-50%);font-size:15px;letter-spacing:1px;color:#3B2A24}
+.kj-strip{position:absolute;top:0;right:0;bottom:0;width:20%;background:url(kuji/kuji_strip.webp) center/100% 100% no-repeat;transition:transform .45s ease,opacity .45s;cursor:grab;touch-action:none}
 .kj-strip i{font-style:normal;writing-mode:vertical-rl;font-size:18px;letter-spacing:6px}
 .kj.stripped .kj-strip{transform:translate(40px,140%) rotate(28deg)!important;opacity:0;pointer-events:none}
-.kj.stripped .kj-flap{border-right-style:dashed}
 .kj.opened .kj-flap{transform:rotateX(178deg)!important;pointer-events:none}
 .kj.opened .kj-in{animation:kjPop .5s .2s ease both}
 @keyframes kjPop{0%{transform:scale(.9)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
 .kj-lastone{background:#efe6fb;border-radius:10px;padding:8px 12px;text-align:center}
 .kj-btns{width:100%}.kj-btns .btn{width:100%}
+
+.k-badge{width:30px;height:30px;flex:none}
+.k-badge.sm{width:22px;height:22px;vertical-align:middle}
+.k-lastname{font-size:14px;white-space:nowrap}
+.k-header{display:block;width:100%;max-width:360px;margin:-4px auto 0}

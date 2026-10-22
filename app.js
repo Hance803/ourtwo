@@ -1249,7 +1249,11 @@ const detOpen = id => OPEN_DET.has(id) ? ' open' : '';
    得分：每破一顆 1 點，橫／直／斜連續 4 顆以上算一條線，每條線加 5 點。
    點數存在 play/balloon.pts，各自累積；用點數向另一半換獎勵，換到的變成「兌換券」（coupons）。 */
 const BN = 6, BDARTS = 7, BLINE = 4, BLINE_PTS = 5;
-const BCOL = ['#ff8fa3', '#ffd166', '#7cc6fe', '#9be39a', '#c3a6e8', '#ffad69'];
+const BCOL = ['#F15E61', '#F39D53', '#EFCB55', '#6BBEA4', '#6DAEE5', '#B283CA'];
+/* 美術的氣球圖：256×256，本體橢圓中心 (128,120)、半徑 (100,110)。命中判定用同一個橢圓。 */
+const BRX = 100 / 256, BRY = 110 / 256, BOY = (120 - 128) / 256;
+let BIMG = null;
+const bimgs = () => BIMG || (BIMG = BCOL.map((c, i) => { const im = new Image(); im.src = 'balloon/balloon_' + (i + 1) + '.webp'; return im; }));
 /* 直接兌換＝保證拿到但比較貴；想碰運氣就去抽一番賞 */
 const BREWARDS = [['親親', 20], ['抱抱', 20], ['撒嬌一次', 20], ['買飲料', 50], ['洗碗一次', 50], ['按摩 10 分鐘', 50], ['跑腿一次', 120], ['掃地', 120], ['陪看一部電影', 120], ['早餐服務', 120]];
 let BG = null, couponUnsub = null;
@@ -1274,7 +1278,7 @@ function bLines(p) {
 function bPlayedToday(mk) { const d = bInfo().daily[mk]; return d && d.d === TODAY ? d.n || 0 : 0; }
 function bLeftToday() { return Math.max(0, bInfo().limit - bPlayedToday(meKey())); }
 function bNew() {
-  return { popped: new Array(BN * BN).fill(false), col: Array.from({ length: BN * BN }, () => BCOL[Math.floor(Math.random() * BCOL.length)]), darts: BDARTS, stuck: [], fly: null, bursts: [], aim: null, t0: performance.now(), done: false, raf: 0 };
+  return { popped: new Array(BN * BN).fill(false), ci: Array.from({ length: BN * BN }, () => Math.floor(Math.random() * BCOL.length)), darts: BDARTS, stuck: [], fly: null, bursts: [], aim: null, t0: performance.now(), done: false, raf: 0 };
 }
 function bScore(G) { const pops = G.popped.filter(Boolean).length, lines = bLines(G.popped); return { pops, lines, pts: pops + lines * BLINE_PTS }; }
 function bDraw() {
@@ -1287,18 +1291,19 @@ function bDraw() {
   g.strokeStyle = 'rgba(120,80,40,.12)'; g.lineWidth = 1;
   for (let i = 1; i < 14; i++) { g.beginPath(); g.moveTo(0, i * S_ / 14 + Math.sin(i) * 3); g.bezierCurveTo(S_ / 3, i * S_ / 14 - 4, S_ * 2 / 3, i * S_ / 14 + 4, S_, i * S_ / 14); g.stroke(); }
   for (let i = 0; i < BN * BN; i++) {
-    const cx = (i % BN + 0.5) * cell, cy = (Math.floor(i / BN) + 0.5) * cell, rx = cell * 0.4, ry = cell * 0.45;
+    const cx = (i % BN + 0.5) * cell, cy = (Math.floor(i / BN) + 0.5 + BOY) * cell, rx = cell * BRX, ry = cell * BRY, colr = BCOL[G.ci[i]];
     if (G.popped[i]) {
-      g.fillStyle = G.col[i]; g.globalAlpha = 0.85;
+      g.fillStyle = colr; g.globalAlpha = 0.85;
       for (let k = 0; k < 5; k++) { const a = k * 1.3 + i; g.beginPath(); g.ellipse(cx + Math.cos(a) * rx * 0.35, cy + Math.sin(a) * ry * 0.3, rx * 0.16, ry * 0.08, a, 0, Math.PI * 2); g.fill(); }
       g.globalAlpha = 1; continue;
     }
-    const wob = Math.sin(now / 700 + i) * 1.2;
+    const wob = Math.sin(now / 700 + i) * 1.2, im = bimgs()[G.ci[i]];
+    if (im.complete && im.naturalWidth) { g.drawImage(im, cx - cell / 2, cy - BOY * cell - cell / 2 + wob, cell, cell); continue; }
     const gr = g.createRadialGradient(cx - rx * 0.35, cy - ry * 0.4 + wob, rx * 0.1, cx, cy + wob, ry * 1.1);
-    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.25, G.col[i]); gr.addColorStop(1, G.col[i]);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.25, colr); gr.addColorStop(1, colr);
     g.fillStyle = gr; g.beginPath(); g.ellipse(cx, cy + wob, rx, ry, 0, 0, Math.PI * 2); g.fill();
     g.strokeStyle = 'rgba(74,63,69,.55)'; g.lineWidth = 1.5; g.stroke();
-    g.fillStyle = G.col[i]; g.beginPath(); g.moveTo(cx, cy + ry + wob - 2); g.lineTo(cx - 4, cy + ry + wob + 5); g.lineTo(cx + 4, cy + ry + wob + 5); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = colr; g.beginPath(); g.moveTo(cx, cy + ry + wob - 2); g.lineTo(cx - 4, cy + ry + wob + 5); g.lineTo(cx + 4, cy + ry + wob + 5); g.closePath(); g.fill(); g.stroke();
   }
   const dart = (x, y, s, ang) => {
     g.save(); g.translate(x, y); g.rotate(ang); g.scale(s, s);
@@ -1346,8 +1351,8 @@ function bLand() {
   G.stuck.push({ x: f.x, y: f.y, a: f.a });
   const c = Math.floor(f.x * BN), r = Math.floor(f.y * BN);
   if (c >= 0 && r >= 0 && c < BN && r < BN) {
-    const i = r * BN + c, dx = (f.x * BN - c - 0.5) / 0.4, dy = (f.y * BN - r - 0.5) / 0.45;
-    if (!G.popped[i] && dx * dx + dy * dy <= 1) { G.popped[i] = true; G.bursts.push({ x: f.x, y: f.y, t: performance.now(), c: G.col[i] }); try { navigator.vibrate && navigator.vibrate(30); } catch (e) { /* ignore */ } }
+    const i = r * BN + c, dx = (f.x * BN - c - 0.5) / BRX, dy = (f.y * BN - r - 0.5 - BOY) / BRY;
+    if (!G.popped[i] && dx * dx + dy * dy <= 1) { G.popped[i] = true; G.bursts.push({ x: f.x, y: f.y, t: performance.now(), c: BCOL[G.ci[i]] }); try { navigator.vibrate && navigator.vibrate(30); } catch (e) { /* ignore */ } }
   }
   if (G.darts === 0 && !G.done) { G.done = true; setTimeout(bEnd, 700); }
 }
@@ -1457,16 +1462,16 @@ const kLeft = (tk, tier) => tk.filter(x => !x.d && (!tier || x.t === tier)).leng
 const kColor = tier => (KTIERS.find(x => x[0] === tier) || ['', 0, '#c3a6e8'])[2];
 function kujiCardHtml() {
   const k = kInfo(), mk = meKey(), have = (bInfo().pts[mk] || 0), left = kLeft(k.tickets), empty = !k.tickets.length || left === 0;
-  const tiers = KTIERS.map(([tier, n, c]) => { const l = kLeft(k.tickets, tier); return '<li class="' + (k.tickets.length && !l ? 'gone' : '') + '"><b class="k-tier" style="background:' + c + '">' + tier + '</b><span class="k-prize">' + esc(tier === 'E' ? k.prizes.E.join('／') : k.prizes[tier]) + '</span><span class="k-left">' + (k.tickets.length ? l : n) + '/' + n + '</span></li>'; }).join('') +
-    '<li class="k-lastrow' + (k.lastBy ? ' gone' : '') + '"><b class="k-tier k-last">最後賞</b><span class="k-prize">' + esc(k.prizes.last) + '</span><span class="k-left">' + (k.lastBy ? esc(k.lastBy) + ' 拿走了' : '抽到最後一張') + '</span></li>';
+  const tiers = KTIERS.map(([tier, n, c]) => { const l = kLeft(k.tickets, tier); return '<li class="' + (k.tickets.length && !l ? 'gone' : '') + '"><img class="k-badge" src="kuji/badge_' + tier + '.webp" alt="' + tier + ' 賞"><span class="k-prize">' + esc(tier === 'E' ? k.prizes.E.join('／') : k.prizes[tier]) + '</span><span class="k-left">' + (k.tickets.length ? l : n) + '/' + n + '</span></li>'; }).join('') +
+    '<li class="k-lastrow' + (k.lastBy ? ' gone' : '') + '"><img class="k-badge" src="kuji/badge_last.webp" alt="最後賞"><b class="k-lastname">最後賞</b><span class="k-prize">' + esc(k.prizes.last) + '</span><span class="k-left">' + (k.lastBy ? esc(k.lastBy) + ' 拿走了' : '抽到最後一張') + '</span></li>';
   let btn;
   if (!k.tickets.length) btn = '<button class="btn" data-act="kNewBox">開第一箱</button>';
   else if (empty) btn = '<p class="quiz-res">這一箱抽完了！</p><button class="btn" data-act="kNewBox">開新的一箱</button>';
   else btn = '<button class="btn" data-act="kDraw"' + (have < k.cost ? ' disabled' : '') + '>' + (have < k.cost ? '點數不夠（' + k.cost + ' 點一抽，你有 ' + have + ' 點）' : '抽一張（' + k.cost + ' 點，你有 ' + have + ' 點）') + '</button>';
-  return '<div class="card play-card"><div class="row"><h3>一番賞 🎫</h3><span class="muted">' + (k.box ? '第 ' + k.box + ' 箱・剩 ' + left + '/30 張' : '') + '</span></div>' +
+  return '<div class="card play-card"><img class="k-header" src="kuji/kuji_header.webp" alt=""><div class="row"><h3>一番賞</h3><span class="muted">' + (k.box ? '第 ' + k.box + ' 箱・剩 ' + left + '/30 張' : '') + '</span></div>' +
     '<p class="muted">每抽必中！點數從射氣球來，抽到的獎品會變成兌換券。抽到最後一張的人另外拿「最後賞」。</p>' +
     '<ul class="k-tiers">' + tiers + '</ul>' + btn +
-    (k.log.length ? '<details id="k-log"' + detOpen('k-log') + '><summary class="muted">最近抽到的</summary><ul class="k-log">' + k.log.slice(0, 15).map(l => '<li>' + byChip(l.by) + ' <b class="k-tier sm" style="background:' + (l.t === 'last' ? '#c3a6e8' : kColor(l.t)) + '">' + (l.t === 'last' ? '最後賞' : l.t) + '</b> ' + esc(l.p) + ' <span class="muted">' + md(new Date(l.ts)) + '</span></li>').join('') + '</ul></details>' : '') +
+    (k.log.length ? '<details id="k-log"' + detOpen('k-log') + '><summary class="muted">最近抽到的</summary><ul class="k-log">' + k.log.slice(0, 15).map(l => '<li>' + byChip(l.by) + ' <img class="k-badge sm" src="kuji/badge_' + l.t + '.webp" alt="' + (l.t === 'last' ? '最後賞' : l.t + ' 賞') + '"> ' + esc(l.p) + ' <span class="muted">' + md(new Date(l.ts)) + '</span></li>').join('') + '</ul></details>' : '') +
     '<button class="btn ghost small" data-act="kEdit">編輯獎品（下一箱生效）</button></div>';
 }
 /* 抽籤流程（像真的一番賞）：
@@ -1482,17 +1487,17 @@ function kBoxView() {
   const order = idx.slice().sort(() => Math.random() - 0.5);
   ov.className = 'kj';
   ov.innerHTML = '<div class="kj-box"><p class="kj-title">從箱子裡挑一張（剩 ' + idx.length + ' 張）</p>' +
-    '<div class="kj-pile">' + order.map(i => '<button class="kt" data-act="kPick" data-i="' + i + '" style="--r:' + (Math.random() * 16 - 8).toFixed(1) + 'deg" aria-label="選這張籤"></button>').join('') + '</div>' +
+    '<div class="kj-pile">' + order.map(i => '<button class="kt" data-act="kPick" data-i="' + i + '" style="--r:' + (Math.random() * 6 - 3).toFixed(1) + 'deg" aria-label="選這張籤"></button>').join('') + '</div>' +
     '<button class="btn ghost" data-act="kClose">先不抽</button></div>';
   ov.hidden = false; document.documentElement.classList.add('mg-open');
 }
 function kTicketView(res) {
-  const ov = $('#kj'), col = res.t === 'last' ? '#c3a6e8' : kColor(res.t);
+  const ov = $('#kj');
   kStep = 1; ov.className = 'kj';
   ov.innerHTML = '<div class="kj-box"><p class="kj-title" id="kj-step">① 沿著右邊的虛線，把封條撕掉</p>' +
-    '<div class="kj-ticket"><div class="kj-in" style="--kc:' + col + '"><span class="kj-tier">' + res.t + ' 賞</span><span class="kj-prize">' + esc(res.p) + '</span></div>' +
-    '<div class="kj-flap"><span class="kj-logo">一番賞</span><span class="kj-no">No.' + String(res.no).padStart(2, '0') + '</span></div>' +
-    '<div class="kj-strip"><i>撕</i></div></div>' +
+    '<div class="kj-ticket"><div class="kj-in" style="background-image:url(kuji/kuji_' + res.t + '.webp)"><span class="kj-prize">' + esc(res.p) + '</span></div>' +
+    '<div class="kj-flap"><span class="kj-no">No.' + String(res.no).padStart(2, '0') + '</span></div>' +
+    '<div class="kj-strip" aria-label="封條"></div></div>' +
     (res.last ? '<div class="kj-lastone" hidden>🎉 最後一張！另外得到「最後賞」：' + esc(res.last) + '</div>' : '') +
     '<div class="kj-btns"><button class="btn ghost" data-act="kTear">撕掉封條</button></div></div>';
   const strip = $('.kj-strip', ov), flap = $('.kj-flap', ov);
