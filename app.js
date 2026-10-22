@@ -899,8 +899,7 @@ function renderPlay() {
   const root = $('#play-body');
   if (!root.childElementCount) root.innerHTML = ['merge', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
   $('#pw-merge').innerHTML = mergeCardHtml();
-  $('#pw-balloon').innerHTML = balloonCardHtml();
-  if (!kDrawing) $('#pw-kuji').innerHTML = kujiCardHtml();
+  if (!kDrawing) { $('#pw-balloon').innerHTML = balloonCardHtml(); $('#pw-kuji').innerHTML = kujiCardHtml(); }
   if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
   const ga = document.activeElement && document.activeElement.id === 'g-ta';
   if (!gWatch() && !gAnim && !ga) $('#pw-truth').innerHTML = truthHtml();
@@ -1479,7 +1478,12 @@ function kujiCardHtml() {
    ② 沿著右邊的虛線把封條撕掉
    ③ 把折起來的籤往上掀開，才看到是哪一賞 */
 let kStep = 0;
+/* 籤的圖先載好再顯示，避免蓋子還沒出現、底下的獎品先露出來 */
+const KIMG = {};
+function kImg(name) { if (!KIMG[name]) { const im = new Image(); im.src = 'kuji/' + name + '.webp'; KIMG[name] = im.decode ? im.decode().catch(() => {}) : new Promise(r => { im.onload = im.onerror = r; }); } return KIMG[name]; }
+function kPreload() { ['kuji_flap', 'kuji_strip', 'kuji_small', 'kuji_box', 'kuji_A', 'kuji_B', 'kuji_C', 'kuji_D', 'kuji_E', 'kuji_last'].forEach(kImg); }
 function kBoxView() {
+  kPreload();
   const k = kInfo(), idx = k.tickets.map((x, i) => x.d ? -1 : i).filter(i => i >= 0);
   let ov = $('#kj');
   if (!ov) { ov = document.createElement('div'); ov.id = 'kj'; ov.className = 'kj'; document.body.appendChild(ov); }
@@ -1555,7 +1559,8 @@ Object.assign(ACT, {
     wr(addDoc(col('coupons'), { to: S.me, from: other, what: '【' + tix.t + '賞】' + tix.p, ts: tix.ts, used: false, src: 'kuji' }));
     if (isLast) wr(addDoc(col('coupons'), { to: S.me, from: other, what: '【最後賞】' + k.prizes.last, ts: tix.ts + 1, used: false, src: 'kuji' }));
     el.classList.add('picked');
-    setTimeout(() => kTicketView(kDrawing), 450);
+    const res = kDrawing, wait = Promise.all([kImg('kuji_flap'), kImg('kuji_strip'), kImg('kuji_' + res.t)]);
+    Promise.race([Promise.all([wait, new Promise(r => setTimeout(r, 450))]), new Promise(r => setTimeout(r, 6000))]).then(() => { if (kDrawing === res) kTicketView(res); });
   },
   kTear() { kTearStrip(); },
   kOpen() { kOpen(); },
