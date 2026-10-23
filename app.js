@@ -1248,6 +1248,12 @@ const detOpen = id => OPEN_DET.has(id) ? ' open' : '';
    得分：每破一顆 1 點，橫／直／斜連續 4 顆以上算一條線，每條線加 5 點。
    點數存在 play/balloon.pts，各自累積；用點數向另一半換獎勵，換到的變成「兌換券」（coupons）。 */
 const BN = 6, BDARTS = 7, BLINE = 4, BLINE_PTS = 5;
+/* 難度（單位都是「一格」）：手抖有大晃／穩定兩段（像呼吸），氣球會飄，擦到邊緣會彈開，出手有一點誤差。
+   電腦模擬：亂射命中約 5 成（全中約 1%），抓穩定時機約 8 成（全中約 17%）。 */
+const B_SHAKE = 0.6, B_CALM = 0.12, B_PERIOD = 2.6, B_CALMFRAC = 0.25, B_CORE = 0.72, B_DRIFTX = 0.14, B_DRIFTY = 0.07, B_SCATTER = 0.05;
+const bGauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+function bDrift(G, i, t) { const p = G.ph[i], c = i % BN; let x = B_DRIFTX * Math.sin(t * 0.9 + p[0]); if (c === 0) x = Math.abs(x); else if (c === BN - 1) x = -Math.abs(x); return { x, y: B_DRIFTY * Math.sin(t * 1.3 + p[1]) }; }
+function bShake(t) { const ph = (t % B_PERIOD) / B_PERIOD; return ph < B_CALMFRAC ? B_CALM : B_SHAKE * (0.6 + 0.4 * Math.sin(ph * Math.PI)); }
 const BCOL = ['#F15E61', '#F39D53', '#EFCB55', '#6BBEA4', '#6DAEE5', '#B283CA'];
 /* 美術的氣球圖：256×256，本體橢圓中心 (128,120)、半徑 (100,110)。命中判定用同一個橢圓。 */
 const BRX = 100 / 256, BRY = 110 / 256, BOY = (120 - 128) / 256;
@@ -1280,7 +1286,7 @@ function bLines(p) {
 function bPlayedToday(mk) { const d = bInfo().daily[mk]; return d && d.d === TODAY ? d.n || 0 : 0; }
 function bLeftToday() { return Math.max(0, bInfo().limit - bPlayedToday(meKey())); }
 function bNew() {
-  return { popped: new Array(BN * BN).fill(false), ci: Array.from({ length: BN * BN }, () => Math.floor(Math.random() * BCOL.length)), darts: BDARTS, stuck: [], fly: null, bursts: [], aim: null, t0: performance.now(), done: false, raf: 0 };
+  return { popped: new Array(BN * BN).fill(false), ci: Array.from({ length: BN * BN }, () => Math.floor(Math.random() * BCOL.length)), ph: Array.from({ length: BN * BN }, () => [Math.random() * 6.28, Math.random() * 6.28]), falls: [], darts: BDARTS, stuck: [], fly: null, bursts: [], aim: null, t0: performance.now(), done: false, raf: 0 };
 }
 function bScore(G) { const pops = G.popped.filter(Boolean).length, lines = bLines(G.popped); return { pops, lines, pts: pops + lines * BLINE_PTS }; }
 function bDraw() {
@@ -1294,8 +1300,13 @@ function bDraw() {
   else { g.fillStyle = '#e8c48c'; g.fillRect(0, 0, S_, S_); }
   g.strokeStyle = 'rgba(120,80,40,.12)'; g.lineWidth = 1;
   if (!bd) for (let i = 1; i < 14; i++) { g.beginPath(); g.moveTo(0, i * S_ / 14 + Math.sin(i) * 3); g.bezierCurveTo(S_ / 3, i * S_ / 14 - 4, S_ * 2 / 3, i * S_ / 14 + 4, S_, i * S_ / 14); g.stroke(); }
+  const tt = (now - G.t0) / 1000;
+  /* 沒射中、插在木板上的鏢畫在氣球後面 */
+  const dimB = bart('dart');
+  G.stuck.filter(d => !d.hit).forEach(d => { if (dimB) { const w = cell * 0.36 * 0.9, h = w * 160 / 64; g.save(); g.translate(d.x * S_, d.y * S_); g.rotate(d.a); g.drawImage(dimB, -w * 32 / 64, -h * 8 / 160, w, h); g.restore(); } });
   for (let i = 0; i < BN * BN; i++) {
-    const cx = (i % BN + 0.5) * cell, cy = (Math.floor(i / BN) + 0.5 + BOY) * cell, rx = cell * BRX, ry = cell * BRY, colr = BCOL[G.ci[i]];
+    const dr = G.popped[i] ? G.popped[i] : bDrift(G, i, tt);
+    const cx = (i % BN + 0.5 + dr.x) * cell, cy = (Math.floor(i / BN) + 0.5 + BOY + dr.y) * cell, rx = cell * BRX, ry = cell * BRY, colr = BCOL[G.ci[i]];
     if (G.popped[i]) {
       const pim = bart('popped_' + (G.ci[i] + 1));
       if (pim) { g.drawImage(pim, cx - cell / 2, cy - BOY * cell - cell / 2, cell, cell); continue; }
@@ -1303,7 +1314,7 @@ function bDraw() {
       for (let k = 0; k < 5; k++) { const a = k * 1.3 + i; g.beginPath(); g.ellipse(cx + Math.cos(a) * rx * 0.35, cy + Math.sin(a) * ry * 0.3, rx * 0.16, ry * 0.08, a, 0, Math.PI * 2); g.fill(); }
       g.globalAlpha = 1; continue;
     }
-    const wob = Math.sin(now / 700 + i) * 1.2, im = bimgs()[G.ci[i]];
+    const wob = 0, im = bimgs()[G.ci[i]];
     if (im.complete && im.naturalWidth) { g.drawImage(im, cx - cell / 2, cy - BOY * cell - cell / 2 + wob, cell, cell); continue; }
     const gr = g.createRadialGradient(cx - rx * 0.35, cy - ry * 0.4 + wob, rx * 0.1, cx, cy + wob, ry * 1.1);
     gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.25, colr); gr.addColorStop(1, colr);
@@ -1319,7 +1330,15 @@ function bDraw() {
     g.fillStyle = '#e76f6f'; g.beginPath(); g.moveTo(0, 14); g.lineTo(-6, 24); g.lineTo(0, 21); g.lineTo(6, 24); g.closePath(); g.fill();
     g.fillStyle = '#9aa3ad'; g.beginPath(); g.arc(0, 0, 1.6, 0, Math.PI * 2); g.fill(); g.restore();
   };
-  G.stuck.forEach(d => dart(d.x * S_, d.y * S_, 0.9, d.a));
+  G.stuck.forEach(d => { if (d.hit || !dimB) dart(d.x * S_, d.y * S_, 0.9, d.a); });
+  /* 擦到邊緣被彈開的飛鏢：往下掉、淡出 */
+  G.falls = G.falls.filter(f => now - f.t < 700);
+  G.falls.forEach(f => {
+    const k = (now - f.t) / 700; g.globalAlpha = 1 - k;
+    dart(f.x * S_ + k * 18 * f.dir, f.y * S_ + k * k * cell * 1.6, 0.9, f.a + k * 2.2 * f.dir);
+    g.font = Math.round(cell * 0.3) + 'px Naikai, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#7a3b2e';
+    g.fillText('彈開！', f.x * S_, f.y * S_ - cell * 0.35 - k * 12); g.globalAlpha = 1;
+  });
   G.bursts = G.bursts.filter(b => now - b.t < 450);
   G.bursts.forEach(b => {
     const k = (now - b.t) / 450; g.strokeStyle = b.c; g.lineWidth = 3 * (1 - k); g.globalAlpha = 1 - k;
@@ -1332,17 +1351,17 @@ function bDraw() {
     if (k >= 1) bLand();
   }
   if (G.aim && !G.fly && G.darts > 0) {
-    const p = bAimPos(); g.strokeStyle = 'rgba(192,40,60,.9)'; g.lineWidth = 2;
-    g.beginPath(); g.arc(p.x * S_, p.y * S_, cell * 0.16, 0, Math.PI * 2); g.stroke();
+    const p = bAimPos(), sh = bShake((now - G.t0) / 1000); g.strokeStyle = 'rgba(192,40,60,.9)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(p.x * S_, p.y * S_, cell * (0.1 + sh * 0.3), 0, Math.PI * 2); g.stroke();
     g.beginPath(); g.moveTo(p.x * S_ - cell * 0.28, p.y * S_); g.lineTo(p.x * S_ + cell * 0.28, p.y * S_); g.moveTo(p.x * S_, p.y * S_ - cell * 0.28); g.lineTo(p.x * S_, p.y * S_ + cell * 0.28); g.stroke();
   }
   const sc = bScore(G);
   $('#bl-darts').textContent = '🎯'.repeat(G.darts) || '—';
   $('#bl-score').textContent = sc.pts; $('#bl-lines').textContent = sc.lines;
 }
-/* 手會抖：準星在手指位置附近慢慢晃（約 0.22 格） */
+/* 手會抖：一陣大晃、一陣比較穩（準星圈圈變小的時候最穩） */
 function bAimPos() {
-  const G = BG, t = (performance.now() - G.t0) / 1000, A = 0.22 / BN;
+  const G = BG, t = (performance.now() - G.t0) / 1000, A = bShake(t) / BN;
   return { x: G.aim.x + A * (Math.sin(t * 2.3) + 0.6 * Math.sin(t * 3.9 + 1.3)) / 1.6, y: G.aim.y + A * (Math.sin(t * 1.9 + 2) + 0.6 * Math.sin(t * 4.4)) / 1.6 };
 }
 function bThrow() {
@@ -1352,16 +1371,23 @@ function bThrow() {
     G.counted = true; const mk = meKey();
     wr(setDoc(dref('play', 'balloon'), { daily: { [mk]: { d: TODAY, n: bPlayedToday(mk) + 1 } } }, { merge: true }));
   }
-  const p = bAimPos(); G.darts--; G.fly = { x: p.x, y: p.y, t: performance.now(), a: (Math.random() - 0.5) * 0.5 }; G.aim = null;
+  const p0 = bAimPos(), p = { x: p0.x + bGauss() * B_SCATTER / BN, y: p0.y + bGauss() * B_SCATTER / BN }; G.darts--; G.fly = { x: p.x, y: p.y, t: performance.now(), a: (Math.random() - 0.5) * 0.5 }; G.aim = null;
 }
 function bLand() {
   const G = BG, f = G.fly; G.fly = null;
-  G.stuck.push({ x: f.x, y: f.y, a: f.a });
-  const c = Math.floor(f.x * BN), r = Math.floor(f.y * BN);
-  if (c >= 0 && r >= 0 && c < BN && r < BN) {
-    const i = r * BN + c, dx = (f.x * BN - c - 0.5) / BRX, dy = (f.y * BN - r - 0.5 - BOY) / BRY;
-    if (!G.popped[i] && dx * dx + dy * dy <= 1) { G.popped[i] = true; G.bursts.push({ x: f.x, y: f.y, t: performance.now(), c: BCOL[G.ci[i]] }); try { navigator.vibrate && navigator.vibrate(30); } catch (e) { /* ignore */ } }
+  /* 找落點碰到的氣球（氣球會飄，所以用落地當下的位置算）：中間 72% 才會破，邊緣會彈開 */
+  const t = (performance.now() - G.t0) / 1000; let best = -1, bd = 9;
+  for (let i = 0; i < BN * BN; i++) {
+    if (G.popped[i]) continue;
+    const dr = bDrift(G, i, t), dx = (f.x * BN - (i % BN) - 0.5 - dr.x) / BRX, dy = (f.y * BN - Math.floor(i / BN) - 0.5 - BOY - dr.y) / BRY, d = Math.sqrt(dx * dx + dy * dy);
+    if (d < bd) { bd = d; best = i; }
   }
+  if (best >= 0 && bd <= B_CORE) {
+    G.popped[best] = bDrift(G, best, t); G.stuck.push({ x: f.x, y: f.y, a: f.a, hit: true });
+    G.bursts.push({ x: f.x, y: f.y, t: performance.now(), c: BCOL[G.ci[best]] }); try { navigator.vibrate && navigator.vibrate(30); } catch (e) { /* ignore */ }
+  } else if (best >= 0 && bd <= 1) {
+    G.falls.push({ x: f.x, y: f.y, a: f.a, t: performance.now(), dir: Math.random() < 0.5 ? -1 : 1 });
+  } else G.stuck.push({ x: f.x, y: f.y, a: f.a });
   if (G.darts === 0 && !G.done) { G.done = true; setTimeout(bEnd, 700); }
 }
 function bLoop() { if (!BG) return; bDraw(); BG.raf = requestAnimationFrame(bLoop); }
@@ -1384,7 +1410,7 @@ function bOpen() {
     ov = document.createElement('div'); ov.id = 'bl'; ov.className = 'mg';
     ov.innerHTML = '<div class="mg-top-bar"><button class="btn ghost small" data-act="blClose">‹ 離開</button><span class="mg-sc">點數 <b id="bl-score">0</b></span><span class="mg-nx">連線 <b id="bl-lines">0</b></span></div>' +
       '<p class="bl-darts" id="bl-darts"></p><div class="bl-stage"><canvas id="bl-cv"></canvas><div class="mg-over" id="bl-over" hidden></div></div>' +
-      '<p class="mg-tip">手指按住瞄準，準星會微微晃，看準了放開就射出去<br>射在氣球身上才會破・連續 4 顆算一條線（+5 點）</p>';
+      '<p class="mg-tip">手指按住瞄準，手會抖；準星圈圈縮小的那一下最穩，抓時機放開<br>打中氣球中間才會破，擦到邊會彈開・氣球會飄・連續 4 顆算一條線（+5 點）</p>';
     document.body.appendChild(ov);
     const cv = $('#bl-cv');
     /* 準星在手指上方一點，手指才不會擋住 */
