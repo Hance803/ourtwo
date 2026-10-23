@@ -1155,7 +1155,7 @@ function mAskRevive() {
 function mRevive() {
   const G = MG_; if (!G || !MINV || MINV.revive <= 0) return;
   MINV.revive--; mInvSave();
-  G.bodies = G.bodies.filter(b => b.y - b.r > MH * 0.4);
+  G.bodies = G.bodies.filter(b => b.y - b.r > MH * 0.5);
   G.overT = 0; G.paused = false; G.askedRevive = false; G.notes.push({ t: G.t, s: '復活！' });
   $('#mg-over').hidden = true; mItemsUI();
 }
