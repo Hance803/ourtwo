@@ -998,8 +998,33 @@ function mNext(G) {
   if (!G.bag || !G.bag.length) { G.bag = MBAG.slice(); for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
   return G.bag.pop();
 }
+/* 道具（每人每天各自累計，換日歸零；存在 play/merge.items.{him|her}）
+   復活：每局第一次合出哈密瓜／射爆：連續丟出 3 顆一樣的水果／地震：打出 Combo ×3／換一顆：每局分數每過 1000 分 */
+const MITEMS = [['revive', '復活'], ['shot', '射爆'], ['quake', '地震'], ['swap', '換一顆']];
+const MITEM_MAX = 9;
+let MINV = null;
+function mInvLoad() {
+  const it = ((PL('merge') || {}).items || {})[meKey()];
+  MINV = it && it.d === iso(new Date()) ? Object.assign({ revive: 0, shot: 0, quake: 0, swap: 0 }, it) : { d: iso(new Date()), revive: 0, shot: 0, quake: 0, swap: 0 };
+  MINV.d = iso(new Date());
+}
+function mInvSave() { wr(setDoc(dref('play', 'merge'), { items: { [meKey()]: Object.assign({}, MINV) } }, { merge: true })); }
+function mGain(G, k) {
+  if (!MINV) mInvLoad();
+  if (MINV.d !== iso(new Date())) mInvLoad();
+  if (MINV[k] >= MITEM_MAX) return;
+  MINV[k]++; mInvSave(); mItemsUI();
+  const name = (MITEMS.find(x => x[0] === k) || ['', k])[1];
+  G.notes.push({ t: G.t, s: '獲得「' + name + '」×1' });
+}
+function mItemsUI() {
+  const box = $('#mg-items'); if (!box || !MINV) return;
+  const G = MG_;
+  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '>' + n + ' ×' + MINV[k] + '</button>').join('') +
+    '<span class="mg-item-rv">復活 ×' + MINV.revive + '</span>';
+}
 function mergeNew() {
-  const G = { bag: [], bodies: [], score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
+  const G = { bag: [], bodies: [], notes: [], mode: '', streakLv: -1, streakN: 0, gotRevive: false, swapAt: 1000, paused: false, bag2: 0, score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
   G.cur = mNext(G); G.next = mNext(G); G.best = mergeBest()[meKey()] || 0; return G;
 }
 function mAdd(G, x, y, lv, grow) { const R = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, R, r: grow ? R * 0.55 : R, lv, born: G.t, dead: false }); }
@@ -1028,6 +1053,8 @@ function mStep(G, dt) {
             G.combo = G.t - G.comboT < 0.8 ? G.combo + 1 : 1; G.comboT = G.t;
             const bonus = G.combo > 1 ? 5 * (G.combo - 1) : 0;
             if (G.combo > 1) G.combos.push({ x: mx, y: my, t: G.t, n: G.combo });
+            if (G.combo === 3) mGain(G, 'quake');
+            if (a.lv + 1 === 9 && !G.gotRevive) { G.gotRevive = true; mGain(G, 'revive'); }
             if (a.lv + 1 > G.maxLv) G.maxLv = a.lv + 1;
             if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus) }); }
             else { G.score += 100 + bonus; G.maxLv = FRUITS.length; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (100 + bonus) + ' 🎉' }); }
@@ -1052,8 +1079,13 @@ function mStep(G, dt) {
   /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 2 秒就結束 */
   const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER && Math.abs(b.y - b.py) < 0.03);
   G.overT = high ? G.overT + dt : 0;
-  if (G.overT > 2 && !G.over) { G.over = true; mergeOver(G); }
+  if (G.overT > 2 && !G.over) {
+    if (MINV && MINV.revive > 0 && !G.askedRevive) { G.askedRevive = true; G.paused = true; mAskRevive(); }
+    else { G.over = true; mergeOver(G); }
+  }
+  while (G.score >= G.swapAt) { G.swapAt += 1000; mGain(G, 'swap'); }
   G.pops = G.pops.filter(p => G.t - p.t < 0.9);
+  G.notes = G.notes.filter(n => G.t - n.t < 1.8);
   G.combos = G.combos.filter(c => G.t - c.t < 1.1);
 }
 function mDraw(G) {
@@ -1085,6 +1117,9 @@ function mDraw(G) {
   for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R);
   g.textAlign = 'center'; g.font = '6px Naikai, sans-serif';
   for (const p of G.pops) { const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
+  for (const n of G.notes) { const a = (G.t - n.t) / 1.8; g.globalAlpha = a < 0.8 ? 1 : (1 - a) * 5; g.font = '6.5px Naikai, sans-serif'; g.fillStyle = '#3b6e5a'; g.strokeStyle = '#fff7ea'; g.lineWidth = 1; g.strokeText(n.s, MW / 2, 68 - a * 4); g.fillText(n.s, MW / 2, 68 - a * 4); }
+  g.globalAlpha = 1;
+  if (G.mode === 'shot') { g.font = '6px Naikai, sans-serif'; g.fillStyle = '#c0392b'; g.fillText('點一顆水果射爆它', MW / 2, 40); }
   for (const c of G.combos) { const a = (G.t - c.t) / 1.1, s = 1 + Math.min(c.n, 6) * 0.12; g.globalAlpha = 1 - a * a; g.font = (8 * s) + 'px Naikai, sans-serif'; g.fillStyle = '#e8743b'; g.strokeStyle = '#fff7ea'; g.lineWidth = 1.2; g.strokeText('Combo ×' + c.n, MW / 2, 52 - a * 6); g.fillText('Combo ×' + c.n, MW / 2, 52 - a * 6); }
   g.globalAlpha = 1;
   $('#mg-score').textContent = G.score;
@@ -1111,21 +1146,52 @@ function mRoute() {
   rt.innerHTML = FRUITS.map((f, i) => '<span class="' + (i <= G.maxLv ? 'on' : '') + (i === FRUITS.length - 1 ? ' goal' : '') + '"><img src="' + fimgs()[i].src + '" alt="' + f[0] + '"></span>').join('');
   const lab = $('#mg-route-lab'); if (lab) lab.textContent = G.maxLv >= FRUITS.length - 1 ? '🍉 合出西瓜了！' : '這局最大：第 ' + (G.maxLv + 1) + ' 級・離西瓜還差 ' + (FRUITS.length - 1 - G.maxLv) + ' 級';
 }
+function mAskRevive() {
+  const box = $('#mg-over');
+  box.innerHTML = '<p class="mg-over-t">快滿出來了！</p><p class="muted">要用掉一次「復活」嗎？會清掉上半部的水果，繼續玩。</p><p class="muted">今天還有 ' + MINV.revive + ' 次</p>' +
+    '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgRevive">復活！</button><button class="btn ghost" data-act="mgGiveUp">不用了</button></div>';
+  box.hidden = false;
+}
+function mRevive() {
+  const G = MG_; if (!G || !MINV || MINV.revive <= 0) return;
+  MINV.revive--; mInvSave();
+  G.bodies = G.bodies.filter(b => b.y - b.r > MH * 0.4);
+  G.overT = 0; G.paused = false; G.askedRevive = false; G.notes.push({ t: G.t, s: '復活！' });
+  $('#mg-over').hidden = true; mItemsUI();
+}
+function mShootAt(px, py) {
+  const G = MG_; if (!G) return;
+  let hit = null; for (const b of G.bodies) { if (Math.hypot(b.x - px, b.y - py) <= b.r * 1.15 && (!hit || b.r < hit.r)) hit = b; }
+  if (!hit) { G.notes.push({ t: G.t, s: '沒打到，再點一次' }); return; }
+  G.bodies = G.bodies.filter(b => b !== hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '砰！' });
+  MINV.shot--; mInvSave(); G.mode = ''; mItemsUI();
+}
+function mQuake() {
+  const G = MG_; if (!G) return;
+  for (const b of G.bodies) { b.py = b.y + 0.35 + Math.random() * 0.25; b.px = b.x + (Math.random() - 0.5) * 0.6; }
+  const st = $('.mg-stage2'); if (st) { st.classList.remove('quake'); void st.offsetWidth; st.classList.add('quake'); }
+  try { navigator.vibrate && navigator.vibrate([40, 30, 40, 30, 60]); } catch (e) { /* ignore */ }
+  MINV.quake--; mInvSave(); mItemsUI();
+}
 function mLoop(ts) {
   const G = MG_; if (!G) return;
   const dt = Math.min(1 / 30, G.last ? (ts - G.last) / 1000 : 1 / 60); G.last = ts;
-  if (!G.over) mStep(G, dt);
+  if (!G.over && !G.paused) mStep(G, dt);
   mDraw(G);
   G.raf = requestAnimationFrame(mLoop);
 }
 function mDrop() {
-  const G = MG_; if (!G || G.over || G.cool > 0) return;
+  const G = MG_; if (!G || G.over || G.paused || G.mode || G.cool > 0) return;
   const cr = FRUITS[G.cur][1], x = Math.min(MW - cr, Math.max(cr, G.aim));
-  mAdd(G, x, 10, G.cur); G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
+  mAdd(G, x, 10, G.cur);
+  /* 連續丟出 3 顆一樣的水果 → 射爆 */
+  if (G.cur === G.streakLv) G.streakN++; else { G.streakLv = G.cur; G.streakN = 1; }
+  if (G.streakN >= 3) { G.streakN = 0; G.streakLv = -1; mGain(G, 'shot'); }
+  G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
 }
 function mergeBest() { const m = PL('merge') || {}; return { him: m.him || 0, her: m.her || 0, top: m.top || [] }; }
 function mergeOver(G) {
-  if (G.saved) return; G.saved = true;
+  if (G.saved) return; G.saved = true; setTimeout(mItemsUI, 0);
   const mk = meKey(), m = mergeBest(), isBest = G.score > (m[mk] || 0);
   const top = m.top.concat([{ by: S.me, s: G.score, ts: Date.now() }]).sort((a, b) => b.s - a.s).slice(0, 10);
   const ml = (PL('merge') || {}).maxlv || {};
@@ -1148,18 +1214,21 @@ function mergeOpen() {
     ov = document.createElement('div'); ov.id = 'mg'; ov.className = 'mg';
     ov.innerHTML = '<div class="mg-top-bar mg-hud"><button class="btn ghost small" data-act="mgClose">‹ 離開</button><span class="mg-scorebox"><span class="mg-sl">分數</span><b id="mg-score">0</b><span class="mg-best" id="mg-best"></span></span><span class="mg-nextbox"><span class="mg-sl">下一個</span><span id="mg-next"></span></span></div>' +
       '<div class="mg-stage mg-stage2"><canvas id="mg-cv"></canvas><div class="mg-over" id="mg-over" hidden></div></div>' +
-      '<div class="mg-bottom"><p class="mg-route-lab" id="mg-route-lab"></p><div class="mg-route" id="mg-route"></div><p class="mg-tip">手指左右移動對準，放開就丟下去・0.8 秒內連續合成有 Combo 加分</p></div>';
+      '<div class="mg-bottom"><div class="mg-items" id="mg-items"></div><p class="mg-route-lab" id="mg-route-lab"></p><div class="mg-route" id="mg-route"></div><p class="mg-tip">手指左右移動對準，放開就丟下去・0.8 秒內連續合成有 Combo 加分</p></div>';
     document.body.appendChild(ov);
     const cv = $('#mg-cv');
     const aim = e => { const r = cv.getBoundingClientRect(); if (MG_) MG_.aim = (e.clientX - r.left) / r.width * MW; };
     cv.addEventListener('pointerdown', e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aim(e); });
     cv.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') aim(e); });
-    cv.addEventListener('pointerup', e => { aim(e); mDrop(); });
+    cv.addEventListener('pointerup', e => {
+      if (MG_ && MG_.mode === 'shot') { const r = cv.getBoundingClientRect(); mShootAt((e.clientX - r.left) / r.width * MW, (e.clientY - r.top) / r.width * MW); return; }
+      aim(e); mDrop();
+    });
     ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => e.preventDefault(), { passive: false }));
   }
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   if (MG_) cancelAnimationFrame(MG_.raf);
-  MG_ = mergeNew(); $('#mg-over').hidden = true; const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
+  mInvLoad(); MG_ = mergeNew(); $('#mg-over').hidden = true; mItemsUI(); const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
   MG_.raf = requestAnimationFrame(mLoop);
 }
 function mergeClose() {
@@ -1167,7 +1236,17 @@ function mergeClose() {
   const ov = $('#mg'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
   if (curTab === 'play') renderPlay();
 }
-Object.assign(ACT, { mgOpen: mergeOpen, mgClose: mergeClose, mgAgain: mergeOpen });
+Object.assign(ACT, {
+  mgOpen: mergeOpen, mgClose: mergeClose, mgAgain: mergeOpen,
+  mgRevive() { mRevive(); },
+  mgGiveUp() { const G = MG_; if (!G) return; G.paused = false; G.over = true; mergeOver(G); },
+  mgUse(el) {
+    const G = MG_, k = el.dataset.k; if (!G || G.over || G.paused || !MINV || !MINV[k]) return;
+    if (k === 'shot') { G.mode = G.mode === 'shot' ? '' : 'shot'; mItemsUI(); return; }
+    if (k === 'quake') { mQuake(); return; }
+    if (k === 'swap') { const c = G.cur; G.cur = G.next; G.next = c; MINV.swap--; mInvSave(); mItemsUI(); G.notes.push({ t: G.t, s: '換好了' }); }
+  }
+});
 
 /* ---------- 真心話扭蛋機 ---------- */
 /* 兩人共用一顆「目前的扭蛋」（play/gacha.cur）。誰都可以扭，但兩個人都回答完才能扭下一顆。

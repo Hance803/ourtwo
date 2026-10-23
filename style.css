@@ -1250,3 +1250,9 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .mg-route span.goal{border-bottom:3px solid #e9b949}
 .mg-route img{width:100%;max-width:34px;display:block}
 .mg-over-f{width:36px;height:36px;vertical-align:middle}
+.mg-items{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;width:100%}
+.mg-item{min-height:36px;padding:4px 12px}
+.mg-item.on{background:#c0392b;color:#fff;border-color:#c0392b}
+.mg-item-rv{font-size:13px;color:var(--muted);padding:0 4px}
+.mg-stage2.quake{animation:mgQuake .6s ease}
+@keyframes mgQuake{10%,50%,90%{transform:translateX(-6px) rotate(-1deg)}30%,70%{transform:translateX(6px) rotate(1deg)}}
