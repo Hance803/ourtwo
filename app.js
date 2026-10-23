@@ -999,8 +999,8 @@ function mNext(G) {
   return G.bag.pop();
 }
 function mergeNew() {
-  const G = { bag: [], bodies: [], score: 0, next: 0, cur: 0, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
-  G.cur = mNext(G); G.next = mNext(G); return G;
+  const G = { bag: [], bodies: [], score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
+  G.cur = mNext(G); G.next = mNext(G); G.best = mergeBest()[meKey()] || 0; return G;
 }
 function mAdd(G, x, y, lv, grow) { const R = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, R, r: grow ? R * 0.55 : R, lv, born: G.t, dead: false }); }
 function mStep(G, dt) {
@@ -1024,8 +1024,13 @@ function mStep(G, dt) {
           if (a.lv === c.lv && !G.over) {
             a.dead = c.dead = true;
             const mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2;
-            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); G.score += MPTS[a.lv + 1]; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + MPTS[a.lv + 1] }); }
-            else { G.score += 100; G.pops.push({ x: mx, y: my, t: G.t, s: '+100 🎉' }); }
+            /* 0.8 秒內接連合成算 Combo，從第 2 下開始每下多加 5×(連段-1) 分 */
+            G.combo = G.t - G.comboT < 0.8 ? G.combo + 1 : 1; G.comboT = G.t;
+            const bonus = G.combo > 1 ? 5 * (G.combo - 1) : 0;
+            if (G.combo > 1) G.combos.push({ x: mx, y: my, t: G.t, n: G.combo });
+            if (a.lv + 1 > G.maxLv) G.maxLv = a.lv + 1;
+            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus) }); }
+            else { G.score += 100 + bonus; G.maxLv = FRUITS.length; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (100 + bonus) + ' 🎉' }); }
             continue;
           }
           const d = Math.sqrt(d2), o = (rr - d) / d * 0.5, ma = a.r * a.r, mc = c.r * c.r, wa = mc / (ma + mc), wc = ma / (ma + mc);
@@ -1049,6 +1054,7 @@ function mStep(G, dt) {
   G.overT = high ? G.overT + dt : 0;
   if (G.overT > 2 && !G.over) { G.over = true; mergeOver(G); }
   G.pops = G.pops.filter(p => G.t - p.t < 0.9);
+  G.combos = G.combos.filter(c => G.t - c.t < 1.1);
 }
 function mDraw(G) {
   const cv = $('#mg-cv'); if (!cv) return;
@@ -1071,14 +1077,39 @@ function mDraw(G) {
   if (!G.over) {
     const cr = FRUITS[G.cur][1], ax = Math.min(MW - cr, Math.max(cr, G.aim));
     g.strokeStyle = 'rgba(74,63,69,.18)'; g.lineWidth = 0.4; g.beginPath(); g.moveTo(ax, 10); g.lineTo(ax, MH); g.stroke();
+    /* 夾子：夾著水果；放手時打開，等下一顆補上再合起來 */
+    const open = G.cool > 0 ? Math.min(1, G.cool / 0.3) : 0, hr = G.cool > 0 ? FRUITS[G.prev == null ? G.cur : G.prev][1] : cr;
+    mClaw(g, G.cool > 0 ? (G.dropX == null ? ax : G.dropX) : ax, 10, hr, open);
     if (G.cool <= 0) fruit(ax, 10, G.cur, 1);
   }
   for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R);
   g.textAlign = 'center'; g.font = '6px Naikai, sans-serif';
   for (const p of G.pops) { const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
+  for (const c of G.combos) { const a = (G.t - c.t) / 1.1, s = 1 + Math.min(c.n, 6) * 0.12; g.globalAlpha = 1 - a * a; g.font = (8 * s) + 'px Naikai, sans-serif'; g.fillStyle = '#e8743b'; g.strokeStyle = '#fff7ea'; g.lineWidth = 1.2; g.strokeText('Combo ×' + c.n, MW / 2, 52 - a * 6); g.fillText('Combo ×' + c.n, MW / 2, 52 - a * 6); }
   g.globalAlpha = 1;
   $('#mg-score').textContent = G.score;
+  if (!G.bestShown && G.best > 0 && G.score > G.best) { G.bestShown = true; const bx = $('#mg-best'); bx.classList.add('flash'); bx.textContent = '新紀錄！'; }
+  else if (!G.bestShown) $('#mg-best').textContent = '最高 ' + G.best;
   const nx = $('#mg-next'); if (nx.dataset.lv !== String(G.next)) { nx.dataset.lv = G.next; nx.innerHTML = '<img src="' + fimgs()[G.next].src + '" alt="' + FRUITS[G.next][0] + '">'; }
+  const rt = $('#mg-route'); if (rt && rt.dataset.lv !== String(G.maxLv)) { rt.dataset.lv = G.maxLv; mRoute(); }
+}
+/* 夾子：只用美術畫的圖（claw_closed／claw_open，256×256，夾住的球中心 (128,170)、直徑 120、繩子接點 (128,30)）。
+   美術圖還沒到之前 MCLAW_ART = false，不畫夾子（不用程式自己畫來充數）。 */
+const MCLAW_ART = false;
+let MCLAW = null;
+function mClaw(g, x, y, r, open) {
+  if (!MCLAW_ART) return;
+  if (!MCLAW) MCLAW = ['claw_closed', 'claw_open'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; });
+  const im = MCLAW[open > 0.5 ? 1 : 0]; if (!im.complete || !im.naturalWidth) return;
+  const s = (r * 2) / 120, w = 256 * s;
+  g.save(); g.strokeStyle = '#6f6458'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(x, -2); g.lineTo(x, y - 140 * s); g.stroke();
+  g.drawImage(im, x - 128 * s, y - 170 * s, w, w); g.restore();
+}
+/* 合成路線：11 種水果排一排，這局合到的亮起來 */
+function mRoute() {
+  const G = MG_, rt = $('#mg-route'); if (!G || !rt) return;
+  rt.innerHTML = FRUITS.map((f, i) => '<span class="' + (i <= G.maxLv ? 'on' : '') + (i === FRUITS.length - 1 ? ' goal' : '') + '"><img src="' + fimgs()[i].src + '" alt="' + f[0] + '"></span>').join('');
+  const lab = $('#mg-route-lab'); if (lab) lab.textContent = G.maxLv >= FRUITS.length - 1 ? '🍉 合出西瓜了！' : '這局最大：第 ' + (G.maxLv + 1) + ' 級・離西瓜還差 ' + (FRUITS.length - 1 - G.maxLv) + ' 級';
 }
 function mLoop(ts) {
   const G = MG_; if (!G) return;
@@ -1090,16 +1121,17 @@ function mLoop(ts) {
 function mDrop() {
   const G = MG_; if (!G || G.over || G.cool > 0) return;
   const cr = FRUITS[G.cur][1], x = Math.min(MW - cr, Math.max(cr, G.aim));
-  mAdd(G, x, 10, G.cur); G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
+  mAdd(G, x, 10, G.cur); G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
 }
 function mergeBest() { const m = PL('merge') || {}; return { him: m.him || 0, her: m.her || 0, top: m.top || [] }; }
 function mergeOver(G) {
   if (G.saved) return; G.saved = true;
   const mk = meKey(), m = mergeBest(), isBest = G.score > (m[mk] || 0);
   const top = m.top.concat([{ by: S.me, s: G.score, ts: Date.now() }]).sort((a, b) => b.s - a.s).slice(0, 10);
-  if (G.score > 0) wr(setDoc(dref('play', 'merge'), Object.assign({ top }, isBest ? { [mk]: G.score } : {}), { merge: true }));
+  const ml = (PL('merge') || {}).maxlv || {};
+  if (G.score > 0) wr(setDoc(dref('play', 'merge'), Object.assign({ top }, isBest ? { [mk]: G.score } : {}, G.maxLv > (ml[mk] || 0) ? { maxlv: { [mk]: G.maxLv } } : {}), { merge: true }));
   const box = $('#mg-over');
-  box.innerHTML = '<p class="mg-over-t">遊戲結束</p><p class="mg-over-s">' + G.score + ' 分</p>' + (isBest && G.score > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + (m[mk] || 0) + '</p>') +
+  box.innerHTML = '<p class="mg-over-t">遊戲結束</p><p class="mg-over-s">' + G.score + ' 分</p><p class="muted">這局合到：<img class="mg-over-f" src="' + fimgs()[Math.min(G.maxLv, FRUITS.length - 1)].src + '" alt=""></p>' + (isBest && G.score > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + (m[mk] || 0) + '</p>') +
     '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgAgain">再來一局</button><button class="btn ghost" data-act="mgClose">離開</button></div>';
   box.hidden = false;
 }
@@ -1114,8 +1146,9 @@ function mergeOpen() {
   let ov = $('#mg');
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'mg'; ov.className = 'mg';
-    ov.innerHTML = '<div class="mg-top-bar"><button class="btn ghost small" data-act="mgClose">‹ 離開</button><span class="mg-sc">分數 <b id="mg-score">0</b></span><span class="mg-nx">下一個 <span id="mg-next"></span></span></div>' +
-      '<div class="mg-stage"><canvas id="mg-cv"></canvas><div class="mg-over" id="mg-over" hidden></div></div><p class="mg-tip">手指左右移動對準，放開就丟下去</p>';
+    ov.innerHTML = '<div class="mg-top-bar mg-hud"><button class="btn ghost small" data-act="mgClose">‹ 離開</button><span class="mg-scorebox"><span class="mg-sl">分數</span><b id="mg-score">0</b><span class="mg-best" id="mg-best"></span></span><span class="mg-nextbox"><span class="mg-sl">下一個</span><span id="mg-next"></span></span></div>' +
+      '<div class="mg-stage mg-stage2"><canvas id="mg-cv"></canvas><div class="mg-over" id="mg-over" hidden></div></div>' +
+      '<div class="mg-bottom"><p class="mg-route-lab" id="mg-route-lab"></p><div class="mg-route" id="mg-route"></div><p class="mg-tip">手指左右移動對準，放開就丟下去・0.8 秒內連續合成有 Combo 加分</p></div>';
     document.body.appendChild(ov);
     const cv = $('#mg-cv');
     const aim = e => { const r = cv.getBoundingClientRect(); if (MG_) MG_.aim = (e.clientX - r.left) / r.width * MW; };
@@ -1126,7 +1159,7 @@ function mergeOpen() {
   }
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   if (MG_) cancelAnimationFrame(MG_.raf);
-  MG_ = mergeNew(); $('#mg-over').hidden = true;
+  MG_ = mergeNew(); $('#mg-over').hidden = true; const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
   MG_.raf = requestAnimationFrame(mLoop);
 }
 function mergeClose() {

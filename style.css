@@ -1230,3 +1230,23 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .k-lastname{font-size:14px;white-space:nowrap}
 .k-header{display:block;width:100%;max-width:360px;margin:-4px auto 0}
 .bl-cp-i{width:26px;height:26px;flex:none}
+/* 合成大西瓜 HUD */
+.mg-hud{display:grid;grid-template-columns:auto 1fr auto;align-items:center}
+.mg-scorebox{display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.mg-scorebox b{font-size:30px;color:var(--accent)}
+.mg-sl{font-size:12px;color:var(--muted)}
+.mg-best{font-size:13px;color:var(--muted);margin-top:2px}
+.mg-best.flash{color:#fff;background:#e8743b;border-radius:999px;padding:1px 10px;animation:mgFlash .6s ease 3}
+@keyframes mgFlash{50%{transform:scale(1.18)}}
+.mg-nextbox{display:flex;flex-direction:column;align-items:center;gap:2px}
+.mg-nextbox #mg-next img{width:52px;height:52px;display:block}
+.mg-stage2{height:min(calc(100dvh - 250px),calc((100vw - 24px) * 1.4),600px)}
+.mg-bottom{width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:10px}
+.mg-route-lab{margin:0;font-size:14px;color:var(--fg)}
+.mg-route{display:flex;width:100%;gap:2px;align-items:flex-end;justify-content:space-between}
+.mg-route span{flex:1;display:flex;justify-content:center;opacity:.22;filter:grayscale(1);transition:opacity .3s,filter .3s,transform .3s}
+.mg-route span.on{opacity:1;filter:none}
+.mg-route span.on:last-of-type,.mg-route span.goal.on{transform:scale(1.15)}
+.mg-route span.goal{border-bottom:3px solid #e9b949}
+.mg-route img{width:100%;max-width:34px;display:block}
+.mg-over-f{width:36px;height:36px;vertical-align:middle}
