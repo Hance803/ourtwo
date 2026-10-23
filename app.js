@@ -983,14 +983,24 @@ mpadEl.addEventListener('pointercancel', e => { if (mCur && mCur.id === e.pointe
    一樣的水果碰到就合成下一級；兩顆西瓜碰到會一起消失加大分。水果超過紅線太久就結束。 */
 const FRUITS = [['🍒', 4.4, '#f7c6cf'], ['🍓', 5.8, '#f9b4b4'], ['🍇', 7.4, '#d9c2f0'], ['🍊', 8.8, '#ffd3a1'], ['🍋', 10.4, '#fff0a6'], ['🍎', 12.2, '#ffb8b0'],
   ['🍐', 14.0, '#d9efb0'], ['🍑', 16.0, '#ffd0c2'], ['🍍', 18.2, '#ffe59a'], ['🍈', 20.6, '#cdeec0'], ['🍉', 23.2, '#bfe8b3']];
+/* 水果整體縮到 78%：箱子裡空間比較夠，認真玩有機會合出西瓜（原本的大小幾乎不可能） */
+FRUITS.forEach(f => { f[1] = Math.round(f[1] * 0.78 * 100) / 100; });
 const MPTS = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
 /* 水果圖（美術畫的 512×512 透明圖，水果主體約佔中間直徑 490 的圓）；圖還沒載好時先用 emoji 代替 */
 let FIMG = null;
 const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
-const MW = 100, MH = 140, MDANGER = 24, MG = 300;
+const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8;
 let MG_ = null;
+/* 出水果用「抽袋子」：一袋 8 顆照固定比例洗牌，抽完再換一袋，不會一直連出同一種小水果。
+   比例：櫻桃 1、草莓 2、葡萄 2、橘子 2、檸檬 1。 */
+const MBAG = [0, 1, 1, 2, 2, 3, 3, 4];
+function mNext(G) {
+  if (!G.bag || !G.bag.length) { G.bag = MBAG.slice(); for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
+  return G.bag.pop();
+}
 function mergeNew() {
-  return { bodies: [], score: 0, next: Math.floor(Math.random() * 4), cur: Math.floor(Math.random() * 3), aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
+  const G = { bag: [], bodies: [], score: 0, next: 0, cur: 0, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
+  G.cur = mNext(G); G.next = mNext(G); return G;
 }
 function mAdd(G, x, y, lv, grow) { const R = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, R, r: grow ? R * 0.55 : R, lv, born: G.t, dead: false }); }
 function mStep(G, dt) {
@@ -1019,15 +1029,18 @@ function mStep(G, dt) {
             continue;
           }
           const d = Math.sqrt(d2), o = (rr - d) / d * 0.5, ma = a.r * a.r, mc = c.r * c.r, wa = mc / (ma + mc), wc = ma / (ma + mc);
-          a.x -= dx * o * 2 * wa; a.y -= dy * o * 2 * wa; c.x += dx * o * 2 * wc; c.y += dy * o * 2 * wc;
+          const ax = dx * o * 2 * wa, ay = dy * o * 2 * wa, cx2 = dx * o * 2 * wc, cy2 = dy * o * 2 * wc;
+          a.x -= ax; a.y -= ay; c.x += cx2; c.y += cy2;
+          /* 推開時順便吃掉大部分反彈速度（水果軟軟的、不會彈來彈去） */
+          a.px -= ax * MSOFT; a.py -= ay * MSOFT; c.px += cx2 * MSOFT; c.py += cy2 * MSOFT;
         }
       }
       G.bodies = G.bodies.filter(b => !b.dead);
       for (const b of G.bodies) {
-        if (b.x < b.r) { b.x = b.r; b.px = b.x + (b.x - b.px) * 0.2; }
-        if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x + (b.x - b.px) * 0.2; }
+        if (b.x < b.r) { b.x = b.r; b.px = b.x; }
+        if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x; }
         if (b.y < -10) { b.y = -10; b.py = Math.max(b.py, b.y); }
-        if (b.y > MH - b.r) { b.y = MH - b.r; b.py = b.y + (b.y - b.py) * 0.2; b.px = b.x - (b.x - b.px) * 0.85; }
+        if (b.y > MH - b.r) { b.y = MH - b.r; b.py = b.y; b.px = b.x - (b.x - b.px) * 0.8; }
       }
     }
   }
@@ -1077,7 +1090,7 @@ function mLoop(ts) {
 function mDrop() {
   const G = MG_; if (!G || G.over || G.cool > 0) return;
   const cr = FRUITS[G.cur][1], x = Math.min(MW - cr, Math.max(cr, G.aim));
-  mAdd(G, x, 10, G.cur); G.cur = G.next; G.next = Math.floor(Math.random() * 5); G.cool = 0.55;
+  mAdd(G, x, 10, G.cur); G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
 }
 function mergeBest() { const m = PL('merge') || {}; return { him: m.him || 0, her: m.her || 0, top: m.top || [] }; }
 function mergeOver(G) {
