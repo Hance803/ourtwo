@@ -1186,9 +1186,9 @@ function mDrop() {
   const G = MG_; if (!G || G.over || G.paused || G.mode || G.cool > 0) return;
   const cr = FRUITS[G.cur][1], x = Math.min(MW - cr, Math.max(cr, G.aim));
   mAdd(G, x, 10, G.cur);
-  /* 連續丟出 3 顆一樣的水果 → 射爆 */
-  if (G.cur === G.streakLv) G.streakN++; else { G.streakLv = G.cur; G.streakN = 1; }
-  if (G.streakN >= 3) { G.streakN = 0; G.streakLv = -1; mGain(G, 'shot'); }
+  /* 西部神射手：最近丟的 5 顆裡有 3 顆一樣 → 射爆（算過之後清空重算） */
+  G.recent = (G.recent || []).concat(G.cur).slice(-5);
+  if (G.recent.filter(v => v === G.cur).length >= 3) { G.recent = []; mGain(G, 'shot'); }
   G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
 }
 function mergeBest() { const m = PL('merge') || {}; return { him: m.him || 0, her: m.her || 0, top: m.top || [] }; }
