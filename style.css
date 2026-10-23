@@ -1264,3 +1264,5 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .mg-item:disabled img,.mg-item-rv.zero img{filter:grayscale(1);opacity:.5}
 .mg-nextbox #mg-next img,.mg-route img,.mg-over-f{object-fit:contain}
 .mg-route img{aspect-ratio:1}
+.bl-cp-x{color:var(--accent);font-size:15px;margin-left:2px}
+.bl-cp .bl-cp-n{min-width:0}.bl-cp-s{display:block;font-size:13px;margin-top:1px}

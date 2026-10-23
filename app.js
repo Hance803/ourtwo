@@ -992,7 +992,7 @@ let MBG = null;
 const mbg = () => MBG || (MBG = ['bg_stage', 'shot_hit'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 let FIMG = null;
 const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
-const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8;
+const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004;
 let MG_ = null;
 /* 出水果用「抽袋子」：一袋 8 顆照固定比例洗牌，抽完再換一袋，不會一直連出同一種小水果。
    比例：櫻桃 1、草莓 2、葡萄 2、橘子 2、檸檬 1。 */
@@ -1039,7 +1039,7 @@ function mStep(G, dt) {
       if (b.r < b.R) b.r = Math.min(b.R, b.r + b.R * h * 4);
       let vx = (b.x - b.px) * 0.995, vy = (b.y - b.py) * 0.995;
       const sp = Math.hypot(vx, vy), MAXV = 0.5; if (sp > MAXV) { vx *= MAXV / sp; vy *= MAXV / sp; }
-      b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + MG * h * h;
+      b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + MG * h * h; if (Math.abs(vx) > 0.0015) b.ang = (b.ang || 0) + vx / b.r;
     }
     for (let it = 0; it < 2; it++) {
       const B = G.bodies;
@@ -1066,8 +1066,13 @@ function mStep(G, dt) {
           const d = Math.sqrt(d2), o = (rr - d) / d * 0.5, ma = a.r * a.r, mc = c.r * c.r, wa = mc / (ma + mc), wc = ma / (ma + mc);
           const ax = dx * o * 2 * wa, ay = dy * o * 2 * wa, cx2 = dx * o * 2 * wc, cy2 = dy * o * 2 * wc;
           a.x -= ax; a.y -= ay; c.x += cx2; c.y += cy2;
-          /* 推開時順便吃掉大部分反彈速度（水果軟軟的、不會彈來彈去） */
-          a.px -= ax * MSOFT; a.py -= ay * MSOFT; c.px += cx2 * MSOFT; c.py += cy2 * MSOFT;
+          /* 不彈：推開不產生速度，而且把「互相撞過去」的速度整個吃掉；沿著表面的速度保留，水果還是會滾 */
+          a.px -= ax; a.py -= ay; c.px += cx2; c.py += cy2;
+          const nx = dx / d, ny = dy / d, rel = ((c.x - c.px) - (a.x - a.px)) * nx + ((c.y - c.py) - (a.y - a.py)) * ny;
+          if (rel < 0) { a.px -= nx * rel * wa; a.py -= ny * rel * wa; c.px += nx * rel * wc; c.py += ny * rel * wc; }
+          /* 一點點摩擦：堆好的水果會慢慢停下來，不會一直溜 */
+          const tx = -ny, ty = nx, tv = ((c.x - c.px) - (a.x - a.px)) * tx + ((c.y - c.py) - (a.y - a.py)) * ty, fr = tv * MFRIC;
+          a.px -= tx * fr * wa; a.py -= ty * fr * wa; c.px += tx * fr * wc; c.py += ty * fr * wc;
         }
       }
       G.bodies = G.bodies.filter(b => !b.dead);
@@ -1075,7 +1080,7 @@ function mStep(G, dt) {
         if (b.x < b.r) { b.x = b.r; b.px = b.x; }
         if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x; }
         if (b.y < -10) { b.y = -10; b.py = Math.max(b.py, b.y); }
-        if (b.y > MH - b.r) { b.y = MH - b.r; b.py = b.y; b.px = b.x - (b.x - b.px) * 0.8; }
+        if (b.y > MH - b.r) { b.y = MH - b.r; b.py = b.y; b.px = b.x - (b.x - b.px) * 0.97; }
       }
     }
   }
@@ -1101,9 +1106,9 @@ function mDraw(G) {
   g.fillStyle = '#fff7ea'; g.fillRect(0, 0, MW, MH); { const bg = mbg()[0]; if (bg.complete && bg.naturalWidth) g.drawImage(bg, 0, 0, MW, MH); }
   g.strokeStyle = G.overT > 0 ? '#e76f6f' : 'rgba(231,111,111,.45)'; g.lineWidth = 0.5; g.setLineDash([2, 2]);
   g.beginPath(); g.moveTo(0, MDANGER); g.lineTo(MW, MDANGER); g.stroke(); g.setLineDash([]);
-  const fruit = (x, y, lv, sc) => {
+  const fruit = (x, y, lv, sc, ang) => {
     const f = FRUITS[lv], rr = f[1] * sc, im = fimgs()[lv];
-    if (im.complete && im.naturalWidth) { const A = FART[lv], s = rr * 2 / 490; g.drawImage(im, x - A[0] * s, y - A[1] * s, A[2] * s, A[3] * s); return; }
+    if (im.complete && im.naturalWidth) { const A = FART[lv], s = rr * 2 / 490; if (ang) { g.save(); g.translate(x, y); g.rotate(ang); g.drawImage(im, -A[0] * s, -A[1] * s, A[2] * s, A[3] * s); g.restore(); } else g.drawImage(im, x - A[0] * s, y - A[1] * s, A[2] * s, A[3] * s); return; }
     g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fillStyle = f[2]; g.fill();
     g.lineWidth = 0.4; g.strokeStyle = 'rgba(74,63,69,.25)'; g.stroke();
     g.font = (rr * 1.25) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
@@ -1117,7 +1122,7 @@ function mDraw(G) {
     if (G.cool <= 0) fruit(ax, 10, G.cur, 1);
     mClaw(g, G.cool > 0 ? (G.dropX == null ? ax : G.dropX) : ax, 10, hr, open);
   }
-  for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R);
+  for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R, b.ang);
   g.textAlign = 'center'; g.font = '6px Naikai, sans-serif';
   for (const p of G.pops) { if (p.hit) { const a = (G.t - p.t) / 0.5, im = mbg()[1]; if (a < 1 && im.complete && im.naturalWidth) { const d = p.r * (2.2 + a); g.globalAlpha = 1 - a * a; g.drawImage(im, p.x - d / 2, p.y - d / 2, d, d); } continue; } const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
   for (const n of G.notes) { const a = (G.t - n.t) / 1.8; g.globalAlpha = a < 0.8 ? 1 : (1 - a) * 5; g.font = '6.5px Naikai, sans-serif'; g.fillStyle = '#3b6e5a'; g.strokeStyle = '#fff7ea'; g.lineWidth = 1; g.strokeText(n.s, MW / 2, 68 - a * 4); g.fillText(n.s, MW / 2, 68 - a * 4); }
@@ -1185,7 +1190,8 @@ function mLoop(ts) {
 function mDrop() {
   const G = MG_; if (!G || G.over || G.paused || G.mode || G.cool > 0) return;
   const cr = FRUITS[G.cur][1], x = Math.min(MW - cr, Math.max(cr, G.aim));
-  mAdd(G, x, 10, G.cur);
+  /* 丟下去時加一點點左右誤差（看不出來），疊在正上方的水果才會自然滾下來，不會疊成一根柱子 */
+  mAdd(G, Math.min(MW - cr, Math.max(cr, x + (Math.random() - 0.5) * 0.6)), 10, G.cur);
   /* 西部神射手：最近丟的 5 顆裡有 3 顆一樣 → 射爆（算過之後清空重算） */
   G.recent = (G.recent || []).concat(G.cur).slice(-5);
   if (G.recent.filter(v => v === G.cur).length >= 3) { G.recent = []; mGain(G, 'shot'); }
@@ -1558,8 +1564,14 @@ function bClose(toShop) {
   if (curTab === 'play') renderPlay();
   if (toShop) setTimeout(() => { const s = $('#bl-shop'); if (s) { s.open = true; OPEN_DET.add('bl-shop'); s.scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); } }, 50);
 }
-function couponRow(c, mine) {
-  return '<li class="bl-cp' + (c.used ? ' used' : '') + '"><img class="bl-cp-i" src="balloon/coupon.webp" alt=""><span class="bl-cp-n">' + esc(c.what) + '</span><span class="muted">' + (c.used ? md(new Date(c.usedAt || c.ts)) + ' 兌換了' : (c.from === S.me ? '你要兌現' : '由 ' + c.from + ' 兌現')) + '</span>' +
+/* 一樣的兌換券疊成一張，顯示「×張數」；按使用時先用掉最舊的那張 */
+function cpGroup(list) {
+  const m = new Map();
+  for (const c of list) { const k = c.to + '|' + c.from + '|' + c.what; const g = m.get(k); if (g) { g.n++; if (c.ts < g.c.ts) g.c = c; } else m.set(k, { c, n: 1 }); }
+  return [...m.values()];
+}
+function couponRow(c, mine, n) {
+  return '<li class="bl-cp' + (c.used ? ' used' : '') + '"><img class="bl-cp-i" src="balloon/coupon.webp" alt=""><span class="bl-cp-n">' + esc(c.what) + (n > 1 ? ' <b class="bl-cp-x">×' + n + '</b>' : '') + '<small class="bl-cp-s muted">' + (c.used ? md(new Date(c.usedAt || c.ts)) + ' 兌換了' : (c.from === S.me ? '你要兌現' : '由 ' + c.from + ' 兌現')) + '</small></span>' +
     (!c.used && mine ? '<button class="btn small" data-act="blUse" data-id="' + c.id + '">使用</button>' : '') + '</li>';
 }
 function balloonCardHtml() {
@@ -1571,8 +1583,9 @@ function balloonCardHtml() {
     '<details class="bl-shop" id="bl-shop"' + detOpen('bl-shop') + '><summary>直接兌換（保證拿到，你有 ' + mine + ' 點）</summary><ul class="bl-rw">' +
       info.rewards.map((r, i) => '<li><span>' + esc(r.n) + '</span><span class="muted">' + r.p + ' 點</span><button class="btn ghost small" data-act="blBuy" data-i="' + i + '"' + (mine < r.p ? ' disabled' : '') + '>換</button></li>').join('') +
     '</ul><button class="btn ghost small" data-act="blEditRw">編輯獎勵和每日次數</button></details>' +
-    '<div class="bl-cps"><p class="bl-h">你的兌換券（' + WHO[ok] + '要兌現）</p>' + (myCp.length ? '<ul>' + myCp.map(c => couponRow(c, true)).join('') + '</ul>' : '<p class="muted">還沒有，快去射氣球</p>') +
-    '<p class="bl-h">' + WHO[ok] + '的兌換券（你要兌現）</p>' + (theirCp.length ? '<ul>' + theirCp.map(c => couponRow(c, false)).join('') + '</ul>' : '<p class="muted">目前沒有</p>') +
+    '<div class="bl-cps">' +
+    (myCp.length ? '<details id="bl-mine"' + detOpen('bl-mine') + '><summary class="bl-h">你的兌換券 ' + myCp.length + ' 張（' + WHO[ok] + '要兌現）</summary><ul>' + cpGroup(myCp).map(g => couponRow(g.c, true, g.n)).join('') + '</ul></details>' : '<p class="bl-h">你的兌換券（' + WHO[ok] + '要兌現）</p><p class="muted">還沒有，快去射氣球</p>') +
+    (theirCp.length ? '<details id="bl-theirs"' + detOpen('bl-theirs') + '><summary class="bl-h">' + WHO[ok] + '的兌換券 ' + theirCp.length + ' 張（你要兌現）</summary><ul>' + cpGroup(theirCp).map(g => couponRow(g.c, false, g.n)).join('') + '</ul></details>' : '<p class="bl-h">' + WHO[ok] + '的兌換券（你要兌現）</p><p class="muted">目前沒有</p>') +
     (used.length ? '<details id="bl-used"' + detOpen('bl-used') + '><summary class="muted">最近兌換過的</summary><ul>' + used.map(c => couponRow(c, false)).join('') + '</ul></details>' : '') + '</div></div>';
 }
 Object.assign(ACT, {
