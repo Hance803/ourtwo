@@ -1039,7 +1039,7 @@ function mStep(G, dt) {
       if (b.r < b.R) b.r = Math.min(b.R, b.r + b.R * h * 4);
       let vx = (b.x - b.px) * 0.995, vy = (b.y - b.py) * 0.995;
       const sp = Math.hypot(vx, vy), MAXV = 0.5; if (sp > MAXV) { vx *= MAXV / sp; vy *= MAXV / sp; }
-      b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + MG * h * h; if (Math.abs(vx) > 0.0015) b.ang = (b.ang || 0) + vx / b.r;
+      b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + MG * h * h;
     }
     for (let it = 0; it < 2; it++) {
       const B = G.bodies;
@@ -1084,6 +1084,8 @@ function mStep(G, dt) {
       }
     }
   }
+  /* 滾動角度：用「這一幀實際移動了多少」來轉，太小的抖動不算，才不會停著還在原地轉 */
+  for (const b of G.bodies) { if (b.fx == null) b.fx = b.x; const dx = b.x - b.fx; b.fx = b.x; if (Math.abs(dx) > 0.04) b.ang = (b.ang || 0) + dx / b.r; }
   /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 2 秒就結束 */
   const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER && Math.abs(b.y - b.py) < 0.03);
   G.overT = high ? G.overT + dt : 0;
