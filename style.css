@@ -1256,3 +1256,11 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .mg-item-rv{font-size:13px;color:var(--muted);padding:0 4px}
 .mg-stage2.quake{animation:mgQuake .6s ease}
 @keyframes mgQuake{10%,50%,90%{transform:translateX(-6px) rotate(-1deg)}30%,70%{transform:translateX(6px) rotate(1deg)}}
+#mg{background:var(--bg) url(fruits/bg_page.webp) center/cover no-repeat}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #mg{background-image:none}}
+:root[data-theme="dark"] #mg{background-image:none}
+.mg-item,.mg-item-rv{display:inline-flex;align-items:center;gap:4px}
+.mg-item img,.mg-item-rv img{width:26px;height:26px;display:block}
+.mg-item:disabled img,.mg-item-rv.zero img{filter:grayscale(1);opacity:.5}
+.mg-nextbox #mg-next img,.mg-route img,.mg-over-f{object-fit:contain}
+.mg-route img{aspect-ratio:1}

@@ -986,7 +986,10 @@ const FRUITS = [['🍒', 4.4, '#f7c6cf'], ['🍓', 5.8, '#f9b4b4'], ['🍇', 7.4
 /* 水果整體縮到 78%：箱子裡空間比較夠，認真玩有機會合出西瓜（原本的大小幾乎不可能） */
 FRUITS.forEach(f => { f[1] = Math.round(f[1] * 0.78 * 100) / 100; });
 const MPTS = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
-/* 水果圖（美術畫的 512×512 透明圖，水果主體約佔中間直徑 490 的圓）；圖還沒載好時先用 emoji 代替 */
+/* 水果圖（美術圖已裁好邊）。FART = [主體圓心 x, 圓心 y, 圖寬, 圖高]，主體圓直徑一律 490；圖還沒載好時先用 emoji 代替 */
+const FART = [[251.7, 402.3, 503, 653], [249.2, 310.8, 498, 560], [279.7, 331.2, 538, 581], [249.5, 230.2, 499, 480], [248.8, 137.7, 498, 386], [248.4, 264.1, 497, 513], [248.6, 252.6, 498, 502], [249.3, 244.5, 499, 494], [249.7, 369.6, 499, 619], [248.6, 319.6, 498, 569], [249.1, 314.5, 499, 564]];
+let MBG = null;
+const mbg = () => MBG || (MBG = ['bg_stage', 'shot_hit'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 let FIMG = null;
 const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
 const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8;
@@ -1020,8 +1023,8 @@ function mGain(G, k) {
 function mItemsUI() {
   const box = $('#mg-items'); if (!box || !MINV) return;
   const G = MG_;
-  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '>' + n + ' ×' + MINV[k] + '</button>').join('') +
-    '<span class="mg-item-rv">復活 ×' + MINV.revive + '</span>';
+  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt="">' + n + ' ×' + MINV[k] + '</button>').join('') +
+    '<span class="mg-item-rv' + (MINV.revive ? '' : ' zero') + '"><img src="fruits/item_revive.webp" alt="">復活 ×' + MINV.revive + '</span>';
 }
 function mergeNew() {
   const G = { bag: [], bodies: [], notes: [], mode: '', streakLv: -1, streakN: 0, gotRevive: false, swapAt: 1000, paused: false, bag2: 0, score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
@@ -1095,12 +1098,12 @@ function mDraw(G) {
   const g = cv.getContext('2d'), k = r.width / MW;
   g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0);
   g.clearRect(0, 0, MW, MH);
-  g.fillStyle = '#fff7ea'; g.fillRect(0, 0, MW, MH);
+  g.fillStyle = '#fff7ea'; g.fillRect(0, 0, MW, MH); { const bg = mbg()[0]; if (bg.complete && bg.naturalWidth) g.drawImage(bg, 0, 0, MW, MH); }
   g.strokeStyle = G.overT > 0 ? '#e76f6f' : 'rgba(231,111,111,.45)'; g.lineWidth = 0.5; g.setLineDash([2, 2]);
   g.beginPath(); g.moveTo(0, MDANGER); g.lineTo(MW, MDANGER); g.stroke(); g.setLineDash([]);
   const fruit = (x, y, lv, sc) => {
     const f = FRUITS[lv], rr = f[1] * sc, im = fimgs()[lv];
-    if (im.complete && im.naturalWidth) { const d = rr * 2 * 512 / 490; g.drawImage(im, x - d / 2, y - d / 2, d, d); return; }
+    if (im.complete && im.naturalWidth) { const A = FART[lv], s = rr * 2 / 490; g.drawImage(im, x - A[0] * s, y - A[1] * s, A[2] * s, A[3] * s); return; }
     g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fillStyle = f[2]; g.fill();
     g.lineWidth = 0.4; g.strokeStyle = 'rgba(74,63,69,.25)'; g.stroke();
     g.font = (rr * 1.25) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
@@ -1111,12 +1114,12 @@ function mDraw(G) {
     g.strokeStyle = 'rgba(74,63,69,.18)'; g.lineWidth = 0.4; g.beginPath(); g.moveTo(ax, 10); g.lineTo(ax, MH); g.stroke();
     /* 夾子：夾著水果；放手時打開，等下一顆補上再合起來 */
     const open = G.cool > 0 ? Math.min(1, G.cool / 0.3) : 0, hr = G.cool > 0 ? FRUITS[G.prev == null ? G.cur : G.prev][1] : cr;
-    mClaw(g, G.cool > 0 ? (G.dropX == null ? ax : G.dropX) : ax, 10, hr, open);
     if (G.cool <= 0) fruit(ax, 10, G.cur, 1);
+    mClaw(g, G.cool > 0 ? (G.dropX == null ? ax : G.dropX) : ax, 10, hr, open);
   }
   for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R);
   g.textAlign = 'center'; g.font = '6px Naikai, sans-serif';
-  for (const p of G.pops) { const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
+  for (const p of G.pops) { if (p.hit) { const a = (G.t - p.t) / 0.5, im = mbg()[1]; if (a < 1 && im.complete && im.naturalWidth) { const d = p.r * (2.2 + a); g.globalAlpha = 1 - a * a; g.drawImage(im, p.x - d / 2, p.y - d / 2, d, d); } continue; } const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
   for (const n of G.notes) { const a = (G.t - n.t) / 1.8; g.globalAlpha = a < 0.8 ? 1 : (1 - a) * 5; g.font = '6.5px Naikai, sans-serif'; g.fillStyle = '#3b6e5a'; g.strokeStyle = '#fff7ea'; g.lineWidth = 1; g.strokeText(n.s, MW / 2, 68 - a * 4); g.fillText(n.s, MW / 2, 68 - a * 4); }
   g.globalAlpha = 1;
   if (G.mode === 'shot') { g.font = '6px Naikai, sans-serif'; g.fillStyle = '#c0392b'; g.fillText('點一顆水果射爆它', MW / 2, 40); }
@@ -1128,17 +1131,16 @@ function mDraw(G) {
   const nx = $('#mg-next'); if (nx.dataset.lv !== String(G.next)) { nx.dataset.lv = G.next; nx.innerHTML = '<img src="' + fimgs()[G.next].src + '" alt="' + FRUITS[G.next][0] + '">'; }
   const rt = $('#mg-route'); if (rt && rt.dataset.lv !== String(G.maxLv)) { rt.dataset.lv = G.maxLv; mRoute(); }
 }
-/* 夾子：只用美術畫的圖（claw_closed／claw_open，256×256，夾住的球中心 (128,170)、直徑 120、繩子接點 (128,30)）。
-   美術圖還沒到之前 MCLAW_ART = false，不畫夾子（不用程式自己畫來充數）。 */
-const MCLAW_ART = false;
+/* 夾子：美術畫的 claw_closed／claw_open（兩張對齊）。MCA = [夾住的球心 x, 球心 y, 球直徑, 繩子接點 y, 圖寬, 圖高] */
+const MCLAW_ART = true, MCA = [235.8, 381.9, 240, 1.0, 470, 506];
 let MCLAW = null;
 function mClaw(g, x, y, r, open) {
   if (!MCLAW_ART) return;
   if (!MCLAW) MCLAW = ['claw_closed', 'claw_open'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; });
   const im = MCLAW[open > 0.5 ? 1 : 0]; if (!im.complete || !im.naturalWidth) return;
-  const s = (r * 2) / 120, w = 256 * s;
-  g.save(); g.strokeStyle = '#6f6458'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(x, -2); g.lineTo(x, y - 140 * s); g.stroke();
-  g.drawImage(im, x - 128 * s, y - 170 * s, w, w); g.restore();
+  const s = (r * 2) / MCA[2], top = y - (MCA[1] - MCA[3]) * s;
+  g.save(); if (top > 0) { g.strokeStyle = '#3b2a24'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(x, -2); g.lineTo(x, top + 0.5); g.stroke(); }
+  g.drawImage(im, x - MCA[0] * s, y - MCA[1] * s, MCA[4] * s, MCA[5] * s); g.restore();
 }
 /* 合成路線：11 種水果排一排，這局合到的亮起來 */
 function mRoute() {
@@ -1163,7 +1165,7 @@ function mShootAt(px, py) {
   const G = MG_; if (!G) return;
   let hit = null; for (const b of G.bodies) { if (Math.hypot(b.x - px, b.y - py) <= b.r * 1.15 && (!hit || b.r < hit.r)) hit = b; }
   if (!hit) { G.notes.push({ t: G.t, s: '沒打到，再點一次' }); return; }
-  G.bodies = G.bodies.filter(b => b !== hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '砰！' });
+  G.bodies = G.bodies.filter(b => b !== hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '', hit: 1, r: hit.r });
   MINV.shot--; mInvSave(); G.mode = ''; mItemsUI();
 }
 function mQuake() {
