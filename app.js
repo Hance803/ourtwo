@@ -997,11 +997,8 @@ let MG_ = null;
 /* 出水果用「抽袋子」：一袋 8 顆照固定比例洗牌，抽完再換一袋，不會一直連出同一種小水果。
    比例：櫻桃 1、草莓 2、葡萄 2、橘子 2、檸檬 1。 */
 const MBAG = [0, 1, 1, 2, 2, 3, 3, 4];
-/* 一局不要太長（輕鬆小品）：丟得越多，出的水果越大、箱子越擠；再加一個保底：玩滿 MCAP 秒就時間到 */
-const MRAMP = [[0, [0, 1, 1, 2, 2, 3, 3, 4]], [130, [1, 1, 2, 2, 3, 3, 4, 5]], [200, [2, 2, 3, 3, 4, 4, 5, 6]], [270, [3, 3, 4, 4, 5, 5, 6, 7]]];
-const MCAP = 15 * 60;
 function mNext(G) {
-  if (!G.bag || !G.bag.length) { let tpl = MRAMP[0][1]; for (const r of MRAMP) if ((G.drops || 0) >= r[0]) tpl = r[1]; G.bag = tpl.slice(); for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
+  if (!G.bag || !G.bag.length) { G.bag = MBAG.slice(); for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
   return G.bag.pop();
 }
 /* 道具（每人每天各自累計，換日歸零；存在 play/merge.items.{him|her}）
@@ -1048,8 +1045,15 @@ function mPopPhys(G, x, y, lv) {
     if (d < reach) { const f = Math.min(0.32, 0.2 * (1 - d / reach) * (1 + big * 0.09)); b.px -= dx / d * f; b.py -= dy / d * f; b.wowT = G.t; }
   }
 }
+/* 地震：連續 5 下，一下比一下弱，每顆水果各自被往上甩、往旁邊甩一點（整堆會被攪開、重新落下） */
+const MQ_T = [0, 0.16, 0.32, 0.48, 0.64], MQ_P = [1, 1, 0.85, 0.65, 0.45];
+function mQuakeKick(G, p) {
+  for (const b of G.bodies) { b.py += (0.16 + Math.random() * 0.34) * p; b.px -= (Math.random() - 0.5) * 0.5 * p; }
+  G.calm = G.t + 2.2;
+}
 function mStep(G, dt) {
   G.t += dt; G.cool = Math.max(0, G.cool - dt);
+  if (G.quake) { const q = G.quake; while (q.i < MQ_T.length && G.t - q.t0 >= MQ_T[q.i]) { mQuakeKick(G, MQ_P[q.i]); q.i++; } if (q.i >= MQ_T.length) G.quake = null; }
   const sub = 8, h = dt / sub;
   for (let s = 0; s < sub; s++) {
     for (const b of G.bodies) {
@@ -1113,7 +1117,7 @@ function mStep(G, dt) {
   for (const b of G.bodies) { if (b.fx == null) b.fx = b.x; const dx = b.x - b.fx; b.fx = b.x; if (Math.abs(dx) > 0.04) b.ang = (b.ang || 0) + dx / b.r; }
   /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 1.5 秒就結束 */
   /* 結束判定：落下超過 1.5 秒的水果，頂端還在紅線上方就開始累積；離開紅線時慢慢扣回（不用等水果完全靜止，堆滿時水果會微微晃，以前因此永遠判不到） */
-  const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER);
+  const high = G.t > (G.calm || 0) && G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER);
   G.overT = high ? G.overT + dt : Math.max(0, G.overT - dt * 2);
   if (G.overT > 1.5 && !G.over) {
     if (MINV && MINV.revive > 0 && !G.askedRevive) { G.askedRevive = true; G.paused = true; mAskRevive(); }
@@ -1308,7 +1312,7 @@ function sfx(k, a, b) {
     else if (k === 'thud') { const now = ac.currentTime; if (now - MSNDT < 0.06) return; MSNDT = now; const v = Math.min(0.35, a * 0.6); sTone(ac, 150, 55, 0.12, 'sine', v); sNoise(ac, 0.05, v * 0.5, 600); }
     else if (k === 'drop') sTone(ac, 520, 380, 0.05, 'triangle', 0.08);
     else if (k === 'shot') { sNoise(ac, 0.3, 0.6, 2400); sTone(ac, 180, 45, 0.25, 'sine', 0.4); }
-    else if (k === 'quake') { sNoise(ac, 0.7, 0.55, 220); sTone(ac, 70, 40, 0.6, 'sine', 0.35); }
+    else if (k === 'quake') { sNoise(ac, 1.0, 0.7, 260); sTone(ac, 75, 32, 0.9, 'sine', 0.45); [0.16, 0.32, 0.48].forEach(d => sTone(ac, 90, 40, 0.2, 'sine', 0.3, d)); }
     else if (k === 'melon') [523, 659, 784, 1047, 1319].forEach((f, i) => { sTone(ac, f, f, 0.22, 'triangle', 0.22, i * 0.11); sTone(ac, f / 2, f / 2, 0.22, 'sine', 0.12, i * 0.11); });
   } catch (e) { /* ignore */ }
 }
@@ -1321,6 +1325,28 @@ function mFit() {
   st.style.height = Math.round(Math.max(220, Math.min(avail, wmax * 1.4, 640))) + 'px';
 }
 window.addEventListener('resize', () => mFit());
+/* 搖手機發動地震：iPhone 要先按「允許動作與方向」，所以在按「開始玩」的那一下（使用者動作）才跟系統要權限。
+   偵測：加速度在 0.8 秒內有好幾下大幅變化才算搖，避免走路、放桌上誤觸；發動後 2 秒內不重複。 */
+let MMOT = 0, MMOT_LAST = 0, MMOT_SPK = [];
+function mMotion() {
+  if (MMOT === 1) return;
+  const go = () => { window.addEventListener('devicemotion', mOnMotion); MMOT = 1; if (MG_ && MINV && MINV.quake > 0) MG_.notes.push({ t: MG_.t, s: '搖手機可以發動地震' }); };
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission().then(r => { if (r === 'granted') go(); else MMOT = -1; }).catch(() => { MMOT = -1; });
+    } else if (typeof DeviceMotionEvent !== 'undefined') go();
+  } catch (e) { MMOT = -1; }
+}
+function mOnMotion(e) {
+  const g = e.accelerationIncludingGravity; if (!g || g.x == null) return;
+  const L = mOnMotion.last || g, now = performance.now(), d = Math.hypot(g.x - L.x, g.y - L.y, g.z - L.z); mOnMotion.last = { x: g.x, y: g.y, z: g.z };
+  if (d < 12) return;
+  MMOT_SPK = MMOT_SPK.filter(t => now - t < 800); MMOT_SPK.push(now);
+  if (MMOT_SPK.length < 4 || now - MMOT_LAST < 2000) return;
+  const G = MG_; if (!G || G.over || G.paused || G.mode || document.hidden) return;
+  MMOT_LAST = now; MMOT_SPK = [];
+  if (MINV && MINV.quake > 0) mQuake(); else G.notes.push({ t: G.t, s: '地震用完了' });
+}
 /* 合成路線：11 種水果排一排，這局合到的亮起來 */
 function mRoute() {
   const G = MG_, rt = $('#mg-route'); if (!G || !rt) return;
@@ -1349,21 +1375,15 @@ function mShootAt(px, py) {
 }
 function mQuake() {
   const G = MG_; if (!G) return;
-  for (const b of G.bodies) { b.py = b.y + 0.35 + Math.random() * 0.25; b.px = b.x + (Math.random() - 0.5) * 0.6; }
+  G.quake = { t0: G.t, i: 0 };
   const st = $('.mg-stage2'); if (st) { st.classList.remove('quake'); void st.offsetWidth; st.classList.add('quake'); }
-  mHaptic(3); sfx('quake'); mShake(G, 2.5, 0.6);
+  mHaptic(3); sfx('quake'); mShake(G, 4.5, 1.0);
   MINV.quake--; mInvSave(); mItemsUI();
 }
 function mLoop(ts) {
   const G = MG_; if (!G) return;
   const dt = Math.min(1 / 30, G.last ? (ts - G.last) / 1000 : 1 / 60); G.last = ts;
   G.rt = (G.rt || 0) + dt;
-  /* 保底：實際玩滿 15 分鐘就時間到（暫停、畫面在背景時不算），最後 1 分鐘會提醒 */
-  if (!G.over && !G.paused) {
-    G.play = (G.play || 0) + dt;
-    if (G.play > MCAP - 60 && !G.warned) { G.warned = true; G.notes.push({ t: G.t, s: '還剩 1 分鐘！' }); }
-    if (G.play > MCAP) { G.over = true; G.timeUp = true; mergeOver(G); }
-  }
   /* 打擊停頓：合成那一下整個畫面停一瞬間 */
   if (G.freeze > 0) G.freeze -= dt;
   else if (!G.over && !G.paused) mStep(G, dt);
@@ -1376,7 +1396,6 @@ function mDrop() {
   /* 丟下去時加一點點左右誤差（看不出來），疊在正上方的水果才會自然滾下來，不會疊成一根柱子 */
   mAdd(G, Math.min(MW - cr, Math.max(cr, x + (Math.random() - 0.5) * 0.6)), 10, G.cur);
   /* 西部神射手：最近丟的 4 顆裡有 3 顆一樣 → 射爆（算過之後清空重算） */
-  G.drops = (G.drops || 0) + 1; { const st = MRAMP.filter(r => G.drops === r[0] && r[0] > 0).length; if (st) G.notes.push({ t: G.t, s: '越來越擠囉！' }); }
   G.recent = (G.recent || []).concat(G.cur).slice(-4);
   if (G.recent.filter(v => v === G.cur).length >= 3) { G.recent = []; mGain(G, 'shot'); }
   sfx('drop'); G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
@@ -1389,7 +1408,7 @@ function mergeOver(G) {
   const ml = (PL('merge') || {}).maxlv || {};
   if (G.score > 0) wr(setDoc(dref('play', 'merge'), Object.assign({ top }, isBest ? { [mk]: G.score } : {}, G.maxLv > (ml[mk] || 0) ? { maxlv: { [mk]: G.maxLv } } : {}), { merge: true }));
   const box = $('#mg-over');
-  box.innerHTML = '<p class="mg-over-t">' + (G.timeUp ? '時間到！' : '遊戲結束') + '</p><p class="mg-over-s">' + G.score + ' 分</p><p class="muted">這局合到：<img class="mg-over-f" src="' + fimgs()[Math.min(G.maxLv, FRUITS.length - 1)].src + '" alt=""></p>' + (isBest && G.score > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + (m[mk] || 0) + '</p>') +
+  box.innerHTML = '<p class="mg-over-t">' + '遊戲結束' + '</p><p class="mg-over-s">' + G.score + ' 分</p><p class="muted">這局合到：<img class="mg-over-f" src="' + fimgs()[Math.min(G.maxLv, FRUITS.length - 1)].src + '" alt=""></p>' + (isBest && G.score > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + (m[mk] || 0) + '</p>') +
     '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgAgain">再來一局</button><button class="btn ghost" data-act="mgClose">離開</button></div>';
   box.hidden = false;
 }
@@ -1411,6 +1430,7 @@ function mergeCardHtml() {
 }
 function mergeOpen() {
   if (STALE) { location.reload(); return; }
+  mMotion();
   let ov = $('#mg');
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'mg'; ov.className = 'mg';
@@ -1965,7 +1985,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v46';
+const APP_VER = 'v47';
 let STALE = false;
 async function chkUpdate() {
   try {
