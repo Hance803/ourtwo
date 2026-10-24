@@ -1023,11 +1023,12 @@ function mGain(G, k) {
 function mItemsUI() {
   const box = $('#mg-items'); if (!box || !MINV) return;
   const G = MG_;
-  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt="">' + n + ' ×' + MINV[k] + '</button>').join('') +
-    '<span class="mg-item-rv' + (MINV.revive ? '' : ' zero') + '"><img src="fruits/item_revive.webp" alt="">復活 ×' + MINV.revive + '</span>';
+  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt=""><span>' + n + ' ×' + MINV[k] + '</span></button>').join('') +
+    '<span class="mg-item-rv' + (MINV.revive ? '' : ' zero') + '"><img src="fruits/item_revive.webp" alt=""><span>復活 ×' + MINV.revive + '</span></span>';
+  mFit();
 }
 function mergeNew() {
-  const G = { bag: [], bodies: [], notes: [], mode: '', streakLv: -1, streakN: 0, gotRevive: false, swapAt: 1000, paused: false, bag2: 0, score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
+  const G = { rt: 0, fx: [], freeze: 0, shakeA: 0, bag: [], bodies: [], notes: [], mode: '', streakLv: -1, streakN: 0, gotRevive: false, swapAt: 1000, paused: false, bag2: 0, score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
   G.cur = mNext(G); G.next = mNext(G); G.best = mergeBest()[meKey()] || 0; return G;
 }
 function mAdd(G, x, y, lv, grow) { const R = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, R, r: grow ? R * 0.55 : R, lv, born: G.t, dead: false }); }
@@ -1036,7 +1037,7 @@ function mStep(G, dt) {
   const sub = 8, h = dt / sub;
   for (let s = 0; s < sub; s++) {
     for (const b of G.bodies) {
-      if (b.r < b.R) b.r = Math.min(b.R, b.r + b.R * h * 4);
+      if (b.r < b.R) b.r = Math.min(b.R, b.r + b.R * h * 7);
       let vx = (b.x - b.px) * 0.995, vy = (b.y - b.py) * 0.995;
       const sp = Math.hypot(vx, vy), MAXV = 0.5; if (sp > MAXV) { vx *= MAXV / sp; vy *= MAXV / sp; }
       b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + MG * h * h;
@@ -1059,8 +1060,9 @@ function mStep(G, dt) {
             if (G.combo === 3) mGain(G, 'quake');
             if (a.lv + 1 === 9 && !G.gotRevive) { G.gotRevive = true; mGain(G, 'revive'); }
             if (a.lv + 1 > G.maxLv) G.maxLv = a.lv + 1;
-            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus) }); }
-            else { G.score += 100 + bonus; G.maxLv = FRUITS.length; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (100 + bonus) + ' 🎉' }); }
+            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus), n: G.combo }); }
+            else { G.score += 100 + bonus; G.maxLv = FRUITS.length; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (100 + bonus) + ' 🎉', n: G.combo }); }
+            mHitFx(G, mx, my, a.lv + 1);
             continue;
           }
           const d = Math.sqrt(d2), o = (rr - d) / d * 0.5, ma = a.r * a.r, mc = c.r * c.r, wa = mc / (ma + mc), wc = ma / (ma + mc);
@@ -1069,6 +1071,7 @@ function mStep(G, dt) {
           /* 不彈：推開不產生速度，而且把「互相撞過去」的速度整個吃掉；沿著表面的速度保留，水果還是會滾 */
           a.px -= ax; a.py -= ay; c.px += cx2; c.py += cy2;
           const nx = dx / d, ny = dy / d, rel = ((c.x - c.px) - (a.x - a.px)) * nx + ((c.y - c.py) - (a.y - a.py)) * ny;
+          if (rel < -0.08) { a.imp = Math.max(a.imp || 0, -rel); c.imp = Math.max(c.imp || 0, -rel); }
           if (rel < 0) { a.px -= nx * rel * wa; a.py -= ny * rel * wa; c.px += nx * rel * wc; c.py += ny * rel * wc; }
           /* 一點點摩擦：堆好的水果會慢慢停下來，不會一直溜 */
           const tx = -ny, ty = nx, tv = ((c.x - c.px) - (a.x - a.px)) * tx + ((c.y - c.py) - (a.y - a.py)) * ty, fr = tv * MFRIC;
@@ -1080,10 +1083,14 @@ function mStep(G, dt) {
         if (b.x < b.r) { b.x = b.r; b.px = b.x; }
         if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x; }
         if (b.y < -10) { b.y = -10; b.py = Math.max(b.py, b.y); }
-        if (b.y > MH - b.r) { b.y = MH - b.r; b.py = b.y; b.px = b.x - (b.x - b.px) * 0.97; }
+        if (b.y > MH - b.r) { if (b.y - b.py > 0.08) b.imp = Math.max(b.imp || 0, b.y - b.py); b.y = MH - b.r; b.py = b.y; b.px = b.x - (b.x - b.px) * 0.97; }
       }
     }
   }
+  /* 撞擊：重重落地／撞到別顆時壓扁一下，順便「咚」一聲 */
+  let thud = 0;
+  for (const b of G.bodies) { if (b.imp) { if (G.t - (b.sqT || -9) > 0.25) { b.sq = Math.min(0.24, b.imp * 0.55); b.sqT = G.t; thud = Math.max(thud, b.imp); } b.imp = 0; } }
+  if (thud > 0.12) sfx('thud', thud);
   /* 滾動角度：用「這一幀實際移動了多少」來轉，太小的抖動不算，才不會停著還在原地轉 */
   for (const b of G.bodies) { if (b.fx == null) b.fx = b.x; const dx = b.x - b.fx; b.fx = b.x; if (Math.abs(dx) > 0.04) b.ang = (b.ang || 0) + dx / b.r; }
   /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 2 秒就結束 */
@@ -1105,12 +1112,27 @@ function mDraw(G) {
   const g = cv.getContext('2d'), k = r.width / MW;
   g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0);
   g.clearRect(0, 0, MW, MH);
-  g.fillStyle = '#fff7ea'; g.fillRect(0, 0, MW, MH); { const bg = mbg()[0]; if (bg.complete && bg.naturalWidth) g.drawImage(bg, 0, 0, MW, MH); }
+  g.fillStyle = '#fff7ea'; g.fillRect(0, 0, MW, MH);
+  /* 畫面震動（用真實時間，打擊停頓時也會抖） */
+  if (G.shakeA) { const q = 1 - (G.rt - G.shakeT) / G.shakeD; if (q > 0) { const A = G.shakeA * q * q; g.translate((Math.random() - 0.5) * 2 * A, (Math.random() - 0.5) * 2 * A); } else G.shakeA = 0; } { const bg = mbg()[0]; if (bg.complete && bg.naturalWidth) g.drawImage(bg, 0, 0, MW, MH); }
   g.strokeStyle = G.overT > 0 ? '#e76f6f' : 'rgba(231,111,111,.45)'; g.lineWidth = 0.5; g.setLineDash([2, 2]);
   g.beginPath(); g.moveTo(0, MDANGER); g.lineTo(MW, MDANGER); g.stroke(); g.setLineDash([]);
-  const fruit = (x, y, lv, sc, ang) => {
-    const f = FRUITS[lv], rr = f[1] * sc, im = fimgs()[lv];
-    if (im.complete && im.naturalWidth) { const A = FART[lv], s = rr * 2 / 490; if (ang) { g.save(); g.translate(x, y); g.rotate(ang); g.drawImage(im, -A[0] * s, -A[1] * s, A[2] * s, A[3] * s); g.restore(); } else g.drawImage(im, x - A[0] * s, y - A[1] * s, A[2] * s, A[3] * s); return; }
+  const fruit = (x, y, lv, sc, ang, b) => {
+    const f = FRUITS[lv]; let im = fimgs()[lv], A = FART[lv];
+    /* 剛合成出來：先脹大再縮回（啵！）；落地：壓扁再彈回；被撞到／合成時換驚訝臉 */
+    let pk = 1, sx = 1, sy = 1;
+    if (b) {
+      if (b.popT != null) { const t = G.t - b.popT; if (t < 0.6) pk = 1 + 0.34 * Math.exp(-7 * t) * Math.cos(17 * t); }
+      if (b.sq) { const t = G.t - b.sqT, e = t < 0.4 ? Math.exp(-9 * t) * Math.cos(24 * t) : 0; sx = 1 + b.sq * e; sy = 1 - b.sq * e; if (!e) b.sq = 0; }
+      if (MWOW_ART && b.wowT != null && G.t - b.wowT < 0.55 && FART_WOW[lv]) { const w = mwow()[lv]; if (w && w.complete && w.naturalWidth) { im = w; A = FART_WOW[lv]; } }
+    }
+    const rr = f[1] * sc * pk;
+    if (im.complete && im.naturalWidth) {
+      const s = rr * 2 / 490;
+      if (ang || sx !== 1 || pk !== 1) { g.save(); g.translate(x, y + rr * (1 - sy)); g.scale(sx, sy); if (ang) g.rotate(ang); g.drawImage(im, -A[0] * s, -A[1] * s, A[2] * s, A[3] * s); g.restore(); }
+      else g.drawImage(im, x - A[0] * s, y - A[1] * s, A[2] * s, A[3] * s);
+      return;
+    }
     g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fillStyle = f[2]; g.fill();
     g.lineWidth = 0.4; g.strokeStyle = 'rgba(74,63,69,.25)'; g.stroke();
     g.font = (rr * 1.25) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
@@ -1124,15 +1146,20 @@ function mDraw(G) {
     if (G.cool <= 0) fruit(ax, 10, G.cur, 1);
     mClaw(g, G.cool > 0 ? (G.dropX == null ? ax : G.dropX) : ax, 10, hr, open);
   }
-  for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R, b.ang);
+  mFxDraw(G, g, true);
+  for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R, b.ang, b);
+  mFxDraw(G, g, false);
   g.textAlign = 'center'; g.font = '6px Naikai, sans-serif';
-  for (const p of G.pops) { if (p.hit) { const a = (G.t - p.t) / 0.5, im = mbg()[1]; if (a < 1 && im.complete && im.naturalWidth) { const d = p.r * (2.2 + a); g.globalAlpha = 1 - a * a; g.drawImage(im, p.x - d / 2, p.y - d / 2, d, d); } continue; } const a = (G.t - p.t) / 0.9; g.globalAlpha = 1 - a; g.fillStyle = '#c0546b'; g.fillText(p.s, p.x, p.y - 6 - a * 10); }
+  for (const p of G.pops) { if (p.hit) { const a = (G.t - p.t) / 0.5, im = mbg()[1]; if (a < 1 && im.complete && im.naturalWidth) { const d = p.r * (2.2 + a); g.globalAlpha = 1 - a * a; g.drawImage(im, p.x - d / 2, p.y - d / 2, d, d); } continue; } const a = (G.t - p.t) / 0.9, n = Math.min(p.n || 1, 6), sz = (6 + n * 0.9) * (a < 0.12 ? 0.6 + a / 0.12 * 0.6 : 1.2 - Math.min(0.2, (a - 0.12)));
+    g.globalAlpha = a < 0.7 ? 1 : (1 - a) / 0.3; g.font = sz + 'px Naikai, sans-serif'; g.lineWidth = 1.1; g.strokeStyle = '#fff7ea'; g.fillStyle = MHOT[n - 1];
+    g.strokeText(p.s, p.x, p.y - 6 - a * 12); g.fillText(p.s, p.x, p.y - 6 - a * 12); }
+  g.font = '6px Naikai, sans-serif';
   for (const n of G.notes) { const a = (G.t - n.t) / 1.8; g.globalAlpha = a < 0.8 ? 1 : (1 - a) * 5; g.font = '6.5px Naikai, sans-serif'; g.fillStyle = '#3b6e5a'; g.strokeStyle = '#fff7ea'; g.lineWidth = 1; g.strokeText(n.s, MW / 2, 68 - a * 4); g.fillText(n.s, MW / 2, 68 - a * 4); }
   g.globalAlpha = 1;
   if (G.mode === 'shot') { g.font = '6px Naikai, sans-serif'; g.fillStyle = '#c0392b'; g.fillText('點一顆水果射爆它', MW / 2, 40); }
   for (const c of G.combos) { const a = (G.t - c.t) / 1.1, s = 1 + Math.min(c.n, 6) * 0.12; g.globalAlpha = 1 - a * a; g.font = (8 * s) + 'px Naikai, sans-serif'; g.fillStyle = '#e8743b'; g.strokeStyle = '#fff7ea'; g.lineWidth = 1.2; g.strokeText('Combo ×' + c.n, MW / 2, 52 - a * 6); g.fillText('Combo ×' + c.n, MW / 2, 52 - a * 6); }
   g.globalAlpha = 1;
-  $('#mg-score').textContent = G.score;
+  { const se = $('#mg-score'); if (se.textContent !== String(G.score)) { se.textContent = G.score; se.classList.remove('bump'); void se.offsetWidth; se.classList.add('bump'); } }
   if (!G.bestShown && G.best > 0 && G.score > G.best) { G.bestShown = true; const bx = $('#mg-best'); bx.classList.add('flash'); bx.textContent = '新紀錄！'; }
   else if (!G.bestShown) $('#mg-best').textContent = '最高 ' + G.best;
   const nx = $('#mg-next'); if (nx.dataset.lv !== String(G.next)) { nx.dataset.lv = G.next; nx.innerHTML = '<img src="' + fimgs()[G.next].src + '" alt="' + FRUITS[G.next][0] + '">'; }
@@ -1149,6 +1176,137 @@ function mClaw(g, x, y, r, open) {
   g.save(); if (top > 0) { g.strokeStyle = '#3b2a24'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(x, -2); g.lineTo(x, top + 0.5); g.stroke(); }
   g.drawImage(im, x - MCA[0] * s, y - MCA[1] * s, MCA[4] * s, MCA[5] * s); g.restore();
 }
+/* ================= 打擊感 =================
+   停頓、震動、啵一下、壓扁、分數跳、手機震動、音效。
+   果汁噴濺、驚訝臉、合出西瓜的慶祝圖要等美術圖，圖到之前對應的開關是 false，不畫（不用程式自己畫來充數）。 */
+const MSPLASH_ART = true, MWOW_ART = true, MCELEB_ART = true;
+/* 驚訝臉（美術用原圖改的，對位已核對：和原圖輪廓差 1% 以內）。null = 這顆還沒有圖，用原本的臉 */
+const FART_WOW = [[249.0, 403.0, 499, 653], [248.7, 311.3, 498, 560], [276.8, 331.5, 539, 581], [248.4, 229.1, 498, 478], [248.3, 137.9, 497, 387], [248.4, 262.6, 497, 511], [248.6, 253.7, 498, 503], [248.7, 245.0, 498, 494], [248.5, 368.5, 499, 618], [248.6, 317.4, 498, 566], [248.6, 313.4, 497, 563]];
+let MWOW = null, MSPL = null;
+const mwow = () => MWOW || (MWOW = FRUITS.map((f, i) => { if (!FART_WOW[i]) return null; const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '_wow.webp'; return im; }));
+const mspl = () => MSPL || (MSPL = ['splash_1', 'splash_2', 'splash_3', 'drop', 'celebrate_burst', 'confetti_1', 'confetti_2', 'confetti_3', 'confetti_4'].map(n => { if (!MSPLASH_ART && n.startsWith('splash')) return null; const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
+/* 測試用（網址加 #mgtest 才有） */
+if (location.hash === '#mgtest') window.__mg = { G: () => MG_, melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
+/* 每種水果的果汁顏色（噴濺圖是白色的，由程式染色） */
+const MJUICE = ['#c8102e', '#ef3b3b', '#8e44c9', '#ff8a1a', '#ffd21a', '#e8302a', '#cfdc5a', '#ff9e9e', '#ffbf26', '#f5a65b', '#ff4d5e'];
+const MHOT = ['#c0546b', '#d9653b', '#e8743b', '#ef5a2a', '#e8342a', '#d81b60'];
+function mShake(G, A, D) { if (A >= (G.shakeA || 0) * Math.max(0, 1 - (G.rt - (G.shakeT || 0)) / (G.shakeD || 1))) { G.shakeA = A; G.shakeT = G.rt || 0; G.shakeD = D; } }
+function mHitFx(G, x, y, lv) {
+  const big = Math.min(lv, 10);
+  /* 停頓：水果越大停越久 */
+  G.freeze = Math.max(G.freeze || 0, 0.035 + big * 0.009);
+  /* 震動：小水果幾乎沒感覺，大水果越來越明顯 */
+  if (big >= 3) mShake(G, 0.12 * big * big / 4, 0.18 + big * 0.025);
+  /* 新水果「啵」一下，旁邊的水果被輕輕推開 */
+  const nb = G.bodies[G.bodies.length - 1]; if (nb && nb.lv === lv) { nb.popT = G.t; nb.wowT = G.t; }
+  const R = lv < FRUITS.length ? FRUITS[lv][1] : FRUITS[FRUITS.length - 1][1];
+  for (const b of G.bodies) {
+    if (b === nb || b.dead) continue;
+    const dx = b.x - x, dy = b.y - y, d = Math.hypot(dx, dy) || 1, reach = R + b.R + 4;
+    if (d < reach) { const f = 0.05 * (1 - d / reach) * (1 + big * 0.06); b.px -= dx / d * f; b.py -= dy / d * f; b.wowT = G.t; }
+  }
+  /* 果汁噴濺（要美術圖） */
+  if (MSPLASH_ART) {
+    const col = MJUICE[Math.min(lv, 10)], n = 5 + Math.min(lv, 8);
+    G.fx.push({ k: 0, x, y, t: G.t, r: R * 1.35, rot: Math.random() * 6.3, col, life: 0.5 });
+    for (let i = 0; i < n; i++) { const an = Math.random() * 6.3, sp = 30 + Math.random() * 40 + lv * 3; G.fx.push({ k: 3, x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 25, t: G.t, r: 1 + Math.random() * 1.2 + lv * 0.12, rot: an, col, life: 0.55 }); }
+  }
+  sfx('pop', lv, G.combo || 1);
+  mHaptic(lv >= 7 ? 2 : 1);
+  if (lv >= FRUITS.length - 1) mMelon(G);
+}
+/* 合出西瓜：長一點的停頓＋大震動＋大字＋音樂（慶祝圖、彩帶要美術） */
+function mMelon(G) {
+  G.freeze = 0.28; mShake(G, 3.5, 0.9); G.melonT = G.t; sfx('melon'); mHaptic(3);
+  if (MCELEB_ART) for (let i = 0; i < 36; i++) G.fx.push({ k: 5 + (i % 4), x: Math.random() * MW, y: -10 - Math.random() * 40, vx: (Math.random() - 0.5) * 20, vy: 30 + Math.random() * 30, t: G.t, r: 3 + Math.random() * 2, rot: Math.random() * 6.3, spin: (Math.random() - 0.5) * 10, life: 3 });
+}
+const MTINT = new Map();
+function mTint(im, col) {
+  const key = im.src + col; let c = MTINT.get(key); if (c) return c;
+  c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const x = c.getContext('2d');
+  x.drawImage(im, 0, 0); x.globalCompositeOperation = 'multiply'; x.fillStyle = col; x.fillRect(0, 0, c.width, c.height);
+  x.globalCompositeOperation = 'destination-in'; x.drawImage(im, 0, 0); MTINT.set(key, c); return c;
+}
+function mFxDraw(G, g, under) {
+  if (!G.fx) G.fx = [];
+  if (G.fx.length) {
+    const sp = mspl();
+    if (under) G.fx = G.fx.filter(p => G.t - p.t < p.life);
+    for (const p of G.fx) {
+      if ((p.k === 0) !== under) continue;
+      const t = G.t - p.t, a = t / p.life, im = p.k === 0 ? sp[p.rot * 10 % 3 | 0] : sp[p.k];
+      if (!im || !im.complete || !im.naturalWidth) continue;
+      let x = p.x, y = p.y, d = p.r * 2;
+      if (p.vx != null) { x += p.vx * t; y += p.vy * t + (p.k >= 5 ? 0 : 160 * t * t); }
+      if (p.k === 0) d *= 0.6 + Math.min(1, a * 4) * 0.5;
+      g.save(); g.globalAlpha = p.k >= 5 ? Math.min(1, (1 - a) * 4) : 1 - a * a; g.translate(x, y); g.rotate(p.rot + (p.spin || 0) * t);
+      g.drawImage(p.col ? mTint(im, p.col) : im, -d / 2, -d / 2, d, d); g.restore();
+    }
+  }
+  if (under) return;
+  if (G.melonT != null) {
+    const t = G.t - G.melonT;
+    if (t < 2.2) {
+      const s = t < 0.25 ? t / 0.25 * 1.25 : 1.25 - Math.min(0.25, (t - 0.25) * 1.2);
+      g.save(); g.globalAlpha = t < 1.8 ? 1 : (2.2 - t) / 0.4; g.translate(MW / 2, 62);
+      if (MCELEB_ART) { const bi = mspl()[4]; if (bi.complete && bi.naturalWidth) { g.save(); g.rotate(t * 0.6); g.drawImage(bi, -34 * s, -34 * s, 68 * s, 68 * s); g.restore(); } }
+      g.scale(s, s); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '12px Naikai, sans-serif'; g.lineWidth = 2.4; g.strokeStyle = '#fff7ea'; g.strokeText('合出西瓜了！', 0, 0); g.fillStyle = '#2e8b3a'; g.fillText('合出西瓜了！', 0, 0); g.restore();
+    } else G.melonT = null;
+  }
+}
+/* 手機震動：Android 用 vibrate；iPhone（iOS 18 以後）用「開關」元件的觸覺回饋 */
+let MHAP = null, MHAPT = 0;
+function mHaptic(level) {
+  if (!SNDON()) return;
+  const now = performance.now(); if (now - MHAPT < 70) return; MHAPT = now;
+  try { if (navigator.vibrate) { navigator.vibrate(level >= 3 ? [30, 40, 50] : level === 2 ? 28 : 14); return; } } catch (e) { /* ignore */ }
+  try {
+    if (!MHAP) { MHAP = document.createElement('label'); MHAP.style.cssText = 'position:fixed;left:-99px;top:0;opacity:0;pointer-events:none'; MHAP.innerHTML = '<input type="checkbox" switch>'; document.body.appendChild(MHAP); }
+    MHAP.click(); if (level >= 3) setTimeout(() => MHAP.click(), 90);
+  } catch (e) { /* ignore */ }
+}
+/* 音效：用程式即時合成（不用音效檔），可以在遊戲右上角關掉 */
+const SNDON = () => LS.get('ourtwo.snd') !== '0';
+function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; }
+let MAC = null;
+function mAudio() {
+  if (!SNDON()) return null;
+  try { if (!MAC) MAC = new (window.AudioContext || window.webkitAudioContext)(); if (MAC.state === 'suspended') MAC.resume(); } catch (e) { return null; }
+  return MAC;
+}
+function sTone(ac, f0, f1, dur, type, vol, at) {
+  const t = ac.currentTime + (at || 0), o = ac.createOscillator(), v = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  v.gain.setValueAtTime(0.0001, t); v.gain.exponentialRampToValueAtTime(vol, t + 0.008); v.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(v); v.connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function sNoise(ac, dur, vol, freq, at) {
+  const t = ac.currentTime + (at || 0), n = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), v = ac.createGain();
+  s.buffer = buf; f.type = 'lowpass'; f.frequency.value = freq; v.gain.value = vol; s.connect(f); f.connect(v); v.connect(ac.destination); s.start(t);
+}
+let MSNDT = 0;
+function sfx(k, a, b) {
+  const ac = mAudio(); if (!ac) return;
+  try {
+    if (k === 'pop') { const f = 900 * Math.pow(0.9, a) * Math.pow(1.09, Math.min(b, 8) - 1); sTone(ac, f, f * 1.7, 0.13, 'sine', 0.32); sTone(ac, f * 2, f * 2.6, 0.06, 'triangle', 0.1); if (a >= 6) sTone(ac, f / 2, f / 3, 0.25, 'sine', 0.25); }
+    else if (k === 'thud') { const now = ac.currentTime; if (now - MSNDT < 0.06) return; MSNDT = now; const v = Math.min(0.35, a * 0.6); sTone(ac, 150, 55, 0.12, 'sine', v); sNoise(ac, 0.05, v * 0.5, 600); }
+    else if (k === 'drop') sTone(ac, 520, 380, 0.05, 'triangle', 0.08);
+    else if (k === 'shot') { sNoise(ac, 0.3, 0.6, 2400); sTone(ac, 180, 45, 0.25, 'sine', 0.4); }
+    else if (k === 'quake') { sNoise(ac, 0.7, 0.55, 220); sTone(ac, 70, 40, 0.6, 'sine', 0.35); }
+    else if (k === 'melon') [523, 659, 784, 1047, 1319].forEach((f, i) => { sTone(ac, f, f, 0.22, 'triangle', 0.22, i * 0.11); sTone(ac, f / 2, f / 2, 0.22, 'sine', 0.12, i * 0.11); });
+  } catch (e) { /* ignore */ }
+}
+/* 遊戲區大小：扣掉上方分數列和下方道具／進化列，剩下的高度給遊戲區（比例固定 5:7），下面不會被切到 */
+function mFit() {
+  const ov = $('#mg'), st = $('#mg .mg-stage2'); if (!ov || ov.hidden || !st) return;
+  const cs = getComputedStyle(ov), hud = $('#mg .mg-hud'), bot = $('#mg .mg-bottom');
+  const avail = ov.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - hud.offsetHeight - bot.offsetHeight - 22;
+  const wmax = Math.min(ov.clientWidth - 24, 440);
+  st.style.height = Math.round(Math.max(220, Math.min(avail, wmax * 1.4, 640))) + 'px';
+}
+window.addEventListener('resize', () => mFit());
 /* 合成路線：11 種水果排一排，這局合到的亮起來 */
 function mRoute() {
   const G = MG_, rt = $('#mg-route'); if (!G || !rt) return;
@@ -1172,20 +1330,23 @@ function mShootAt(px, py) {
   const G = MG_; if (!G) return;
   let hit = null; for (const b of G.bodies) { if (Math.hypot(b.x - px, b.y - py) <= b.r * 1.15 && (!hit || b.r < hit.r)) hit = b; }
   if (!hit) { G.notes.push({ t: G.t, s: '沒打到，再點一次' }); return; }
-  G.bodies = G.bodies.filter(b => b !== hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '', hit: 1, r: hit.r });
+  G.bodies = G.bodies.filter(b => b !== hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '', hit: 1, r: hit.r }); sfx('shot'); mHaptic(2); mShake(G, 2.2, 0.3); G.freeze = 0.08;
   MINV.shot--; mInvSave(); G.mode = ''; mItemsUI();
 }
 function mQuake() {
   const G = MG_; if (!G) return;
   for (const b of G.bodies) { b.py = b.y + 0.35 + Math.random() * 0.25; b.px = b.x + (Math.random() - 0.5) * 0.6; }
   const st = $('.mg-stage2'); if (st) { st.classList.remove('quake'); void st.offsetWidth; st.classList.add('quake'); }
-  try { navigator.vibrate && navigator.vibrate([40, 30, 40, 30, 60]); } catch (e) { /* ignore */ }
+  mHaptic(3); sfx('quake'); mShake(G, 2.5, 0.6);
   MINV.quake--; mInvSave(); mItemsUI();
 }
 function mLoop(ts) {
   const G = MG_; if (!G) return;
   const dt = Math.min(1 / 30, G.last ? (ts - G.last) / 1000 : 1 / 60); G.last = ts;
-  if (!G.over && !G.paused) mStep(G, dt);
+  G.rt = (G.rt || 0) + dt;
+  /* 打擊停頓：合成那一下整個畫面停一瞬間 */
+  if (G.freeze > 0) G.freeze -= dt;
+  else if (!G.over && !G.paused) mStep(G, dt);
   mDraw(G);
   G.raf = requestAnimationFrame(mLoop);
 }
@@ -1197,7 +1358,7 @@ function mDrop() {
   /* 西部神射手：最近丟的 5 顆裡有 3 顆一樣 → 射爆（算過之後清空重算） */
   G.recent = (G.recent || []).concat(G.cur).slice(-5);
   if (G.recent.filter(v => v === G.cur).length >= 3) { G.recent = []; mGain(G, 'shot'); }
-  G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
+  sfx('drop'); G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
 }
 function mergeBest() { const m = PL('merge') || {}; return { him: m.him || 0, her: m.her || 0, top: m.top || [] }; }
 function mergeOver(G) {
@@ -1222,13 +1383,13 @@ function mergeOpen() {
   let ov = $('#mg');
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'mg'; ov.className = 'mg';
-    ov.innerHTML = '<div class="mg-top-bar mg-hud"><button class="btn ghost small" data-act="mgClose">‹ 離開</button><span class="mg-scorebox"><span class="mg-sl">分數</span><b id="mg-score">0</b><span class="mg-best" id="mg-best"></span></span><span class="mg-nextbox"><span class="mg-sl">下一個</span><span id="mg-next"></span></span></div>' +
+    ov.innerHTML = '<div class="mg-top-bar mg-hud"><span class="mg-lbtns"><button class="btn ghost small" data-act="mgClose">‹ 離開</button><button class="btn ghost small mg-snd" data-act="mgSnd" id="mg-snd"></button></span><span class="mg-scorebox"><span class="mg-sl">分數</span><b id="mg-score">0</b><span class="mg-best" id="mg-best"></span></span><span class="mg-nextbox"><span class="mg-sl">下一個</span><span id="mg-next"></span></span></div>' +
       '<div class="mg-stage mg-stage2"><canvas id="mg-cv"></canvas><div class="mg-over" id="mg-over" hidden></div></div>' +
       '<div class="mg-bottom"><div class="mg-items" id="mg-items"></div><p class="mg-route-lab" id="mg-route-lab"></p><div class="mg-route" id="mg-route"></div><p class="mg-tip">手指左右移動對準，放開就丟下去・0.8 秒內連續合成有 Combo 加分</p></div>';
     document.body.appendChild(ov);
     const cv = $('#mg-cv');
     const aim = e => { const r = cv.getBoundingClientRect(); if (MG_) MG_.aim = (e.clientX - r.left) / r.width * MW; };
-    cv.addEventListener('pointerdown', e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aim(e); });
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); mAudio(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aim(e); });
     cv.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') aim(e); });
     cv.addEventListener('pointerup', e => {
       if (MG_ && MG_.mode === 'shot') { const r = cv.getBoundingClientRect(); mShootAt((e.clientX - r.left) / r.width * MW, (e.clientY - r.top) / r.width * MW); return; }
@@ -1238,7 +1399,7 @@ function mergeOpen() {
   }
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   if (MG_) cancelAnimationFrame(MG_.raf);
-  mInvLoad(); MG_ = mergeNew(); $('#mg-over').hidden = true; mItemsUI(); const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
+  mInvLoad(); MG_ = mergeNew(); $('#mg-over').hidden = true; mItemsUI(); mSndUI(); mRoute(); mFit(); setTimeout(mFit, 400); const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
   MG_.raf = requestAnimationFrame(mLoop);
 }
 function mergeClose() {
@@ -1250,6 +1411,7 @@ Object.assign(ACT, {
   mgOpen: mergeOpen, mgClose: mergeClose, mgAgain: mergeOpen,
   mgRevive() { mRevive(); },
   mgGiveUp() { const G = MG_; if (!G) return; G.paused = false; G.over = true; mergeOver(G); },
+  mgSnd() { LS.set('ourtwo.snd', SNDON() ? '0' : '1'); mSndUI(); if (SNDON()) { sfx('pop', 3, 1); mHaptic(1); } },
   mgUse(el) {
     const G = MG_, k = el.dataset.k; if (!G || G.over || G.paused || !MINV || !MINV[k]) return;
     if (k === 'shot') { G.mode = G.mode === 'shot' ? '' : 'shot'; mItemsUI(); return; }
