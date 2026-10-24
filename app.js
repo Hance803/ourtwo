@@ -983,8 +983,8 @@ mpadEl.addEventListener('pointercancel', e => { if (mCur && mCur.id === e.pointe
    一樣的水果碰到就合成下一級；兩顆西瓜碰到會一起消失加大分。水果超過紅線太久就結束。 */
 const FRUITS = [['🍒', 4.4, '#f7c6cf'], ['🍓', 5.8, '#f9b4b4'], ['🍇', 7.4, '#d9c2f0'], ['🍊', 8.8, '#ffd3a1'], ['🍋', 10.4, '#fff0a6'], ['🍎', 12.2, '#ffb8b0'],
   ['🍐', 14.0, '#d9efb0'], ['🍑', 16.0, '#ffd0c2'], ['🍍', 18.2, '#ffe59a'], ['🍈', 20.6, '#cdeec0'], ['🍉', 23.2, '#bfe8b3']];
-/* 水果整體縮到 78%：箱子裡空間比較夠，認真玩有機會合出西瓜（原本的大小幾乎不可能） */
-FRUITS.forEach(f => { f[1] = Math.round(f[1] * 0.78 * 100) / 100; });
+/* 水果整體縮到 88%（曾經縮到 78%，結果太好玩不死；原版是 100%） */
+FRUITS.forEach(f => { f[1] = Math.round(f[1] * 0.88 * 100) / 100; });
 const MPTS = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
 /* 水果圖（美術圖已裁好邊）。FART = [主體圓心 x, 圓心 y, 圖寬, 圖高]，主體圓直徑一律 490；圖還沒載好時先用 emoji 代替 */
 const FART = [[251.7, 402.3, 503, 653], [249.2, 310.8, 498, 560], [279.7, 331.2, 538, 581], [249.5, 230.2, 499, 480], [248.8, 137.7, 498, 386], [248.4, 264.1, 497, 513], [248.6, 252.6, 498, 502], [249.3, 244.5, 499, 494], [249.7, 369.6, 499, 619], [248.6, 319.6, 498, 569], [249.1, 314.5, 499, 564]];
@@ -992,7 +992,7 @@ let MBG = null;
 const mbg = () => MBG || (MBG = ['bg_stage', 'shot_hit'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 let FIMG = null;
 const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
-const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004;
+const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004, MBOUNCE = 0.12, MBOUNCE_V = 0.1; /* MBOUNCE：一點點彈性（原版常見設定的一半左右），撞得夠用力（MBOUNCE_V）才彈，堆好的水果不會一直抖 */
 let MG_ = null;
 /* 出水果用「抽袋子」：一袋 8 顆照固定比例洗牌，抽完再換一袋，不會一直連出同一種小水果。
    比例：櫻桃 1、草莓 2、葡萄 2、橘子 2、檸檬 1。 */
@@ -1004,12 +1004,14 @@ function mNext(G) {
 /* 道具（每人每天各自累計，換日歸零；存在 play/merge.items.{him|her}）
    復活：每局第一次合出哈密瓜／射爆：連續丟出 3 顆一樣的水果／地震：打出 Combo ×3／換一顆：每局分數每過 1000 分 */
 const MITEMS = [['revive', '復活'], ['shot', '射爆'], ['quake', '地震'], ['swap', '換一顆']];
-const MITEM_MAX = 9;
+/* 每種道具一天最多存 3 個（原本 9 個，道具太多會玩不死） */
+const MITEM_MAX = 3;
 let MINV = null;
 function mInvLoad() {
   const it = ((PL('merge') || {}).items || {})[meKey()];
   MINV = it && it.d === iso(new Date()) ? Object.assign({ revive: 0, shot: 0, quake: 0, swap: 0 }, it) : { d: iso(new Date()), revive: 0, shot: 0, quake: 0, swap: 0 };
   MINV.d = iso(new Date());
+  for (const [k] of MITEMS) MINV[k] = Math.min(MINV[k] || 0, MITEM_MAX);
 }
 function mInvSave() { wr(setDoc(dref('play', 'merge'), { items: { [meKey()]: Object.assign({}, MINV) } }, { merge: true })); }
 function mGain(G, k) {
@@ -1028,7 +1030,7 @@ function mItemsUI() {
   mFit();
 }
 function mergeNew() {
-  const G = { rt: 0, fx: [], freeze: 0, shakeA: 0, bag: [], bodies: [], notes: [], mode: '', streakLv: -1, streakN: 0, gotRevive: false, swapAt: 1000, paused: false, bag2: 0, score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
+  const G = { rt: 0, fx: [], freeze: 0, shakeA: 0, bag: [], bodies: [], notes: [], mode: '', streakLv: -1, streakN: 0, gotRevive: false, swapAt: 2000, paused: false, bag2: 0, score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
   G.cur = mNext(G); G.next = mNext(G); G.best = mergeBest()[meKey()] || 0; return G;
 }
 function mAdd(G, x, y, lv, grow) { const R = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, R, r: grow ? R * 0.55 : R, lv, born: G.t, dead: false }); }
@@ -1057,7 +1059,7 @@ function mStep(G, dt) {
             G.combo = G.t - G.comboT < 0.8 ? G.combo + 1 : 1; G.comboT = G.t;
             const bonus = G.combo > 1 ? 5 * (G.combo - 1) : 0;
             if (G.combo > 1) G.combos.push({ x: mx, y: my, t: G.t, n: G.combo });
-            if (G.combo === 3) mGain(G, 'quake');
+            if (G.combo === 4) mGain(G, 'quake');
             if (a.lv + 1 === 9 && !G.gotRevive) { G.gotRevive = true; mGain(G, 'revive'); }
             if (a.lv + 1 > G.maxLv) G.maxLv = a.lv + 1;
             if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus), n: G.combo }); }
@@ -1072,7 +1074,7 @@ function mStep(G, dt) {
           a.px -= ax; a.py -= ay; c.px += cx2; c.py += cy2;
           const nx = dx / d, ny = dy / d, rel = ((c.x - c.px) - (a.x - a.px)) * nx + ((c.y - c.py) - (a.y - a.py)) * ny;
           if (rel < -0.08) { a.imp = Math.max(a.imp || 0, -rel); c.imp = Math.max(c.imp || 0, -rel); }
-          if (rel < 0) { a.px -= nx * rel * wa; a.py -= ny * rel * wa; c.px += nx * rel * wc; c.py += ny * rel * wc; }
+          if (rel < 0) { const k = rel < -MBOUNCE_V ? 1 + MBOUNCE : 1; a.px -= nx * rel * wa * k; a.py -= ny * rel * wa * k; c.px += nx * rel * wc * k; c.py += ny * rel * wc * k; }
           /* 一點點摩擦：堆好的水果會慢慢停下來，不會一直溜 */
           const tx = -ny, ty = nx, tv = ((c.x - c.px) - (a.x - a.px)) * tx + ((c.y - c.py) - (a.y - a.py)) * ty, fr = tv * MFRIC;
           a.px -= tx * fr * wa; a.py -= ty * fr * wa; c.px += tx * fr * wc; c.py += ty * fr * wc;
@@ -1083,7 +1085,7 @@ function mStep(G, dt) {
         if (b.x < b.r) { b.x = b.r; b.px = b.x; }
         if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x; }
         if (b.y < -10) { b.y = -10; b.py = Math.max(b.py, b.y); }
-        if (b.y > MH - b.r) { if (b.y - b.py > 0.08) b.imp = Math.max(b.imp || 0, b.y - b.py); b.y = MH - b.r; b.py = b.y; b.px = b.x - (b.x - b.px) * 0.97; }
+        if (b.y > MH - b.r) { const vy = b.y - b.py; if (vy > 0.08) b.imp = Math.max(b.imp || 0, vy); b.y = MH - b.r; b.py = vy > MBOUNCE_V ? b.y + vy * MBOUNCE : b.y; b.px = b.x - (b.x - b.px) * 0.97; }
       }
     }
   }
@@ -1093,15 +1095,15 @@ function mStep(G, dt) {
   if (thud > 0.12) sfx('thud', thud);
   /* 滾動角度：用「這一幀實際移動了多少」來轉，太小的抖動不算，才不會停著還在原地轉 */
   for (const b of G.bodies) { if (b.fx == null) b.fx = b.x; const dx = b.x - b.fx; b.fx = b.x; if (Math.abs(dx) > 0.04) b.ang = (b.ang || 0) + dx / b.r; }
-  /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 2 秒就結束 */
+  /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 1.5 秒就結束 */
   /* 結束判定：落下超過 1.5 秒的水果，頂端還在紅線上方就開始累積；離開紅線時慢慢扣回（不用等水果完全靜止，堆滿時水果會微微晃，以前因此永遠判不到） */
   const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER);
   G.overT = high ? G.overT + dt : Math.max(0, G.overT - dt * 2);
-  if (G.overT > 2 && !G.over) {
+  if (G.overT > 1.5 && !G.over) {
     if (MINV && MINV.revive > 0 && !G.askedRevive) { G.askedRevive = true; G.paused = true; mAskRevive(); }
     else { G.over = true; mergeOver(G); }
   }
-  while (G.score >= G.swapAt) { G.swapAt += 1000; mGain(G, 'swap'); }
+  while (G.score >= G.swapAt) { G.swapAt += 2000; mGain(G, 'swap'); }
   G.pops = G.pops.filter(p => G.t - p.t < 0.9);
   G.notes = G.notes.filter(n => G.t - n.t < 1.8);
   G.combos = G.combos.filter(c => G.t - c.t < 1.1);
@@ -1356,8 +1358,8 @@ function mDrop() {
   const cr = FRUITS[G.cur][1], x = Math.min(MW - cr, Math.max(cr, G.aim));
   /* 丟下去時加一點點左右誤差（看不出來），疊在正上方的水果才會自然滾下來，不會疊成一根柱子 */
   mAdd(G, Math.min(MW - cr, Math.max(cr, x + (Math.random() - 0.5) * 0.6)), 10, G.cur);
-  /* 西部神射手：最近丟的 5 顆裡有 3 顆一樣 → 射爆（算過之後清空重算） */
-  G.recent = (G.recent || []).concat(G.cur).slice(-5);
+  /* 西部神射手：最近丟的 4 顆裡有 3 顆一樣 → 射爆（算過之後清空重算） */
+  G.recent = (G.recent || []).concat(G.cur).slice(-4);
   if (G.recent.filter(v => v === G.cur).length >= 3) { G.recent = []; mGain(G, 'shot'); }
   sfx('drop'); G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
 }
