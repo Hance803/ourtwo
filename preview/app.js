@@ -1392,6 +1392,7 @@ function mergeCardHtml() {
     '<button class="btn" data-act="mgOpen">開始玩</button></div>';
 }
 function mergeOpen() {
+  if (STALE) { location.reload(); return; }
   let ov = $('#mg');
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'mg'; ov.className = 'mg';
@@ -1942,6 +1943,24 @@ window.addEventListener('offline', setNet);
 
 /* 開始 */
 if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+/* ---------- 新版本偵測 ----------
+   手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
+   這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
+   在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
+const APP_VER = 'v45';
+let STALE = false;
+async function chkUpdate() {
+  try {
+    const t = await (await fetch('sw.js?x=' + Date.now(), { cache: 'no-store' })).text(), m = t.match(/ourtwo-shell-(v\d+)/);
+    if (m && m[1] !== APP_VER && !STALE) {
+      STALE = true;
+      let b = $('#upd'); if (!b) { b = document.createElement('button'); b.id = 'upd'; b.className = 'upd-bar'; b.textContent = '有新版本了，點這裡更新'; b.addEventListener('click', () => location.reload()); document.body.appendChild(b); }
+    }
+  } catch (e) { /* 沒網路就算了 */ }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') chkUpdate(); });
+window.addEventListener('load', () => setTimeout(chkUpdate, 3000));
+setInterval(chkUpdate, 5 * 60 * 1000);
 applyTheme();
 try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (getTheme() === 'auto') applyTheme(); }); } catch (e) { /* ignore */ }
 boot();
