@@ -1240,7 +1240,7 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 @keyframes mgFlash{50%{transform:scale(1.18)}}
 .mg-nextbox{display:flex;flex-direction:column;align-items:center;gap:2px}
 .mg-nextbox #mg-next img{width:52px;height:52px;display:block}
-.mg-stage2{height:min(calc(100dvh - 250px),calc((100vw - 24px) * 1.4),600px)}
+.mg-stage2{height:min(calc(100dvh - 330px),calc((100vw - 24px) * 1.4),600px)}
 .mg-bottom{width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:10px}
 .mg-route-lab{margin:0;font-size:14px;color:var(--fg)}
 .mg-route{display:flex;width:100%;gap:2px;align-items:flex-end;justify-content:space-between}
@@ -1275,3 +1275,11 @@ html.mg-open body{overflow:hidden}
 #mg-score.bump{animation:mgBump .25s ease-out}
 @keyframes mgBump{0%{transform:scale(1)}35%{transform:scale(1.28)}100%{transform:scale(1)}}
 #mg-score{display:inline-block}
+
+/* 道具：4 個排一列，圖示在上、字在下，比較省高度 */
+.mg-items{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.mg-item,.mg-item-rv{flex-direction:column;justify-content:center;gap:1px;min-height:0;padding:4px 2px;font-size:12px;line-height:1.2;white-space:nowrap}
+.mg-item-rv{border:1px dashed transparent}
+.mg-item img,.mg-item-rv img{width:24px;height:24px}
+.mg-bottom{gap:4px;margin-top:8px}
+.mg-tip{font-size:12px;margin:2px 0 0;line-height:1.4}

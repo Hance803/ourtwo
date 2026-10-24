@@ -1023,8 +1023,9 @@ function mGain(G, k) {
 function mItemsUI() {
   const box = $('#mg-items'); if (!box || !MINV) return;
   const G = MG_;
-  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt="">' + n + ' ×' + MINV[k] + '</button>').join('') +
-    '<span class="mg-item-rv' + (MINV.revive ? '' : ' zero') + '"><img src="fruits/item_revive.webp" alt="">復活 ×' + MINV.revive + '</span>';
+  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt=""><span>' + n + ' ×' + MINV[k] + '</span></button>').join('') +
+    '<span class="mg-item-rv' + (MINV.revive ? '' : ' zero') + '"><img src="fruits/item_revive.webp" alt=""><span>復活 ×' + MINV.revive + '</span></span>';
+  mFit();
 }
 function mergeNew() {
   const G = { rt: 0, fx: [], freeze: 0, shakeA: 0, bag: [], bodies: [], notes: [], mode: '', streakLv: -1, streakN: 0, gotRevive: false, swapAt: 1000, paused: false, bag2: 0, score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
@@ -1297,6 +1298,15 @@ function sfx(k, a, b) {
     else if (k === 'melon') [523, 659, 784, 1047, 1319].forEach((f, i) => { sTone(ac, f, f, 0.22, 'triangle', 0.22, i * 0.11); sTone(ac, f / 2, f / 2, 0.22, 'sine', 0.12, i * 0.11); });
   } catch (e) { /* ignore */ }
 }
+/* 遊戲區大小：扣掉上方分數列和下方道具／進化列，剩下的高度給遊戲區（比例固定 5:7），下面不會被切到 */
+function mFit() {
+  const ov = $('#mg'), st = $('#mg .mg-stage2'); if (!ov || ov.hidden || !st) return;
+  const cs = getComputedStyle(ov), hud = $('#mg .mg-hud'), bot = $('#mg .mg-bottom');
+  const avail = ov.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - hud.offsetHeight - bot.offsetHeight - 22;
+  const wmax = Math.min(ov.clientWidth - 24, 440);
+  st.style.height = Math.round(Math.max(220, Math.min(avail, wmax * 1.4, 640))) + 'px';
+}
+window.addEventListener('resize', () => mFit());
 /* 合成路線：11 種水果排一排，這局合到的亮起來 */
 function mRoute() {
   const G = MG_, rt = $('#mg-route'); if (!G || !rt) return;
@@ -1389,7 +1399,7 @@ function mergeOpen() {
   }
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   if (MG_) cancelAnimationFrame(MG_.raf);
-  mInvLoad(); MG_ = mergeNew(); $('#mg-over').hidden = true; mItemsUI(); mSndUI(); const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
+  mInvLoad(); MG_ = mergeNew(); $('#mg-over').hidden = true; mItemsUI(); mSndUI(); mRoute(); mFit(); setTimeout(mFit, 400); const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
   MG_.raf = requestAnimationFrame(mLoop);
 }
 function mergeClose() {
