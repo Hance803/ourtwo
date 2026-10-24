@@ -992,13 +992,16 @@ let MBG = null;
 const mbg = () => MBG || (MBG = ['bg_stage', 'shot_hit'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 let FIMG = null;
 const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
-const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004, MBOUNCE = 0.6, MBOUNCE_V = 0.06; /* MBOUNCE：撞擊時反彈的比例（水果下落有空氣阻力，實際看起來是小小彈一下），撞得夠用力（MBOUNCE_V）才彈，堆好的水果不會一直抖 */
+const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004, MBOUNCE = 0.6, MBOUNCE_V = 0.06, MMERGE = 1.08; /* MBOUNCE：撞擊時反彈的比例（水果下落有空氣阻力，實際看起來是小小彈一下），撞得夠用力（MBOUNCE_V）才彈，堆好的水果不會一直抖 */
 let MG_ = null;
 /* 出水果用「抽袋子」：一袋 8 顆照固定比例洗牌，抽完再換一袋，不會一直連出同一種小水果。
    比例：櫻桃 1、草莓 2、葡萄 2、橘子 2、檸檬 1。 */
 const MBAG = [0, 1, 1, 2, 2, 3, 3, 4];
+/* 一局不要太長（輕鬆小品）：丟得越多，出的水果越大、箱子越擠；再加一個保底：玩滿 MCAP 秒就時間到 */
+const MRAMP = [[0, [0, 1, 1, 2, 2, 3, 3, 4]], [130, [1, 1, 2, 2, 3, 3, 4, 5]], [200, [2, 2, 3, 3, 4, 4, 5, 6]], [270, [3, 3, 4, 4, 5, 5, 6, 7]]];
+const MCAP = 15 * 60;
 function mNext(G) {
-  if (!G.bag || !G.bag.length) { G.bag = MBAG.slice(); for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
+  if (!G.bag || !G.bag.length) { let tpl = MRAMP[0][1]; for (const r of MRAMP) if ((G.drops || 0) >= r[0]) tpl = r[1]; G.bag = tpl.slice(); for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
   return G.bag.pop();
 }
 /* 道具（每人每天各自累計，換日歸零；存在 play/merge.items.{him|her}）
@@ -1034,6 +1037,17 @@ function mergeNew() {
   G.cur = mNext(G); G.next = mNext(G); G.best = mergeBest()[meKey()] || 0; return G;
 }
 function mAdd(G, x, y, lv, grow) { const R = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, R, r: grow ? R * 0.55 : R, lv, born: G.t, dead: false }); }
+/* 合成的那一下：新水果往上「啵」一下，周圍的水果被推開（越大顆推越用力） */
+function mPopPhys(G, x, y, lv) {
+  const nb = G.bodies[G.bodies.length - 1]; if (!nb || nb.lv !== lv) return;
+  const big = Math.min(lv, 10), R = FRUITS[lv][1];
+  nb.py = nb.y + 0.12 + big * 0.012;
+  for (const b of G.bodies) {
+    if (b === nb || b.dead) continue;
+    const dx = b.x - x, dy = b.y - y, d = Math.hypot(dx, dy) || 1, reach = R + b.R + 5;
+    if (d < reach) { const f = Math.min(0.32, 0.2 * (1 - d / reach) * (1 + big * 0.09)); b.px -= dx / d * f; b.py -= dy / d * f; b.wowT = G.t; }
+  }
+}
 function mStep(G, dt) {
   G.t += dt; G.cool = Math.max(0, G.cool - dt);
   const sub = 8, h = dt / sub;
@@ -1051,8 +1065,10 @@ function mStep(G, dt) {
         for (let j = i + 1; j < B.length; j++) {
           const c = B[j]; if (c.dead) continue;
           const dx = c.x - a.x, dy = c.y - a.y, rr = a.r + c.r, d2 = dx * dx + dy * dy;
-          if (d2 >= rr * rr || d2 === 0) continue;
-          if (a.lv === c.lv && !G.over) {
+          /* 一樣的水果「看起來碰到」就要合：判定圈放寬一點點（水果的梗、葉子、橢圓外形都不是正圓） */
+          const same = a.lv === c.lv && !G.over, rm = same ? rr * MMERGE : rr;
+          if (d2 >= rm * rm || d2 === 0) continue;
+          if (same) {
             a.dead = c.dead = true;
             const mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2;
             /* 0.8 秒內接連合成算 Combo，從第 2 下開始每下多加 5×(連段-1) 分 */
@@ -1062,7 +1078,7 @@ function mStep(G, dt) {
             if (G.combo === 4) mGain(G, 'quake');
             if (a.lv + 1 === 9 && !G.gotRevive) { G.gotRevive = true; mGain(G, 'revive'); }
             if (a.lv + 1 > G.maxLv) G.maxLv = a.lv + 1;
-            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus), n: G.combo }); }
+            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); mPopPhys(G, mx, my, a.lv + 1); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus), n: G.combo }); }
             else { G.score += 100 + bonus; G.maxLv = FRUITS.length; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (100 + bonus) + ' 🎉', n: G.combo }); }
             mHitFx(G, mx, my, a.lv + 1);
             continue;
@@ -1091,7 +1107,7 @@ function mStep(G, dt) {
   }
   /* 撞擊：重重落地／撞到別顆時壓扁一下，順便「咚」一聲 */
   let thud = 0;
-  for (const b of G.bodies) { if (b.imp) { if (G.t - (b.sqT || -9) > 0.25) { b.sq = Math.min(0.24, b.imp * 0.55); b.sqT = G.t; thud = Math.max(thud, b.imp); } b.imp = 0; } }
+  for (const b of G.bodies) { if (b.imp) { if (G.t - (b.sqT || -9) > 0.25) { b.sq = Math.min(0.13, b.imp * 0.3); b.sqT = G.t; thud = Math.max(thud, b.imp); } b.imp = 0; } }
   if (thud > 0.12) sfx('thud', thud);
   /* 滾動角度：用「這一幀實際移動了多少」來轉，太小的抖動不算，才不會停著還在原地轉 */
   for (const b of G.bodies) { if (b.fx == null) b.fx = b.x; const dx = b.x - b.fx; b.fx = b.x; if (Math.abs(dx) > 0.04) b.ang = (b.ang || 0) + dx / b.r; }
@@ -1125,7 +1141,7 @@ function mDraw(G) {
     /* 剛合成出來：先脹大再縮回（啵！）；落地：壓扁再彈回；被撞到／合成時換驚訝臉 */
     let pk = 1, sx = 1, sy = 1;
     if (b) {
-      if (b.popT != null) { const t = G.t - b.popT; if (t < 0.6) pk = 1 + 0.34 * Math.exp(-7 * t) * Math.cos(17 * t); }
+      if (b.popT != null) { const t = G.t - b.popT; if (t < 0.6) pk = 1 + 0.12 * Math.exp(-7 * t) * Math.cos(17 * t); }
       if (b.sq) { const t = G.t - b.sqT, e = t < 0.4 ? Math.exp(-9 * t) * Math.cos(24 * t) : 0; sx = 1 + b.sq * e; sy = 1 - b.sq * e; if (!e) b.sq = 0; }
       if (MWOW_ART && b.wowT != null && G.t - b.wowT < 0.55 && FART_WOW[lv]) { const w = mwow()[lv]; if (w && w.complete && w.naturalWidth) { im = w; A = FART_WOW[lv]; } }
     }
@@ -1197,17 +1213,12 @@ function mShake(G, A, D) { if (A >= (G.shakeA || 0) * Math.max(0, 1 - (G.rt - (G
 function mHitFx(G, x, y, lv) {
   const big = Math.min(lv, 10);
   /* 停頓：水果越大停越久 */
-  G.freeze = Math.max(G.freeze || 0, 0.035 + big * 0.009);
+  G.freeze = Math.max(G.freeze || 0, 0.03 + big * 0.007);
   /* 震動：小水果幾乎沒感覺，大水果越來越明顯 */
   if (big >= 3) mShake(G, 0.12 * big * big / 4, 0.18 + big * 0.025);
   /* 新水果「啵」一下，旁邊的水果被輕輕推開 */
   const nb = G.bodies[G.bodies.length - 1]; if (nb && nb.lv === lv) { nb.popT = G.t; nb.wowT = G.t; }
   const R = lv < FRUITS.length ? FRUITS[lv][1] : FRUITS[FRUITS.length - 1][1];
-  for (const b of G.bodies) {
-    if (b === nb || b.dead) continue;
-    const dx = b.x - x, dy = b.y - y, d = Math.hypot(dx, dy) || 1, reach = R + b.R + 4;
-    if (d < reach) { const f = 0.05 * (1 - d / reach) * (1 + big * 0.06); b.px -= dx / d * f; b.py -= dy / d * f; b.wowT = G.t; }
-  }
   /* 果汁噴濺（要美術圖） */
   if (MSPLASH_ART) {
     const col = MJUICE[Math.min(lv, 10)], n = 5 + Math.min(lv, 8);
@@ -1347,6 +1358,12 @@ function mLoop(ts) {
   const G = MG_; if (!G) return;
   const dt = Math.min(1 / 30, G.last ? (ts - G.last) / 1000 : 1 / 60); G.last = ts;
   G.rt = (G.rt || 0) + dt;
+  /* 保底：實際玩滿 15 分鐘就時間到（暫停、畫面在背景時不算），最後 1 分鐘會提醒 */
+  if (!G.over && !G.paused) {
+    G.play = (G.play || 0) + dt;
+    if (G.play > MCAP - 60 && !G.warned) { G.warned = true; G.notes.push({ t: G.t, s: '還剩 1 分鐘！' }); }
+    if (G.play > MCAP) { G.over = true; G.timeUp = true; mergeOver(G); }
+  }
   /* 打擊停頓：合成那一下整個畫面停一瞬間 */
   if (G.freeze > 0) G.freeze -= dt;
   else if (!G.over && !G.paused) mStep(G, dt);
@@ -1359,6 +1376,7 @@ function mDrop() {
   /* 丟下去時加一點點左右誤差（看不出來），疊在正上方的水果才會自然滾下來，不會疊成一根柱子 */
   mAdd(G, Math.min(MW - cr, Math.max(cr, x + (Math.random() - 0.5) * 0.6)), 10, G.cur);
   /* 西部神射手：最近丟的 4 顆裡有 3 顆一樣 → 射爆（算過之後清空重算） */
+  G.drops = (G.drops || 0) + 1; { const st = MRAMP.filter(r => G.drops === r[0] && r[0] > 0).length; if (st) G.notes.push({ t: G.t, s: '越來越擠囉！' }); }
   G.recent = (G.recent || []).concat(G.cur).slice(-4);
   if (G.recent.filter(v => v === G.cur).length >= 3) { G.recent = []; mGain(G, 'shot'); }
   sfx('drop'); G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
@@ -1371,7 +1389,7 @@ function mergeOver(G) {
   const ml = (PL('merge') || {}).maxlv || {};
   if (G.score > 0) wr(setDoc(dref('play', 'merge'), Object.assign({ top }, isBest ? { [mk]: G.score } : {}, G.maxLv > (ml[mk] || 0) ? { maxlv: { [mk]: G.maxLv } } : {}), { merge: true }));
   const box = $('#mg-over');
-  box.innerHTML = '<p class="mg-over-t">遊戲結束</p><p class="mg-over-s">' + G.score + ' 分</p><p class="muted">這局合到：<img class="mg-over-f" src="' + fimgs()[Math.min(G.maxLv, FRUITS.length - 1)].src + '" alt=""></p>' + (isBest && G.score > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + (m[mk] || 0) + '</p>') +
+  box.innerHTML = '<p class="mg-over-t">' + (G.timeUp ? '時間到！' : '遊戲結束') + '</p><p class="mg-over-s">' + G.score + ' 分</p><p class="muted">這局合到：<img class="mg-over-f" src="' + fimgs()[Math.min(G.maxLv, FRUITS.length - 1)].src + '" alt=""></p>' + (isBest && G.score > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + (m[mk] || 0) + '</p>') +
     '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgAgain">再來一局</button><button class="btn ghost" data-act="mgClose">離開</button></div>';
   box.hidden = false;
 }
@@ -1947,7 +1965,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v45';
+const APP_VER = 'v46';
 let STALE = false;
 async function chkUpdate() {
   try {
