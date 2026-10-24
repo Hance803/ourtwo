@@ -1283,3 +1283,11 @@ html.mg-open body{overflow:hidden}
 .mg-item img,.mg-item-rv img{width:24px;height:24px}
 .mg-bottom{gap:4px;margin-top:8px}
 .mg-tip{font-size:12px;margin:2px 0 0;line-height:1.4}
+.mg-labrow{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
+.mg-labrow .mg-snd{flex:none}
+.mg-top-bar.mg-hud{margin-bottom:4px}
+.mg-stage2{max-width:100%}
+.mg-item,.mg-item-rv{padding:2px 2px;font-size:11.5px}
+.mg-item img,.mg-item-rv img{width:22px;height:22px}
+.mg-labrow .mg-snd{min-height:26px;padding:0 8px}
+.mg-route-lab{font-size:13px}
