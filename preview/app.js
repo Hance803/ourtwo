@@ -1123,7 +1123,7 @@ function mDraw(G) {
     if (b) {
       if (b.popT != null) { const t = G.t - b.popT; if (t < 0.6) pk = 1 + 0.34 * Math.exp(-7 * t) * Math.cos(17 * t); }
       if (b.sq) { const t = G.t - b.sqT, e = t < 0.4 ? Math.exp(-9 * t) * Math.cos(24 * t) : 0; sx = 1 + b.sq * e; sy = 1 - b.sq * e; if (!e) b.sq = 0; }
-      if (MWOW_ART && b.wowT != null && G.t - b.wowT < 0.55) { const w = mwow()[lv]; if (w.complete && w.naturalWidth) { im = w; A = FART_WOW[lv]; } }
+      if (MWOW_ART && b.wowT != null && G.t - b.wowT < 0.55 && FART_WOW[lv]) { const w = mwow()[lv]; if (w && w.complete && w.naturalWidth) { im = w; A = FART_WOW[lv]; } }
     }
     const rr = f[1] * sc * pk;
     if (im.complete && im.naturalWidth) {
@@ -1177,10 +1177,14 @@ function mClaw(g, x, y, r, open) {
 /* ================= 打擊感 =================
    停頓、震動、啵一下、壓扁、分數跳、手機震動、音效。
    果汁噴濺、驚訝臉、合出西瓜的慶祝圖要等美術圖，圖到之前對應的開關是 false，不畫（不用程式自己畫來充數）。 */
-const MSPLASH_ART = false, MWOW_ART = false, MCELEB_ART = false;
-let FART_WOW = null, MWOW = null, MSPL = null;
-const mwow = () => MWOW || (MWOW = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '_wow.webp'; return im; }));
-const mspl = () => MSPL || (MSPL = ['splash_1', 'splash_2', 'splash_3', 'drop', 'celebrate_burst', 'confetti_1', 'confetti_2', 'confetti_3', 'confetti_4'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
+const MSPLASH_ART = false, MWOW_ART = true, MCELEB_ART = true;
+/* 驚訝臉（美術用原圖改的，對位已核對：和原圖輪廓差 1% 以內）。null = 這顆還沒有圖，用原本的臉 */
+const FART_WOW = [[249.0, 403.0, 499, 653], [248.7, 311.3, 498, 560], [276.8, 331.5, 539, 581], [248.4, 229.1, 498, 478], [248.3, 137.9, 497, 387], [248.4, 262.6, 497, 511], [248.6, 253.7, 498, 503], [248.7, 245.0, 498, 494], null, null, null];
+let MWOW = null, MSPL = null;
+const mwow = () => MWOW || (MWOW = FRUITS.map((f, i) => { if (!FART_WOW[i]) return null; const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '_wow.webp'; return im; }));
+const mspl = () => MSPL || (MSPL = ['splash_1', 'splash_2', 'splash_3', 'drop', 'celebrate_burst', 'confetti_1', 'confetti_2', 'confetti_3', 'confetti_4'].map(n => { if (!MSPLASH_ART && n.startsWith('splash')) return null; const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
+/* 測試用（網址加 #mgtest 才有） */
+if (location.hash === '#mgtest') window.__mg = { G: () => MG_, melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
 /* 每種水果的果汁顏色（噴濺圖是白色的，由程式染色） */
 const MJUICE = ['#c8102e', '#ef3b3b', '#8e44c9', '#ff8a1a', '#ffd21a', '#e8302a', '#cfdc5a', '#ff9e9e', '#ffbf26', '#f5a65b', '#ff4d5e'];
 const MHOT = ['#c0546b', '#d9653b', '#e8743b', '#ef5a2a', '#e8342a', '#d81b60'];
@@ -1241,7 +1245,7 @@ function mFxDraw(G, g) {
     if (t < 2.2) {
       const s = t < 0.25 ? t / 0.25 * 1.25 : 1.25 - Math.min(0.25, (t - 0.25) * 1.2);
       g.save(); g.globalAlpha = t < 1.8 ? 1 : (2.2 - t) / 0.4; g.translate(MW / 2, 62);
-      if (MCELEB_ART) { const bi = mspl()[4]; if (bi.complete && bi.naturalWidth) { g.save(); g.rotate(t * 0.6); g.drawImage(bi, -45 * s, -45 * s, 90 * s, 90 * s); g.restore(); } }
+      if (MCELEB_ART) { const bi = mspl()[4]; if (bi.complete && bi.naturalWidth) { g.save(); g.rotate(t * 0.6); g.drawImage(bi, -34 * s, -34 * s, 68 * s, 68 * s); g.restore(); } }
       g.scale(s, s); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '12px Naikai, sans-serif'; g.lineWidth = 2.4; g.strokeStyle = '#fff7ea'; g.strokeText('合出西瓜了！', 0, 0); g.fillStyle = '#2e8b3a'; g.fillText('合出西瓜了！', 0, 0); g.restore();
     } else G.melonT = null;
   }
