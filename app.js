@@ -1302,8 +1302,8 @@ function sfx(k, a, b) {
 function mFit() {
   const ov = $('#mg'), st = $('#mg .mg-stage2'); if (!ov || ov.hidden || !st) return;
   const cs = getComputedStyle(ov), hud = $('#mg .mg-hud'), bot = $('#mg .mg-bottom');
-  const avail = ov.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - hud.offsetHeight - bot.offsetHeight - 22;
-  const wmax = Math.min(ov.clientWidth - 24, 440);
+  const avail = ov.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - hud.offsetHeight - bot.offsetHeight - 14;
+  const wmax = Math.min(ov.clientWidth - 16, 460);
   st.style.height = Math.round(Math.max(220, Math.min(avail, wmax * 1.4, 640))) + 'px';
 }
 window.addEventListener('resize', () => mFit());
@@ -1383,9 +1383,9 @@ function mergeOpen() {
   let ov = $('#mg');
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'mg'; ov.className = 'mg';
-    ov.innerHTML = '<div class="mg-top-bar mg-hud"><span class="mg-lbtns"><button class="btn ghost small" data-act="mgClose">‹ 離開</button><button class="btn ghost small mg-snd" data-act="mgSnd" id="mg-snd"></button></span><span class="mg-scorebox"><span class="mg-sl">分數</span><b id="mg-score">0</b><span class="mg-best" id="mg-best"></span></span><span class="mg-nextbox"><span class="mg-sl">下一個</span><span id="mg-next"></span></span></div>' +
+    ov.innerHTML = '<div class="mg-top-bar mg-hud"><button class="btn ghost small" data-act="mgClose">‹ 離開</button><span class="mg-scorebox"><span class="mg-sl">分數</span><b id="mg-score">0</b><span class="mg-best" id="mg-best"></span></span><span class="mg-nextbox"><span class="mg-sl">下一個</span><span id="mg-next"></span></span></div>' +
       '<div class="mg-stage mg-stage2"><canvas id="mg-cv"></canvas><div class="mg-over" id="mg-over" hidden></div></div>' +
-      '<div class="mg-bottom"><div class="mg-items" id="mg-items"></div><p class="mg-route-lab" id="mg-route-lab"></p><div class="mg-route" id="mg-route"></div><p class="mg-tip">手指左右移動對準，放開就丟下去・0.8 秒內連續合成有 Combo 加分</p></div>';
+      '<div class="mg-bottom"><div class="mg-items" id="mg-items"></div><div class="mg-labrow"><p class="mg-route-lab" id="mg-route-lab"></p><button class="btn ghost small mg-snd" data-act="mgSnd" id="mg-snd"></button></div><div class="mg-route" id="mg-route"></div></div>';
     document.body.appendChild(ov);
     const cv = $('#mg-cv');
     const aim = e => { const r = cv.getBoundingClientRect(); if (MG_) MG_.aim = (e.clientX - r.left) / r.width * MW; };
