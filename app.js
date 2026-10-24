@@ -1094,8 +1094,9 @@ function mStep(G, dt) {
   /* 滾動角度：用「這一幀實際移動了多少」來轉，太小的抖動不算，才不會停著還在原地轉 */
   for (const b of G.bodies) { if (b.fx == null) b.fx = b.x; const dx = b.x - b.fx; b.fx = b.x; if (Math.abs(dx) > 0.04) b.ang = (b.ang || 0) + dx / b.r; }
   /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 2 秒就結束 */
-  const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER && Math.abs(b.y - b.py) < 0.03);
-  G.overT = high ? G.overT + dt : 0;
+  /* 結束判定：落下超過 1.5 秒的水果，頂端還在紅線上方就開始累積；離開紅線時慢慢扣回（不用等水果完全靜止，堆滿時水果會微微晃，以前因此永遠判不到） */
+  const high = G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER);
+  G.overT = high ? G.overT + dt : Math.max(0, G.overT - dt * 2);
   if (G.overT > 2 && !G.over) {
     if (MINV && MINV.revive > 0 && !G.askedRevive) { G.askedRevive = true; G.paused = true; mAskRevive(); }
     else { G.over = true; mergeOver(G); }
