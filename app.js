@@ -992,7 +992,7 @@ let MBG = null;
 const mbg = () => MBG || (MBG = ['bg_stage', 'shot_hit'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 let FIMG = null;
 const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
-const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004, MBOUNCE = 0.12, MBOUNCE_V = 0.1; /* MBOUNCE：一點點彈性（原版常見設定的一半左右），撞得夠用力（MBOUNCE_V）才彈，堆好的水果不會一直抖 */
+const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004, MBOUNCE = 0.6, MBOUNCE_V = 0.06; /* MBOUNCE：撞擊時反彈的比例（水果下落有空氣阻力，實際看起來是小小彈一下），撞得夠用力（MBOUNCE_V）才彈，堆好的水果不會一直抖 */
 let MG_ = null;
 /* 出水果用「抽袋子」：一袋 8 顆照固定比例洗牌，抽完再換一袋，不會一直連出同一種小水果。
    比例：櫻桃 1、草莓 2、葡萄 2、橘子 2、檸檬 1。 */
@@ -1375,7 +1375,16 @@ function mergeOver(G) {
     '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgAgain">再來一局</button><button class="btn ghost" data-act="mgClose">離開</button></div>';
   box.hidden = false;
 }
+/* 一次性：刪掉道具太多那時候打出的 9434 分（排行榜和個人最高分都拿掉，最高分改成剩下紀錄裡最高的） */
+let MCLEAN = false;
+function mCleanup() {
+  const d = PL('merge'); if (MCLEAN || !d || d.clean9434) return; MCLEAN = true;
+  const top = (d.top || []).filter(t => t.s !== 9434), up = { top, clean9434: true };
+  for (const [k, who] of [['him', '老公'], ['her', '老婆']]) if (d[k] === 9434) up[k] = top.filter(t => t.by === who).reduce((x, t) => Math.max(x, t.s), 0);
+  wr(setDoc(dref('play', 'merge'), up, { merge: true }));
+}
 function mergeCardHtml() {
+  mCleanup();
   const m = mergeBest();
   return '<div class="card play-card"><div class="row"><h3>合成大西瓜 🍉</h3><span class="muted">' + MARK.him + ' ' + m.him + '　' + MARK.her + ' ' + m.her + '</span></div>' +
     '<p class="muted">丟水果，一樣的碰在一起會變大，合出西瓜！水果疊過紅線就結束。</p>' +
