@@ -1266,3 +1266,7 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .mg-route img{aspect-ratio:1}
 .bl-cp-x{color:var(--accent);font-size:15px;margin-left:2px}
 .bl-cp .bl-cp-n{min-width:0}.bl-cp-s{display:block;font-size:13px;margin-top:1px}
+/* iPhone 主畫面 App：整頁不捲、改由 body 自己捲，下方選單固定不動（避免捲動時選單跑到畫面中間） */
+html{height:100%;overflow:hidden;overscroll-behavior:none}
+body{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none;scroll-padding-top:120px}
+html.mg-open body{overflow:hidden}

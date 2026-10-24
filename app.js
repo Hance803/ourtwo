@@ -442,7 +442,7 @@ function showTab(n) {
   if (n !== 'board') boardNew.clear();
   $$('section[data-tab]').forEach(s => { s.hidden = s.dataset.tab !== n; });
   $$('.tabs button').forEach(b => { if (b.dataset.v === n) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  RENDER[n](); updateBadge(); window.scrollTo(0, 0);
+  RENDER[n](); updateBadge(); scrollTop0();
 }
 function rerender() {
   if (!booted) return;
@@ -917,7 +917,7 @@ Object.assign(ACT, {
   mPhotoPick() { $('#mphoto').click(); },
   mPhotoClear() { mPhoto = ''; paintM(); },
   mToday() { mDate = TODAY; loadMoodEditor(true); renderMood(); },
-  mEdit(el) { mDate = el.dataset.d; loadMoodEditor(true); renderMood(); window.scrollTo(0, 0); },
+  mEdit(el) { mDate = el.dataset.d; loadMoodEditor(true); renderMood(); scrollTop0(); },
   mMore() { moodLimit += 40; subMood(); },
   mHeart(el) {
     const e = S.mood.find(x => x.id === el.dataset.id); if (!e) return;
@@ -1374,6 +1374,8 @@ Object.assign(ACT, {
 document.addEventListener('input', e => { if (e.target && e.target.id === 'g-ta') gDraft = e.target.value; });
 
 /* 畫面重畫時記住哪些摺疊區塊是打開的（另一支手機更新資料時，不會把你正在看的清單收起來） */
+/* 整頁捲動改由 body 自己捲（iPhone 主畫面 App 捲動時下方選單才不會跟著跑），回到頂端要捲 body */
+function scrollTop0() { document.body.scrollTop = 0; window.scrollTo(0, 0); }
 const OPEN_DET = new Set();
 document.addEventListener('toggle', e => { const d = e.target; if (d && d.tagName === 'DETAILS' && d.id) { if (d.open) OPEN_DET.add(d.id); else OPEN_DET.delete(d.id); } }, true);
 const detOpen = id => OPEN_DET.has(id) ? ' open' : '';
@@ -1564,7 +1566,7 @@ function bClose(toShop) {
   if (BG) { cancelAnimationFrame(BG.raf); if (!BG.done && BG.darts < BDARTS) { BG.done = true; const sc = bScore(BG); if (sc.pts) { const mk = meKey(), info = bInfo(); wr(setDoc(dref('play', 'balloon'), { pts: { [mk]: (info.pts[mk] || 0) + sc.pts }, best: { [mk]: Math.max(info.best[mk] || 0, sc.pts) } }, { merge: true })); } } BG = null; }
   const ov = $('#bl'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
   if (curTab === 'play') renderPlay();
-  if (toShop) setTimeout(() => { const s = $('#bl-shop'); if (s) { s.open = true; OPEN_DET.add('bl-shop'); s.scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); } }, 50);
+  if (toShop) setTimeout(() => { const s = $('#bl-shop'); if (s) { s.open = true; OPEN_DET.add('bl-shop'); s.scrollIntoView({ block: 'start' }); } }, 50);
 }
 /* 一樣的兌換券疊成一張，顯示「×張數」；按使用時先用掉最舊的那張 */
 function cpGroup(list) {
