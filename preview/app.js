@@ -1145,8 +1145,9 @@ function mDraw(G) {
     if (G.cool <= 0) fruit(ax, 10, G.cur, 1);
     mClaw(g, G.cool > 0 ? (G.dropX == null ? ax : G.dropX) : ax, 10, hr, open);
   }
+  mFxDraw(G, g, true);
   for (const b of G.bodies) fruit(b.x, b.y, b.lv, b.r / b.R, b.ang, b);
-  mFxDraw(G, g);
+  mFxDraw(G, g, false);
   g.textAlign = 'center'; g.font = '6px Naikai, sans-serif';
   for (const p of G.pops) { if (p.hit) { const a = (G.t - p.t) / 0.5, im = mbg()[1]; if (a < 1 && im.complete && im.naturalWidth) { const d = p.r * (2.2 + a); g.globalAlpha = 1 - a * a; g.drawImage(im, p.x - d / 2, p.y - d / 2, d, d); } continue; } const a = (G.t - p.t) / 0.9, n = Math.min(p.n || 1, 6), sz = (6 + n * 0.9) * (a < 0.12 ? 0.6 + a / 0.12 * 0.6 : 1.2 - Math.min(0.2, (a - 0.12)));
     g.globalAlpha = a < 0.7 ? 1 : (1 - a) / 0.3; g.font = sz + 'px Naikai, sans-serif'; g.lineWidth = 1.1; g.strokeStyle = '#fff7ea'; g.fillStyle = MHOT[n - 1];
@@ -1177,9 +1178,9 @@ function mClaw(g, x, y, r, open) {
 /* ================= 打擊感 =================
    停頓、震動、啵一下、壓扁、分數跳、手機震動、音效。
    果汁噴濺、驚訝臉、合出西瓜的慶祝圖要等美術圖，圖到之前對應的開關是 false，不畫（不用程式自己畫來充數）。 */
-const MSPLASH_ART = false, MWOW_ART = true, MCELEB_ART = true;
+const MSPLASH_ART = true, MWOW_ART = true, MCELEB_ART = true;
 /* 驚訝臉（美術用原圖改的，對位已核對：和原圖輪廓差 1% 以內）。null = 這顆還沒有圖，用原本的臉 */
-const FART_WOW = [[249.0, 403.0, 499, 653], [248.7, 311.3, 498, 560], [276.8, 331.5, 539, 581], [248.4, 229.1, 498, 478], [248.3, 137.9, 497, 387], [248.4, 262.6, 497, 511], [248.6, 253.7, 498, 503], [248.7, 245.0, 498, 494], null, null, null];
+const FART_WOW = [[249.0, 403.0, 499, 653], [248.7, 311.3, 498, 560], [276.8, 331.5, 539, 581], [248.4, 229.1, 498, 478], [248.3, 137.9, 497, 387], [248.4, 262.6, 497, 511], [248.6, 253.7, 498, 503], [248.7, 245.0, 498, 494], [248.5, 368.5, 499, 618], [248.6, 317.4, 498, 566], [248.6, 313.4, 497, 563]];
 let MWOW = null, MSPL = null;
 const mwow = () => MWOW || (MWOW = FRUITS.map((f, i) => { if (!FART_WOW[i]) return null; const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '_wow.webp'; return im; }));
 const mspl = () => MSPL || (MSPL = ['splash_1', 'splash_2', 'splash_3', 'drop', 'celebrate_burst', 'confetti_1', 'confetti_2', 'confetti_3', 'confetti_4'].map(n => { if (!MSPLASH_ART && n.startsWith('splash')) return null; const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
@@ -1206,8 +1207,8 @@ function mHitFx(G, x, y, lv) {
   /* 果汁噴濺（要美術圖） */
   if (MSPLASH_ART) {
     const col = MJUICE[Math.min(lv, 10)], n = 5 + Math.min(lv, 8);
-    G.fx.push({ k: 0, x, y, t: G.t, r: R * 2.4, rot: Math.random() * 6.3, col, life: 0.45 });
-    for (let i = 0; i < n; i++) { const an = Math.random() * 6.3, sp = 30 + Math.random() * 40 + lv * 3; G.fx.push({ k: 3, x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 25, t: G.t, r: 2 + Math.random() * 2 + lv * 0.25, rot: an, col, life: 0.6 }); }
+    G.fx.push({ k: 0, x, y, t: G.t, r: R * 1.35, rot: Math.random() * 6.3, col, life: 0.5 });
+    for (let i = 0; i < n; i++) { const an = Math.random() * 6.3, sp = 30 + Math.random() * 40 + lv * 3; G.fx.push({ k: 3, x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 25, t: G.t, r: 1 + Math.random() * 1.2 + lv * 0.12, rot: an, col, life: 0.55 }); }
   }
   sfx('pop', lv, G.combo || 1);
   mHaptic(lv >= 7 ? 2 : 1);
@@ -1225,12 +1226,13 @@ function mTint(im, col) {
   x.drawImage(im, 0, 0); x.globalCompositeOperation = 'multiply'; x.fillStyle = col; x.fillRect(0, 0, c.width, c.height);
   x.globalCompositeOperation = 'destination-in'; x.drawImage(im, 0, 0); MTINT.set(key, c); return c;
 }
-function mFxDraw(G, g) {
+function mFxDraw(G, g, under) {
   if (!G.fx) G.fx = [];
   if (G.fx.length) {
     const sp = mspl();
-    G.fx = G.fx.filter(p => G.t - p.t < p.life);
+    if (under) G.fx = G.fx.filter(p => G.t - p.t < p.life);
     for (const p of G.fx) {
+      if ((p.k === 0) !== under) continue;
       const t = G.t - p.t, a = t / p.life, im = p.k === 0 ? sp[p.rot * 10 % 3 | 0] : sp[p.k];
       if (!im || !im.complete || !im.naturalWidth) continue;
       let x = p.x, y = p.y, d = p.r * 2;
@@ -1240,6 +1242,7 @@ function mFxDraw(G, g) {
       g.drawImage(p.col ? mTint(im, p.col) : im, -d / 2, -d / 2, d, d); g.restore();
     }
   }
+  if (under) return;
   if (G.melonT != null) {
     const t = G.t - G.melonT;
     if (t < 2.2) {
