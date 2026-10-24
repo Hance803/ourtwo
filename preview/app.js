@@ -983,8 +983,8 @@ mpadEl.addEventListener('pointercancel', e => { if (mCur && mCur.id === e.pointe
    一樣的水果碰到就合成下一級；兩顆西瓜碰到會一起消失加大分。水果超過紅線太久就結束。 */
 const FRUITS = [['🍒', 4.4, '#f7c6cf'], ['🍓', 5.8, '#f9b4b4'], ['🍇', 7.4, '#d9c2f0'], ['🍊', 8.8, '#ffd3a1'], ['🍋', 10.4, '#fff0a6'], ['🍎', 12.2, '#ffb8b0'],
   ['🍐', 14.0, '#d9efb0'], ['🍑', 16.0, '#ffd0c2'], ['🍍', 18.2, '#ffe59a'], ['🍈', 20.6, '#cdeec0'], ['🍉', 23.2, '#bfe8b3']];
-/* 水果整體縮到 78%：箱子裡空間比較夠，認真玩有機會合出西瓜（原本的大小幾乎不可能） */
-FRUITS.forEach(f => { f[1] = Math.round(f[1] * 0.78 * 100) / 100; });
+/* 水果整體縮到 88%（曾經縮到 78%，結果太好玩不死；原版是 100%） */
+FRUITS.forEach(f => { f[1] = Math.round(f[1] * 0.88 * 100) / 100; });
 const MPTS = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
 /* 水果圖（美術圖已裁好邊）。FART = [主體圓心 x, 圓心 y, 圖寬, 圖高]，主體圓直徑一律 490；圖還沒載好時先用 emoji 代替 */
 const FART = [[251.7, 402.3, 503, 653], [249.2, 310.8, 498, 560], [279.7, 331.2, 538, 581], [249.5, 230.2, 499, 480], [248.8, 137.7, 498, 386], [248.4, 264.1, 497, 513], [248.6, 252.6, 498, 502], [249.3, 244.5, 499, 494], [249.7, 369.6, 499, 619], [248.6, 319.6, 498, 569], [249.1, 314.5, 499, 564]];
@@ -992,7 +992,7 @@ let MBG = null;
 const mbg = () => MBG || (MBG = ['bg_stage', 'shot_hit'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 let FIMG = null;
 const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
-const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004;
+const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004, MBOUNCE = 0.12, MBOUNCE_V = 0.1; /* MBOUNCE：一點點彈性（原版常見設定的一半左右），撞得夠用力（MBOUNCE_V）才彈，堆好的水果不會一直抖 */
 let MG_ = null;
 /* 出水果用「抽袋子」：一袋 8 顆照固定比例洗牌，抽完再換一袋，不會一直連出同一種小水果。
    比例：櫻桃 1、草莓 2、葡萄 2、橘子 2、檸檬 1。 */
@@ -1074,7 +1074,7 @@ function mStep(G, dt) {
           a.px -= ax; a.py -= ay; c.px += cx2; c.py += cy2;
           const nx = dx / d, ny = dy / d, rel = ((c.x - c.px) - (a.x - a.px)) * nx + ((c.y - c.py) - (a.y - a.py)) * ny;
           if (rel < -0.08) { a.imp = Math.max(a.imp || 0, -rel); c.imp = Math.max(c.imp || 0, -rel); }
-          if (rel < 0) { a.px -= nx * rel * wa; a.py -= ny * rel * wa; c.px += nx * rel * wc; c.py += ny * rel * wc; }
+          if (rel < 0) { const k = rel < -MBOUNCE_V ? 1 + MBOUNCE : 1; a.px -= nx * rel * wa * k; a.py -= ny * rel * wa * k; c.px += nx * rel * wc * k; c.py += ny * rel * wc * k; }
           /* 一點點摩擦：堆好的水果會慢慢停下來，不會一直溜 */
           const tx = -ny, ty = nx, tv = ((c.x - c.px) - (a.x - a.px)) * tx + ((c.y - c.py) - (a.y - a.py)) * ty, fr = tv * MFRIC;
           a.px -= tx * fr * wa; a.py -= ty * fr * wa; c.px += tx * fr * wc; c.py += ty * fr * wc;
@@ -1085,7 +1085,7 @@ function mStep(G, dt) {
         if (b.x < b.r) { b.x = b.r; b.px = b.x; }
         if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x; }
         if (b.y < -10) { b.y = -10; b.py = Math.max(b.py, b.y); }
-        if (b.y > MH - b.r) { if (b.y - b.py > 0.08) b.imp = Math.max(b.imp || 0, b.y - b.py); b.y = MH - b.r; b.py = b.y; b.px = b.x - (b.x - b.px) * 0.97; }
+        if (b.y > MH - b.r) { const vy = b.y - b.py; if (vy > 0.08) b.imp = Math.max(b.imp || 0, vy); b.y = MH - b.r; b.py = vy > MBOUNCE_V ? b.y + vy * MBOUNCE : b.y; b.px = b.x - (b.x - b.px) * 0.97; }
       }
     }
   }
