@@ -1254,7 +1254,7 @@ html.mg-open,html.mg-open body{overflow:hidden;overscroll-behavior:none}
 .mg-item{min-height:36px;padding:4px 12px}
 .mg-item.on{background:#c0392b;color:#fff;border-color:#c0392b}
 .mg-item-rv{font-size:13px;color:var(--muted);padding:0 4px}
-.mg-stage2.quake{animation:mgQuake .6s ease}
+.mg-stage2.quake{animation:mgQuake .9s ease}
 @keyframes mgQuake{10%,50%,90%{transform:translateX(-6px) rotate(-1deg)}30%,70%{transform:translateX(6px) rotate(1deg)}}
 #mg{background:var(--bg) url(fruits/bg_page.webp) center/cover no-repeat}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #mg{background-image:none}}
@@ -1291,3 +1291,4 @@ html.mg-open body{overflow:hidden}
 .mg-item img,.mg-item-rv img{width:22px;height:22px}
 .mg-labrow .mg-snd{min-height:26px;padding:0 8px}
 .mg-route-lab{font-size:13px}
+.upd-bar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 6px);z-index:120;border:2px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:999px;padding:6px 16px;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.2)}
