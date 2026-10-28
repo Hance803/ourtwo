@@ -1707,28 +1707,35 @@ function tFit() {
   tSide();
 }
 window.addEventListener('resize', () => tFit());
-/* 觸控：左右滑每滑過一格移一格；往下滑加速；快速往下甩＝直接落地；沒怎麼動就放開＝旋轉 */
+/* 觸控：左右滑每滑過一格移一格；往下滑加速；快速往下甩＝直接落地；沒怎麼動就放開＝旋轉
+   防歪：手指一開始主要往下，就當成「往下」的手勢，之後要偏很多（2 格）才算左右移動；
+   真的甩下去落地時，把甩的那一下（0.25 秒內）順手造成的左右移動退回去，方塊從原本那一列落下。 */
 function tTouch(cv) {
   let P = null;
   cv.addEventListener('pointerdown', e => {
     e.preventDefault(); mAudio(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
-    P = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, t0: performance.now(), moved: false, hist: [[e.clientY, performance.now()]] };
+    const now = performance.now();
+    P = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, t0: now, moved: false, ax: '', hm: [], hist: [[e.clientX, e.clientY, now]] };
   });
   cv.addEventListener('pointermove', e => {
     const G = TB_; if (!P || P.id !== e.pointerId || !G) return;
-    const s = cv.clientWidth / TW * 0.85;
-    while (e.clientX - P.lx > s) { P.lx += s; tMove(G, 1); P.moved = true; P.h = true; }
-    while (P.lx - e.clientX > s) { P.lx -= s; tMove(G, -1); P.moved = true; P.h = true; }
+    const s = cv.clientWidth / TW * 0.85, now = performance.now(), adx = Math.abs(e.clientX - P.x0), ady = Math.abs(e.clientY - P.y0);
+    if (!P.ax && Math.hypot(adx, ady) > 12) { P.ax = ady > adx ? 'v' : 'h'; P.moved = true; }
+    const hs = P.ax === 'v' ? s * 2 : s;
+    while (e.clientX - P.lx > hs) { P.lx += s; if (tMove(G, 1)) P.hm.push([now, 1]); P.moved = true; }
+    while (P.lx - e.clientX > hs) { P.lx -= s; if (tMove(G, -1)) P.hm.push([now, -1]); P.moved = true; }
     while (e.clientY - P.ly > s * 1.2) { P.ly += s * 1.2; tSoft(G); P.moved = true; }
     if (P.ly - e.clientY > s) P.ly = e.clientY;
-    if (Math.hypot(e.clientX - P.x0, e.clientY - P.y0) > 10) P.moved = true;
-    const now = performance.now(); P.hist.push([e.clientY, now]); while (P.hist.length > 2 && now - P.hist[0][1] > 90) P.hist.shift();
+    P.hist.push([e.clientX, e.clientY, now]); while (P.hist.length > 2 && now - P.hist[0][2] > 90) P.hist.shift();
   });
   const end = e => {
     const G = TB_; if (!P || P.id !== e.pointerId) return;
-    const now = performance.now(), h0 = P.hist[0], vy = (e.clientY - h0[0]) / Math.max(1, now - h0[1]), dy = e.clientY - P.y0, dx = e.clientX - P.x0;
-    if (G && vy > 0.9 && dy > 30 && dy > Math.abs(dx) * 1.3) tHard(G);
-    else if (G && !P.moved && now - P.t0 < 350 && e.type === 'pointerup') tRotate(G);
+    const now = performance.now(), h0 = P.hist[0], dt = Math.max(1, now - h0[2]), vy = (e.clientY - h0[1]) / dt, vx = (e.clientX - h0[0]) / dt, dy = e.clientY - P.y0;
+    /* 甩：最後一小段往下夠快，而且方向偏下（斜 45 度以內都算） */
+    if (G && vy > 0.8 && dy > 30 && vy > Math.abs(vx)) {
+      for (const [t, d] of P.hm.reverse()) if (P.ax === 'v' || now - t < 250) tMove(G, -d);
+      tHard(G);
+    } else if (G && !P.moved && now - P.t0 < 350 && e.type === 'pointerup') tRotate(G);
     P = null;
   };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
@@ -2307,7 +2314,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v50';
+const APP_VER = 'v51';
 let STALE = false;
 async function chkUpdate() {
   try {
