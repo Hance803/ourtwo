@@ -1485,7 +1485,7 @@ Object.assign(ACT, {
    紀錄存在 play/tetris：{ him, her, top: [{by, s, ts}] }，跟合成大西瓜一樣。 */
 const TW = 10, TH = 20;
 const TP = { I: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], O: [[1, 1], [1, 1]], T: [[0, 1, 0], [1, 1, 1], [0, 0, 0]], S: [[0, 1, 1], [1, 1, 0], [0, 0, 0]], Z: [[1, 1, 0], [0, 1, 1], [0, 0, 0]], J: [[1, 0, 0], [1, 1, 1], [0, 0, 0]], L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]] };
-const TC = { I: '#79c6dc', O: '#f0cb55', T: '#b392d4', S: '#83c487', Z: '#ec8888', J: '#7c9bdd', L: '#f0a35b' };
+const TC = { I: '#68ceed', O: '#f2c22c', T: '#b48ddd', S: '#8fd070', Z: '#d75367', J: '#5592f2', L: '#faa047' };
 const TPTS = [0, 100, 300, 500, 800];
 /* 旋轉卡牆時依序試這些位移（往左右、往上推一點），貼牆、貼底也轉得動 */
 const TKICK = [[0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [-1, -1], [1, -1]];
@@ -1493,7 +1493,7 @@ const TLOCK = 0.5, TLOCKN = 15;
 let TB_ = null;
 /* 美術圖：盤面背景、消行閃光、龜山四連橫幅（圖還沒載好時用程式畫的代替） */
 let TIMG = null;
-const timgs = () => TIMG || (TIMG = Object.fromEntries(['board', 'clear', 'tetris'].map(n => { const im = new Image(); im.src = 'tb/' + n + '.webp'; return [n, im]; })));
+const timgs = () => TIMG || (TIMG = Object.fromEntries(['board', 'clear', 'tetris', ...'IOTSZJL'].map(n => { const im = new Image(); im.src = 'tb/' + n + '.webp'; return [n, im]; })));
 const tOk = im => im && im.complete && im.naturalWidth > 0;
 const tRotM = m => m[0].map((_, i) => m.map(r => r[i]).reverse());
 const tSpeed = lv => Math.max(0.07, 0.8 * Math.pow(0.84, lv - 1));
@@ -1601,9 +1601,16 @@ function tPause(on) {
   else box.hidden = true;
 }
 /* ---- 畫面 ---- */
-function tCell(g, x, y, s, col, a) {
-  const p = Math.max(1, s * 0.06), r = s * 0.2;
+/* 一格：有美術圖就貼圖（k＝方塊種類），沒有就用程式畫；gray＝遊戲結束時蓋一層灰 */
+function tCell(g, x, y, s, col, a, k, gray) {
+  const p = Math.max(1, s * 0.06), r = s * 0.2, im = k && timgs()[k];
   g.globalAlpha = a == null ? 1 : a;
+  if (tOk(im)) {
+    g.drawImage(im, x, y, s, s);
+    if (gray) { g.fillStyle = 'rgba(215,208,200,.62)'; g.beginPath(); g.roundRect(x + s * 0.04, y + s * 0.04, s * 0.92, s * 0.92, r); g.fill(); }
+    g.globalAlpha = 1; return;
+  }
+  if (gray) col = '#b9b1a8';
   g.fillStyle = col; g.beginPath(); g.roundRect(x + p, y + p, s - p * 2, s - p * 2, r); g.fill();
   g.fillStyle = 'rgba(255,255,255,.38)'; g.beginPath(); g.roundRect(x + s * 0.2, y + s * 0.16, s * 0.6, s * 0.16, s * 0.08); g.fill();
   g.fillStyle = 'rgba(0,0,0,.10)'; g.beginPath(); g.roundRect(x + p, y + s * 0.74, s - p * 2, s * 0.2, [0, 0, r, r]); g.fill();
@@ -1617,7 +1624,7 @@ function tMini(cv, k, dim) {
   const m = TP[k], cells = []; m.forEach((r, y) => r.forEach((v, x) => v && cells.push([x, y])));
   const x0 = Math.min(...cells.map(c => c[0])), x1 = Math.max(...cells.map(c => c[0])), y0 = Math.min(...cells.map(c => c[1])), y1 = Math.max(...cells.map(c => c[1]));
   const s = Math.min(w / 4.4, h / 2.6), ox = (w - (x1 - x0 + 1) * s) / 2, oy = (h - (y1 - y0 + 1) * s) / 2;
-  cells.forEach(([x, y]) => tCell(g, ox + (x - x0) * s, oy + (y - y0) * s, s, TC[k], dim ? 0.35 : 1));
+  cells.forEach(([x, y]) => tCell(g, ox + (x - x0) * s, oy + (y - y0) * s, s, TC[k], dim ? 0.35 : 1, k));
 }
 function tSide() {
   const G = TB_; if (!G) return;
@@ -1646,7 +1653,7 @@ function tDraw(G) {
     for (let x = 0; x < TW; x++) {
       const k = G.b[y][x]; if (!k) continue;
       if (isC) { const mid = Math.abs(x - 4.5) / 5; if (mid < cp * 1.1) continue; tCell(g, x * s, y * s, s, '#ffffff'); }
-      else tCell(g, x * s, y * s, s, G.over ? '#b9b1a8' : TC[k]);
+      else tCell(g, x * s, y * s, s, TC[k], 1, k, G.over);
     }
     if (isC) {
       if (tOk(TI.clear)) { g.globalAlpha = Math.min(1, 2.2 * (1 - cp)); const ch = w / 8 * (1 + cp * 0.5); g.drawImage(TI.clear, -w * cp * 0.1, (y + 0.5) * s - ch / 2, w * (1 + cp * 0.2), ch); }
@@ -1659,7 +1666,7 @@ function tDraw(G) {
     G.m.forEach((r, ri) => r.forEach((v, ci) => {
       if (!v) return;
       if (gy !== G.y && gy + ri >= 0) { g.globalAlpha = 0.9; g.strokeStyle = TC[G.k]; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.roundRect((G.x + ci) * s + 3, (gy + ri) * s + 3, s - 6, s - 6, s * 0.18); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
-      if (G.y + ri >= 0) tCell(g, (G.x + ci) * s, (G.y + ri) * s, s, TC[G.k]);
+      if (G.y + ri >= 0) tCell(g, (G.x + ci) * s, (G.y + ri) * s, s, TC[G.k], 1, G.k);
     }));
   }
   /* 直接落地：方塊留一道往上的殘影 */
@@ -2300,7 +2307,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v49';
+const APP_VER = 'v50';
 let STALE = false;
 async function chkUpdate() {
   try {
