@@ -897,8 +897,9 @@ function quizHtml() {
 }
 function renderPlay() {
   const root = $('#play-body');
-  if (!root.childElementCount) root.innerHTML = ['merge', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
+  if (!root.childElementCount) root.innerHTML = ['merge', 'tetris', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
   $('#pw-merge').innerHTML = mergeCardHtml();
+  if (!TB_) $('#pw-tetris').innerHTML = tetrisCardHtml();
   if (!kDrawing) { $('#pw-balloon').innerHTML = balloonCardHtml(); $('#pw-kuji').innerHTML = kujiCardHtml(); }
   if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
   const ga = document.activeElement && document.activeElement.id === 'g-ta';
@@ -1285,7 +1286,7 @@ function mHaptic(level) {
 }
 /* 音效：用程式即時合成（不用音效檔），可以在遊戲右上角關掉 */
 const SNDON = () => LS.get('ourtwo.snd') !== '0';
-function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; }
+function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; const t = $('#tb-snd'); if (t) t.textContent = SNDON() ? '🔊' : '🔇'; }
 let MAC = null;
 function mAudio() {
   if (!SNDON()) return null;
@@ -1311,6 +1312,12 @@ function sfx(k, a, b) {
     if (k === 'pop') { const f = 900 * Math.pow(0.9, a) * Math.pow(1.09, Math.min(b, 8) - 1); sTone(ac, f, f * 1.7, 0.13, 'sine', 0.32); sTone(ac, f * 2, f * 2.6, 0.06, 'triangle', 0.1); if (a >= 6) sTone(ac, f / 2, f / 3, 0.25, 'sine', 0.25); }
     else if (k === 'thud') { const now = ac.currentTime; if (now - MSNDT < 0.06) return; MSNDT = now; const v = Math.min(0.35, a * 0.6); sTone(ac, 150, 55, 0.12, 'sine', v); sNoise(ac, 0.05, v * 0.5, 600); }
     else if (k === 'drop') sTone(ac, 520, 380, 0.05, 'triangle', 0.08);
+    else if (k === 'tmove') sTone(ac, 700, 640, 0.03, 'triangle', 0.05);
+    else if (k === 'trot') sTone(ac, 620, 900, 0.05, 'triangle', 0.07);
+    else if (k === 'tlock') { sTone(ac, 170, 70, 0.1, 'sine', 0.28); sNoise(ac, 0.04, 0.15, 900); }
+    else if (k === 'tclear') { const n = a || 1; [523, 659, 784, 1047].slice(0, n).forEach((f, i) => sTone(ac, f, f * 1.02, 0.16, 'triangle', 0.22, i * 0.06)); sNoise(ac, 0.18 + n * 0.05, 0.25, 3000); if (n >= 4) { sTone(ac, 120, 40, 0.5, 'sine', 0.45); [1047, 1319, 1568].forEach((f, i) => sTone(ac, f, f, 0.25, 'triangle', 0.18, 0.3 + i * 0.09)); } }
+    else if (k === 'tlevel') [659, 880, 1175].forEach((f, i) => sTone(ac, f, f, 0.14, 'triangle', 0.18, i * 0.08));
+    else if (k === 'tover') [392, 330, 262, 196].forEach((f, i) => sTone(ac, f, f * 0.98, 0.22, 'triangle', 0.2, i * 0.16));
     else if (k === 'shot') { sNoise(ac, 0.3, 0.6, 2400); sTone(ac, 180, 45, 0.25, 'sine', 0.4); }
     else if (k === 'quake') { sNoise(ac, 1.0, 0.7, 260); sTone(ac, 75, 32, 0.9, 'sine', 0.45); [0.16, 0.32, 0.48].forEach(d => sTone(ac, 90, 40, 0.2, 'sine', 0.3, d)); }
     else if (k === 'melon') [523, 659, 784, 1047, 1319].forEach((f, i) => { sTone(ac, f, f, 0.22, 'triangle', 0.22, i * 0.11); sTone(ac, f / 2, f / 2, 0.22, 'sine', 0.12, i * 0.11); });
@@ -1470,6 +1477,321 @@ Object.assign(ACT, {
     if (k === 'swap') { const c = G.cur; G.cur = G.next; G.next = c; MINV.swap--; mInvSave(); mItemsUI(); G.notes.push({ t: G.t, s: '換好了' }); }
   }
 });
+
+/* ---------- 龜山方塊 ---------- */
+/* 俄羅斯方塊玩法：10×20 格，7 種方塊用「抽袋子」出（一袋 7 種各一顆，不會一直等不到長條）。
+   操作：左右滑＝移動、點一下＝旋轉、往下滑＝加速、快速往下甩＝直接落地；下面也有按鈕可以按。
+   分數：一次消 1/2/3/4 行 = 100/300/500/800 × 等級；每消 10 行升一級、掉得更快。
+   紀錄存在 play/tetris：{ him, her, top: [{by, s, ts}] }，跟合成大西瓜一樣。 */
+const TW = 10, TH = 20;
+const TP = { I: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], O: [[1, 1], [1, 1]], T: [[0, 1, 0], [1, 1, 1], [0, 0, 0]], S: [[0, 1, 1], [1, 1, 0], [0, 0, 0]], Z: [[1, 1, 0], [0, 1, 1], [0, 0, 0]], J: [[1, 0, 0], [1, 1, 1], [0, 0, 0]], L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]] };
+const TC = { I: '#68ceed', O: '#f2c22c', T: '#b48ddd', S: '#8fd070', Z: '#d75367', J: '#5592f2', L: '#faa047' };
+const TPTS = [0, 100, 300, 500, 800];
+/* 旋轉卡牆時依序試這些位移（往左右、往上推一點），貼牆、貼底也轉得動 */
+const TKICK = [[0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [-1, -1], [1, -1]];
+const TLOCK = 0.5, TLOCKN = 15;
+let TB_ = null;
+/* 美術圖：盤面背景、消行閃光、龜山四連橫幅（圖還沒載好時用程式畫的代替） */
+let TIMG = null;
+const timgs = () => TIMG || (TIMG = Object.fromEntries(['board', 'clear', 'tetris', ...'IOTSZJL'].map(n => { const im = new Image(); im.src = 'tb/' + n + '.webp'; return [n, im]; })));
+const tOk = im => im && im.complete && im.naturalWidth > 0;
+const tRotM = m => m[0].map((_, i) => m.map(r => r[i]).reverse());
+const tSpeed = lv => Math.max(0.07, 0.8 * Math.pow(0.84, lv - 1));
+function tBag(G) {
+  if (!G.bag.length) { G.bag = 'IOTSZJL'.split(''); for (let i = 6; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
+  return G.bag.pop();
+}
+function tFits(G, m, x, y) {
+  for (let r = 0; r < m.length; r++) for (let c = 0; c < m.length; c++) {
+    if (!m[r][c]) continue; const X = x + c, Y = y + r;
+    if (X < 0 || X >= TW || Y >= TH) return false;
+    if (Y >= 0 && G.b[Y][X]) return false;
+  }
+  return true;
+}
+function tNew() {
+  const G = { b: Array.from({ length: TH }, () => Array(TW).fill('')), bag: [], q: [], score: 0, lines: 0, lv: 1, hold: '', held: false, over: false, paused: false, t: 0, fall: 0, lockT: 0, lockN: 0, clr: null, fx: [], shakeA: 0, shakeT: 0 };
+  while (G.q.length < 3) G.q.push(tBag(G));
+  tSpawn(G); return G;
+}
+function tSpawn(G, k) {
+  if (!k) { k = G.q.shift(); G.q.push(tBag(G)); }
+  const m = TP[k].map(r => r.slice());
+  G.k = k; G.m = m; G.x = Math.floor((TW - m.length) / 2); G.y = k === 'I' ? -1 : 0; G.fall = 0; G.lockT = 0; G.lockN = 0;
+  if (!tFits(G, m, G.x, G.y)) tOver(G);
+}
+const tGround = G => !tFits(G, G.m, G.x, G.y + 1);
+function tTouched(G) { if (tGround(G) && G.lockN < TLOCKN) { G.lockT = 0; G.lockN++; } }
+function tMove(G, dx) {
+  if (!tPlay(G) || !tFits(G, G.m, G.x + dx, G.y)) return false;
+  G.x += dx; tTouched(G); sfx('tmove'); return true;
+}
+function tRotate(G) {
+  if (!tPlay(G) || G.k === 'O') return;
+  const m = tRotM(G.m);
+  for (const [dx, dy] of TKICK) if (tFits(G, m, G.x + dx, G.y + dy)) { G.m = m; G.x += dx; G.y += dy; tTouched(G); sfx('trot'); mHaptic(1); return; }
+}
+function tSoft(G) {
+  if (!tPlay(G)) return false;
+  if (tFits(G, G.m, G.x, G.y + 1)) { G.y++; G.fall = 0; G.score += 1; return true; }
+  return false;
+}
+function tHard(G) {
+  if (!tPlay(G)) return;
+  let n = 0; while (tFits(G, G.m, G.x, G.y + 1)) { G.y++; n++; }
+  G.score += n * 2; G.slam = { x: G.x, y: G.y, m: G.m, t: G.t }; tShake(G, 2.5 + Math.min(n, 12) * 0.25, 0.18); mHaptic(1); tLock(G);
+}
+function tHold(G) {
+  if (!tPlay(G) || G.held) return;
+  const k = G.k; G.held = true;
+  if (G.hold) tSpawn(G, G.hold); else tSpawn(G);
+  G.hold = k; sfx('trot'); tSide();
+}
+const tPlay = G => G && !G.over && !G.paused && !G.clr;
+function tGhostY(G) { let y = G.y; while (tFits(G, G.m, G.x, y + 1)) y++; return y; }
+function tLock(G) {
+  let out = false;
+  G.m.forEach((r, ri) => r.forEach((v, ci) => { if (!v) return; const Y = G.y + ri; if (Y < 0) out = true; else G.b[Y][G.x + ci] = G.k; }));
+  if (out) { tOver(G); return; }
+  const rows = []; for (let y = 0; y < TH; y++) if (G.b[y].every(Boolean)) rows.push(y);
+  if (rows.length) {
+    const n = rows.length, pts = TPTS[n] * G.lv;
+    G.combo = (G.combo || 0) + 1;
+    const cb = G.combo > 1 ? 50 * (G.combo - 1) * G.lv : 0;
+    G.score += pts + cb; G.lines += n;
+    G.clr = { rows, t: 0 };
+    G.fx.push({ t: G.t, s: '+' + (pts + cb), y: rows[0], big: n >= 4 });
+    if (n >= 4) G.fx.push({ t: G.t, s: '龜山四連！', y: rows[0] - 2, big: true, hero: true, img: 'tetris' });
+    else if (G.combo > 1) G.fx.push({ t: G.t, s: 'Combo ×' + G.combo, y: rows[0] - 1.5 });
+    sfx('tclear', n); mHaptic(n >= 4 ? 3 : 2); tShake(G, n >= 4 ? 9 : 2 + n * 1.5, n >= 4 ? 0.5 : 0.25);
+    const nl = 1 + Math.floor(G.lines / 10); if (nl > G.lv) { G.lv = nl; G.fx.push({ t: G.t + 0.3, s: '升級！Lv ' + nl, y: 8, hero: true }); sfx('tlevel'); }
+  } else { G.combo = 0; sfx('tlock'); tSpawn(G); }
+  G.held = false; tSide();
+}
+function tShake(G, A, D) { if (A >= G.shakeA * Math.max(0, 1 - (G.t - G.shakeT) / (G.shakeD || 1))) { G.shakeA = A; G.shakeT = G.t; G.shakeD = D; } }
+function tStep(G, dt) {
+  G.t += dt;
+  if (G.over || G.paused) return;
+  if (G.clr) {
+    G.clr.t += dt;
+    if (G.clr.t >= 0.28) { const rs = G.clr.rows; G.b = G.b.filter((_, y) => !rs.includes(y)); while (G.b.length < TH) G.b.unshift(Array(TW).fill('')); G.clr = null; tSpawn(G); }
+    return;
+  }
+  const iv = G.soft ? Math.min(0.05, tSpeed(G.lv)) : tSpeed(G.lv);
+  if (tGround(G)) { G.lockT += dt; if (G.lockT >= TLOCK) tLock(G); return; }
+  G.fall += dt;
+  while (G.fall >= iv && !tGround(G)) { G.fall -= iv; G.y++; if (G.soft) G.score += 1; }
+}
+function tOver(G) {
+  if (G.over) return; G.over = true; sfx('tover'); mHaptic(3);
+  const mk = meKey(), d = PL('tetris') || {}, best = d[mk] || 0, isBest = G.score > best;
+  if (G.score > 0) {
+    const top = (d.top || []).concat([{ by: S.me, s: G.score, ts: Date.now() }]).sort((a, b) => b.s - a.s).slice(0, 10);
+    wr(setDoc(dref('play', 'tetris'), Object.assign({ top }, isBest ? { [mk]: G.score } : {}), { merge: true }));
+  }
+  const box = $('#tb-over');
+  box.innerHTML = '<p class="mg-over-t">遊戲結束</p><p class="mg-over-s">' + G.score + ' 分</p><p class="muted">消了 ' + G.lines + ' 行・Lv ' + G.lv + '</p>' + (isBest && G.score > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + best + '</p>') +
+    '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="tbAgain">再來一局</button><button class="btn ghost" data-act="tbClose">離開</button></div>';
+  box.hidden = false;
+}
+function tPause(on) {
+  const G = TB_; if (!G || G.over) return; G.paused = on; G.soft = false;
+  const box = $('#tb-over');
+  if (on) { box.innerHTML = '<p class="mg-over-t">暫停中</p><div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="tbResume">繼續</button><button class="btn ghost" data-act="tbClose">離開</button></div>'; box.hidden = false; }
+  else box.hidden = true;
+}
+/* ---- 畫面 ---- */
+/* 一格：有美術圖就貼圖（k＝方塊種類），沒有就用程式畫；gray＝遊戲結束時蓋一層灰 */
+function tCell(g, x, y, s, col, a, k, gray) {
+  const p = Math.max(1, s * 0.06), r = s * 0.2, im = k && timgs()[k];
+  g.globalAlpha = a == null ? 1 : a;
+  if (tOk(im)) {
+    g.drawImage(im, x, y, s, s);
+    if (gray) { g.fillStyle = 'rgba(215,208,200,.62)'; g.beginPath(); g.roundRect(x + s * 0.04, y + s * 0.04, s * 0.92, s * 0.92, r); g.fill(); }
+    g.globalAlpha = 1; return;
+  }
+  if (gray) col = '#b9b1a8';
+  g.fillStyle = col; g.beginPath(); g.roundRect(x + p, y + p, s - p * 2, s - p * 2, r); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.38)'; g.beginPath(); g.roundRect(x + s * 0.2, y + s * 0.16, s * 0.6, s * 0.16, s * 0.08); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.10)'; g.beginPath(); g.roundRect(x + p, y + s * 0.74, s - p * 2, s * 0.2, [0, 0, r, r]); g.fill();
+  g.globalAlpha = 1;
+}
+function tMini(cv, k, dim) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  if (!k) return;
+  const m = TP[k], cells = []; m.forEach((r, y) => r.forEach((v, x) => v && cells.push([x, y])));
+  const x0 = Math.min(...cells.map(c => c[0])), x1 = Math.max(...cells.map(c => c[0])), y0 = Math.min(...cells.map(c => c[1])), y1 = Math.max(...cells.map(c => c[1]));
+  const s = Math.min(w / 4.4, h / 2.6), ox = (w - (x1 - x0 + 1) * s) / 2, oy = (h - (y1 - y0 + 1) * s) / 2;
+  cells.forEach(([x, y]) => tCell(g, ox + (x - x0) * s, oy + (y - y0) * s, s, TC[k], dim ? 0.35 : 1, k));
+}
+function tSide() {
+  const G = TB_; if (!G) return;
+  $$('#tb .tb-nx canvas').forEach((cv, i) => tMini(cv, G.q[i]));
+  tMini($('#tb-hold'), G.hold, G.held);
+  $('#tb-score').textContent = G.score; $('#tb-lv').textContent = G.lv; $('#tb-lines').textContent = G.lines;
+}
+function tDraw(G) {
+  const cv = $('#tb-cv'), dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (!w) return;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext('2d'), s = w / TW, dark = document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const sk = G.shakeA * Math.max(0, 1 - (G.t - G.shakeT) / (G.shakeD || 1));
+  const TI = timgs();
+  g.fillStyle = dark ? '#2b2724' : '#fffaf2'; g.fillRect(0, 0, w, h);
+  if (!dark && tOk(TI.board)) g.drawImage(TI.board, 0, 0, w, h);
+  g.translate(sk ? (Math.random() - 0.5) * sk : 0, sk ? (Math.random() - 0.3) * sk : 0);
+  g.strokeStyle = dark ? 'rgba(255,255,255,.06)' : 'rgba(120,90,60,.08)'; g.lineWidth = 1; g.beginPath();
+  for (let x = 1; x < TW; x++) { g.moveTo(x * s, 0); g.lineTo(x * s, h); }
+  for (let y = 1; y < TH; y++) { g.moveTo(0, y * s); g.lineTo(w, y * s); }
+  g.stroke();
+  const clr = G.clr, cp = clr ? Math.min(1, clr.t / 0.28) : 0;
+  for (let y = 0; y < TH; y++) {
+    const isC = clr && clr.rows.includes(y);
+    for (let x = 0; x < TW; x++) {
+      const k = G.b[y][x]; if (!k) continue;
+      if (isC) { const mid = Math.abs(x - 4.5) / 5; if (mid < cp * 1.1) continue; tCell(g, x * s, y * s, s, '#ffffff'); }
+      else tCell(g, x * s, y * s, s, TC[k], 1, k, G.over);
+    }
+    if (isC) {
+      if (tOk(TI.clear)) { g.globalAlpha = Math.min(1, 2.2 * (1 - cp)); const ch = w / 8 * (1 + cp * 0.5); g.drawImage(TI.clear, -w * cp * 0.1, (y + 0.5) * s - ch / 2, w * (1 + cp * 0.2), ch); }
+      else { g.globalAlpha = 0.5 * (1 - cp); g.fillStyle = '#fff6c8'; g.fillRect(0, y * s - s * 0.2, w, s * 1.4); }
+      g.globalAlpha = 1;
+    }
+  }
+  if (!G.over && !clr && G.m) {
+    const gy = tGhostY(G);
+    G.m.forEach((r, ri) => r.forEach((v, ci) => {
+      if (!v) return;
+      if (gy !== G.y && gy + ri >= 0) { g.globalAlpha = 0.9; g.strokeStyle = TC[G.k]; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.roundRect((G.x + ci) * s + 3, (gy + ri) * s + 3, s - 6, s - 6, s * 0.18); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
+      if (G.y + ri >= 0) tCell(g, (G.x + ci) * s, (G.y + ri) * s, s, TC[G.k], 1, G.k);
+    }));
+  }
+  /* 直接落地：方塊留一道往上的殘影 */
+  if (G.slam && G.t - G.slam.t < 0.18) {
+    const a = 1 - (G.t - G.slam.t) / 0.18; g.fillStyle = 'rgba(255,255,255,' + (0.5 * a) + ')';
+    G.slam.m.forEach((r, ri) => r.forEach((v, ci) => { if (v && G.slam.y + ri >= 0) g.fillRect((G.slam.x + ci) * s + s * 0.15, Math.max(0, (G.slam.y + ri - 4) * s), s * 0.7, s * 4); }));
+  }
+  G.fx = G.fx.filter(f => G.t - f.t < 1.1);
+  for (const f of G.fx) {
+    const u = (G.t - f.t) / 1.1; if (u < 0) continue;
+    const sc = f.hero ? 1 + 0.4 * Math.max(0, 1 - u * 6) : 1;
+    if (f.img && tOk(TI[f.img])) {
+      /* 橫幅：彈出（先放大再回彈）、停一下、往上淡掉；放在盤面中間偏上，不擋消掉的那幾行 */
+      const pop = u < 0.12 ? 0.3 + 0.9 * (u / 0.12) : u < 0.2 ? 1.2 - 0.2 * ((u - 0.12) / 0.08) : 1, bw = w * 0.96 * pop, bh = bw * 384 / 1024;
+      g.globalAlpha = Math.min(1, 3 * (1 - u)); g.drawImage(TI[f.img], (w - bw) / 2, h * 0.32 - bh / 2 - u * s, bw, bh); g.globalAlpha = 1; continue;
+    }
+    g.globalAlpha = Math.min(1, 3 * (1 - u)); g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = 'bold ' + Math.round((f.big || f.hero ? 0.95 : 0.7) * s * sc) + 'px naikai, sans-serif';
+    g.lineWidth = 4; g.strokeStyle = dark ? '#2b2724' : '#fffaf2'; const ty = (f.y + 0.5) * s - u * s * 1.6;
+    g.strokeText(f.s, w / 2, ty); g.fillStyle = f.hero ? '#e8743b' : (dark ? '#f3e7d8' : '#506874'); g.fillText(f.s, w / 2, ty); g.globalAlpha = 1;
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+}
+function tLoop(ts) {
+  const G = TB_; if (!G) return;
+  const dt = Math.min(0.05, ((ts - (G.last || ts)) / 1000) || 0); G.last = ts;
+  const sc = G.score; tStep(G, dt); if (G.score !== sc || G.lastSide !== G.k + G.lines) { tSide(); G.lastSide = G.k + G.lines; }
+  tDraw(G); G.raf = requestAnimationFrame(tLoop);
+}
+/* 版面：上面分數列＋暫存／下一個，下面按鈕列，剩下的空間給 10×20 的盤面（按鈕緊貼在盤面下方） */
+function tFit() {
+  const ov = $('#tb'); if (!ov || ov.hidden) return;
+  const cs = getComputedStyle(ov), hud = $('#tb .mg-hud'), bot = $('#tb .tb-pad'), info = $('#tb .tb-info');
+  const ah = ov.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - hud.offsetHeight - info.offsetHeight - bot.offsetHeight - 26;
+  const aw = Math.min(ov.clientWidth, 480) - 24;
+  const bw = Math.floor(Math.max(150, Math.min(aw, ah / 2)) / TW) * TW;
+  const cv = $('#tb-cv'); cv.style.width = bw + 'px'; cv.style.height = bw * 2 + 'px';
+  tSide();
+}
+window.addEventListener('resize', () => tFit());
+/* 觸控：左右滑每滑過一格移一格；往下滑加速；快速往下甩＝直接落地；沒怎麼動就放開＝旋轉 */
+function tTouch(cv) {
+  let P = null;
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault(); mAudio(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+    P = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, t0: performance.now(), moved: false, hist: [[e.clientY, performance.now()]] };
+  });
+  cv.addEventListener('pointermove', e => {
+    const G = TB_; if (!P || P.id !== e.pointerId || !G) return;
+    const s = cv.clientWidth / TW * 0.85;
+    while (e.clientX - P.lx > s) { P.lx += s; tMove(G, 1); P.moved = true; P.h = true; }
+    while (P.lx - e.clientX > s) { P.lx -= s; tMove(G, -1); P.moved = true; P.h = true; }
+    while (e.clientY - P.ly > s * 1.2) { P.ly += s * 1.2; tSoft(G); P.moved = true; }
+    if (P.ly - e.clientY > s) P.ly = e.clientY;
+    if (Math.hypot(e.clientX - P.x0, e.clientY - P.y0) > 10) P.moved = true;
+    const now = performance.now(); P.hist.push([e.clientY, now]); while (P.hist.length > 2 && now - P.hist[0][1] > 90) P.hist.shift();
+  });
+  const end = e => {
+    const G = TB_; if (!P || P.id !== e.pointerId) return;
+    const now = performance.now(), h0 = P.hist[0], vy = (e.clientY - h0[0]) / Math.max(1, now - h0[1]), dy = e.clientY - P.y0, dx = e.clientX - P.x0;
+    if (G && vy > 0.9 && dy > 30 && dy > Math.abs(dx) * 1.3) tHard(G);
+    else if (G && !P.moved && now - P.t0 < 350 && e.type === 'pointerup') tRotate(G);
+    P = null;
+  };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+}
+/* 按鈕：按住左右／下會連續動 */
+let TREP = null;
+function tBtnDown(k) {
+  const G = TB_; mAudio(); if (!G) return;
+  const f = { L: () => tMove(G, -1), R: () => tMove(G, 1), D: () => tSoft(G), U: () => tRotate(G), H: () => tHard(G), C: () => tHold(G) }[k]; if (!f) return;
+  f(); clearTimeout(TREP); clearInterval(TREP);
+  if ('LRD'.includes(k)) TREP = setTimeout(() => { TREP = setInterval(f, k === 'D' ? 40 : 55); }, 170);
+}
+function tBtnUp() { clearTimeout(TREP); clearInterval(TREP); TREP = null; }
+function tetrisBest() { const d = PL('tetris') || {}; return { him: d.him || 0, her: d.her || 0, top: d.top || [] }; }
+function tetrisCardHtml() {
+  const m = tetrisBest();
+  return '<div class="card play-card"><div class="row"><h3>龜山方塊 <img class="tb-ico" src="tb/icon.webp" alt=""></h3><span class="muted">' + MARK.him + ' ' + m.him + '　' + MARK.her + ' ' + m.her + '</span></div>' +
+    '<p class="muted">把方塊排滿一整行就會消掉，疊到最上面就結束。左右滑移動、點一下旋轉、往下甩直接落地。</p>' +
+    (m.top.length ? '<ol class="mg-top">' + m.top.slice(0, 5).map(t => '<li>' + byChip(t.by) + ' <b>' + t.s + '</b> <span class="muted">' + md(new Date(t.ts)) + '</span></li>').join('') + '</ol>' : '') +
+    '<button class="btn" data-act="tbOpen">開始玩</button></div>';
+}
+function tetrisOpen() {
+  if (STALE) { location.reload(); return; }
+  let ov = $('#tb');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'tb'; ov.className = 'mg tb';
+    ov.innerHTML = '<div class="mg-top-bar mg-hud"><button class="btn ghost small" data-act="tbClose">‹ 離開</button><span class="mg-scorebox"><span class="mg-sl">分數</span><b id="tb-score">0</b><span class="mg-best" id="tb-best"></span></span><span class="tb-hudr"><button class="btn ghost small" data-act="tbPause" aria-label="暫停">❙❙</button><button class="btn ghost small mg-snd" data-act="mgSnd" id="tb-snd"></button></span></div>' +
+      '<div class="tb-info"><div class="tb-col"><span class="mg-sl">暫存</span><canvas id="tb-hold" class="tb-box" data-tb="C"></canvas></div>' +
+      '<div class="tb-stat"><span><span class="mg-sl">等級</span> <b id="tb-lv">1</b></span><span><span class="mg-sl">行數</span> <b id="tb-lines">0</b></span></div>' +
+      '<div class="tb-col tb-nx"><span class="mg-sl">下一個</span><div class="tb-nxr"><canvas class="tb-box"></canvas><canvas class="tb-box sm"></canvas><canvas class="tb-box sm"></canvas></div></div></div>' +
+      '<div class="tb-mid"><div class="tb-stage"><canvas id="tb-cv"></canvas><div class="mg-over" id="tb-over" hidden></div></div></div>' +
+      '<div class="tb-pad"><button class="btn ghost" data-tb="C">暫存</button><button class="btn ghost" data-tb="L" aria-label="左">◀</button><button class="btn ghost" data-tb="U" aria-label="旋轉">⟳</button><button class="btn ghost" data-tb="R" aria-label="右">▶</button><button class="btn ghost" data-tb="D" aria-label="加速">▼</button><button class="btn" data-tb="H">落地</button></div>';
+    document.body.appendChild(ov);
+    tTouch($('#tb-cv'));
+    ov.addEventListener('pointerdown', e => { const b = e.target.closest('[data-tb]'); if (!b) return; e.preventDefault(); tBtnDown(b.dataset.tb); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => ov.addEventListener(n, tBtnUp));
+    ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => e.preventDefault(), { passive: false }));
+    document.addEventListener('keydown', e => {
+      const G = TB_; if (!G || $('#tb').hidden) return;
+      const k = { ArrowLeft: 'L', ArrowRight: 'R', ArrowDown: 'D', ArrowUp: 'U', ' ': 'H', c: 'C', C: 'C' }[e.key]; if (!k) return;
+      e.preventDefault(); const f = { L: () => tMove(G, -1), R: () => tMove(G, 1), D: () => tSoft(G), U: () => tRotate(G), H: () => tHard(G), C: () => tHold(G) }[k]; f();
+    });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && TB_ && !TB_.over) tPause(true); });
+  }
+  ov.hidden = false; document.documentElement.classList.add('mg-open');
+  if (TB_) cancelAnimationFrame(TB_.raf);
+  TB_ = tNew(); $('#tb-over').hidden = true;
+  const b = tetrisBest()[meKey()]; $('#tb-best').textContent = b ? '最高 ' + b : '';
+  $('#tb-snd').textContent = SNDON() ? '🔊' : '🔇';
+  tFit(); setTimeout(tFit, 400);
+  TB_.raf = requestAnimationFrame(tLoop);
+}
+function tetrisClose() {
+  const G = TB_;
+  if (G) { cancelAnimationFrame(G.raf); if (!G.over && G.score > 0) tOver(G); TB_ = null; }
+  tBtnUp(); const ov = $('#tb'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
+  if (curTab === 'play') renderPlay();
+}
+Object.assign(ACT, {
+  tbOpen: tetrisOpen, tbAgain: tetrisOpen, tbClose: tetrisClose,
+  tbPause() { tPause(true); }, tbResume() { tPause(false); },
+});
+if (location.hash === '#mgtest') window.__tb = { G: () => TB_, move: d => tMove(TB_, d), rot: () => tRotate(TB_), hard: () => tHard(TB_), hold: () => tHold(TB_) };
 
 /* ---------- 真心話扭蛋機 ---------- */
 /* 兩人共用一顆「目前的扭蛋」（play/gacha.cur）。誰都可以扭，但兩個人都回答完才能扭下一顆。
@@ -1985,7 +2307,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v47';
+const APP_VER = 'v50';
 let STALE = false;
 async function chkUpdate() {
   try {
