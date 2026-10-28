@@ -1491,6 +1491,10 @@ const TPTS = [0, 100, 300, 500, 800];
 const TKICK = [[0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [-1, -1], [1, -1]];
 const TLOCK = 0.5, TLOCKN = 15;
 let TB_ = null;
+/* 美術圖：盤面背景、消行閃光、龜山四連橫幅（圖還沒載好時用程式畫的代替） */
+let TIMG = null;
+const timgs = () => TIMG || (TIMG = Object.fromEntries(['board', 'clear', 'tetris'].map(n => { const im = new Image(); im.src = 'tb/' + n + '.webp'; return [n, im]; })));
+const tOk = im => im && im.complete && im.naturalWidth > 0;
 const tRotM = m => m[0].map((_, i) => m.map(r => r[i]).reverse());
 const tSpeed = lv => Math.max(0.07, 0.8 * Math.pow(0.84, lv - 1));
 function tBag(G) {
@@ -1557,7 +1561,7 @@ function tLock(G) {
     G.score += pts + cb; G.lines += n;
     G.clr = { rows, t: 0 };
     G.fx.push({ t: G.t, s: '+' + (pts + cb), y: rows[0], big: n >= 4 });
-    if (n >= 4) G.fx.push({ t: G.t, s: '龜山四連！', y: rows[0] - 2, big: true, hero: true });
+    if (n >= 4) G.fx.push({ t: G.t, s: '龜山四連！', y: rows[0] - 2, big: true, hero: true, img: 'tetris' });
     else if (G.combo > 1) G.fx.push({ t: G.t, s: 'Combo ×' + G.combo, y: rows[0] - 1.5 });
     sfx('tclear', n); mHaptic(n >= 4 ? 3 : 2); tShake(G, n >= 4 ? 9 : 2 + n * 1.5, n >= 4 ? 0.5 : 0.25);
     const nl = 1 + Math.floor(G.lines / 10); if (nl > G.lv) { G.lv = nl; G.fx.push({ t: G.t + 0.3, s: '升級！Lv ' + nl, y: 8, hero: true }); sfx('tlevel'); }
@@ -1628,7 +1632,9 @@ function tDraw(G) {
   const g = cv.getContext('2d'), s = w / TW, dark = document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   const sk = G.shakeA * Math.max(0, 1 - (G.t - G.shakeT) / (G.shakeD || 1));
+  const TI = timgs();
   g.fillStyle = dark ? '#2b2724' : '#fffaf2'; g.fillRect(0, 0, w, h);
+  if (!dark && tOk(TI.board)) g.drawImage(TI.board, 0, 0, w, h);
   g.translate(sk ? (Math.random() - 0.5) * sk : 0, sk ? (Math.random() - 0.3) * sk : 0);
   g.strokeStyle = dark ? 'rgba(255,255,255,.06)' : 'rgba(120,90,60,.08)'; g.lineWidth = 1; g.beginPath();
   for (let x = 1; x < TW; x++) { g.moveTo(x * s, 0); g.lineTo(x * s, h); }
@@ -1642,7 +1648,11 @@ function tDraw(G) {
       if (isC) { const mid = Math.abs(x - 4.5) / 5; if (mid < cp * 1.1) continue; tCell(g, x * s, y * s, s, '#ffffff'); }
       else tCell(g, x * s, y * s, s, G.over ? '#b9b1a8' : TC[k]);
     }
-    if (isC) { g.globalAlpha = 0.5 * (1 - cp); g.fillStyle = '#fff6c8'; g.fillRect(0, y * s - s * 0.2, w, s * 1.4); g.globalAlpha = 1; }
+    if (isC) {
+      if (tOk(TI.clear)) { g.globalAlpha = Math.min(1, 2.2 * (1 - cp)); const ch = w / 8 * (1 + cp * 0.5); g.drawImage(TI.clear, -w * cp * 0.1, (y + 0.5) * s - ch / 2, w * (1 + cp * 0.2), ch); }
+      else { g.globalAlpha = 0.5 * (1 - cp); g.fillStyle = '#fff6c8'; g.fillRect(0, y * s - s * 0.2, w, s * 1.4); }
+      g.globalAlpha = 1;
+    }
   }
   if (!G.over && !clr && G.m) {
     const gy = tGhostY(G);
@@ -1661,6 +1671,11 @@ function tDraw(G) {
   for (const f of G.fx) {
     const u = (G.t - f.t) / 1.1; if (u < 0) continue;
     const sc = f.hero ? 1 + 0.4 * Math.max(0, 1 - u * 6) : 1;
+    if (f.img && tOk(TI[f.img])) {
+      /* 橫幅：彈出（先放大再回彈）、停一下、往上淡掉；放在盤面中間偏上，不擋消掉的那幾行 */
+      const pop = u < 0.12 ? 0.3 + 0.9 * (u / 0.12) : u < 0.2 ? 1.2 - 0.2 * ((u - 0.12) / 0.08) : 1, bw = w * 0.96 * pop, bh = bw * 384 / 1024;
+      g.globalAlpha = Math.min(1, 3 * (1 - u)); g.drawImage(TI[f.img], (w - bw) / 2, h * 0.32 - bh / 2 - u * s, bw, bh); g.globalAlpha = 1; continue;
+    }
     g.globalAlpha = Math.min(1, 3 * (1 - u)); g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = 'bold ' + Math.round((f.big || f.hero ? 0.95 : 0.7) * s * sc) + 'px naikai, sans-serif';
     g.lineWidth = 4; g.strokeStyle = dark ? '#2b2724' : '#fffaf2'; const ty = (f.y + 0.5) * s - u * s * 1.6;
@@ -1723,7 +1738,7 @@ function tBtnUp() { clearTimeout(TREP); clearInterval(TREP); TREP = null; }
 function tetrisBest() { const d = PL('tetris') || {}; return { him: d.him || 0, her: d.her || 0, top: d.top || [] }; }
 function tetrisCardHtml() {
   const m = tetrisBest();
-  return '<div class="card play-card"><div class="row"><h3>龜山方塊 🧱</h3><span class="muted">' + MARK.him + ' ' + m.him + '　' + MARK.her + ' ' + m.her + '</span></div>' +
+  return '<div class="card play-card"><div class="row"><h3>龜山方塊 <img class="tb-ico" src="tb/icon.webp" alt=""></h3><span class="muted">' + MARK.him + ' ' + m.him + '　' + MARK.her + ' ' + m.her + '</span></div>' +
     '<p class="muted">把方塊排滿一整行就會消掉，疊到最上面就結束。左右滑移動、點一下旋轉、往下甩直接落地。</p>' +
     (m.top.length ? '<ol class="mg-top">' + m.top.slice(0, 5).map(t => '<li>' + byChip(t.by) + ' <b>' + t.s + '</b> <span class="muted">' + md(new Date(t.ts)) + '</span></li>').join('') + '</ol>' : '') +
     '<button class="btn" data-act="tbOpen">開始玩</button></div>';
@@ -2285,7 +2300,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v48';
+const APP_VER = 'v49';
 let STALE = false;
 async function chkUpdate() {
   try {
