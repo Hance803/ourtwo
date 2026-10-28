@@ -1292,3 +1292,19 @@ html.mg-open body{overflow:hidden}
 .mg-labrow .mg-snd{min-height:26px;padding:0 8px}
 .mg-route-lab{font-size:13px}
 .upd-bar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 6px);z-index:120;border:2px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:999px;padding:6px 16px;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+/* 龜山方塊 */
+.tb-hudr{display:flex;gap:4px}
+.tb-info{width:100%;max-width:440px;display:grid;grid-template-columns:auto 1fr auto;align-items:end;gap:8px;margin-bottom:6px}
+.tb-col{display:flex;flex-direction:column;align-items:center;gap:2px}
+.tb-stat{display:flex;justify-content:center;gap:14px;padding-bottom:6px}
+.tb-stat b{font-size:20px;color:var(--accent)}
+.tb-nxr{display:flex;align-items:center;gap:4px}
+.tb-box{width:56px;height:38px;background:var(--surface);border:1px solid var(--line);border-radius:10px;display:block}
+.tb-box.sm{width:40px;height:28px;opacity:.75}
+#tb-hold{cursor:pointer}
+.tb-mid{width:100%;display:flex;justify-content:center}
+.tb-stage{position:relative;flex:none;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+#tb-cv{display:block;touch-action:none}
+.tb-pad{width:100%;max-width:440px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px}
+.tb-pad .btn{min-height:50px;padding:0;font-size:18px}
+.tb-pad .btn:first-child,.tb-pad .btn:last-child{font-size:14px}
