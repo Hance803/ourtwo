@@ -1308,3 +1308,7 @@ html.mg-open body{overflow:hidden}
 .tb-pad{width:100%;max-width:440px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px}
 .tb-pad .btn{min-height:50px;padding:0;font-size:18px}
 .tb-pad .btn:first-child,.tb-pad .btn:last-child{font-size:14px}
+.tb-ico{width:30px;height:30px;vertical-align:-6px}
+#tb{background:var(--bg) url(tb/page.webp) center/cover no-repeat}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #tb{background-image:none}}
+:root[data-theme="dark"] #tb{background-image:none}
