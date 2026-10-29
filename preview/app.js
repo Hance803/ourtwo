@@ -1026,7 +1026,7 @@ function mGain(G, k) {
 function mItemsUI() {
   const box = $('#mg-items'); if (!box || !MINV) return;
   const G = MG_;
-  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt=""><span>' + n + ' ×' + MINV[k] + '</span></button>').join('') +
+  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt=""><span>' + n + ' ×' + MINV[k] + '</span></button>').join('') +
     '<span class="mg-item-rv' + (MINV.revive ? '' : ' zero') + '"><img src="fruits/item_revive.webp" alt=""><span>復活 ×' + MINV.revive + '</span></span>';
   mFit();
 }
@@ -1185,7 +1185,7 @@ function mDraw(G) {
   g.globalAlpha = 1;
   { const se = $('#mg-score'); if (se.textContent !== String(G.score)) { se.textContent = G.score; se.classList.remove('bump'); void se.offsetWidth; se.classList.add('bump'); } }
   if (!G.bestShown && G.best > 0 && G.score > G.best) { G.bestShown = true; const bx = $('#mg-best'); bx.classList.add('flash'); bx.textContent = '新紀錄！'; }
-  else if (!G.bestShown) $('#mg-best').textContent = '最高 ' + G.best;
+  else if (!G.bestShown) { const bx = $('#mg-best'), s = '最高 ' + G.best; if (bx.textContent !== s) bx.textContent = s; }
   const nx = $('#mg-next'); if (nx.dataset.lv !== String(G.next)) { nx.dataset.lv = G.next; nx.innerHTML = '<img src="' + fimgs()[G.next].src + '" alt="' + FRUITS[G.next][0] + '">'; }
   const rt = $('#mg-route'); if (rt && rt.dataset.lv !== String(G.maxLv)) { rt.dataset.lv = G.maxLv; mRoute(); }
 }
@@ -1210,7 +1210,7 @@ let MWOW = null, MSPL = null;
 const mwow = () => MWOW || (MWOW = FRUITS.map((f, i) => { if (!FART_WOW[i]) return null; const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '_wow.webp'; return im; }));
 const mspl = () => MSPL || (MSPL = ['splash_1', 'splash_2', 'splash_3', 'drop', 'celebrate_burst', 'confetti_1', 'confetti_2', 'confetti_3', 'confetti_4'].map(n => { if (!MSPLASH_ART && n.startsWith('splash')) return null; const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 /* 測試用（網址加 #mgtest 才有） */
-if (location.hash === '#mgtest') window.__mg = { G: () => MG_, melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
+if (location.hash === '#mgtest') window.__mg = { G: () => MG_, ui: () => mItemsUI(), melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
 /* 每種水果的果汁顏色（噴濺圖是白色的，由程式染色） */
 const MJUICE = ['#c8102e', '#ef3b3b', '#8e44c9', '#ff8a1a', '#ffd21a', '#e8302a', '#cfdc5a', '#ff9e9e', '#ffbf26', '#f5a65b', '#ff4d5e'];
 const MHOT = ['#c0546b', '#d9653b', '#e8743b', '#ef5a2a', '#e8342a', '#d81b60'];
@@ -1375,7 +1375,8 @@ function mRevive() {
 }
 function mShootAt(px, py) {
   const G = MG_; if (!G) return;
-  let hit = null; for (const b of G.bodies) { if (Math.hypot(b.x - px, b.y - py) <= b.r * 1.15 && (!hit || b.r < hit.r)) hit = b; }
+  /* 打點到哪顆：選「點的位置離圓心最近（以水果大小來比）」的那顆。原本是挑附近最小顆，點大水果邊緣時常常打到旁邊的小水果 */
+  let hit = null, hq = 1.15; for (const b of G.bodies) { const q = Math.hypot(b.x - px, b.y - py) / b.r; if (q <= hq) { hq = q; hit = b; } }
   if (!hit) { G.notes.push({ t: G.t, s: '沒打到，再點一次' }); return; }
   G.bodies = G.bodies.filter(b => b !== hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '', hit: 1, r: hit.r }); sfx('shot'); mHaptic(2); mShake(G, 2.2, 0.3); G.freeze = 0.08;
   MINV.shot--; mInvSave(); G.mode = ''; mItemsUI();
@@ -1454,6 +1455,12 @@ function mergeOpen() {
       aim(e); mDrop();
     });
     ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => e.preventDefault(), { passive: false }));
+    /* 道具按鈕：手指一按下去就發動，不等「點擊」事件。
+       原本用點擊：遊戲進行中畫面一直在變（分數、獲得道具時按鈕列重畫），iPhone 有時會把那一下當成沒點到，後期特別容易發生。 */
+    $('#mg-items').addEventListener('pointerdown', e => {
+      const b = e.target.closest('[data-k]'); if (!b || b.disabled) return;
+      e.preventDefault(); mAudio(); ACT.mgUse(b);
+    });
   }
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   if (MG_) cancelAnimationFrame(MG_.raf);
@@ -2314,7 +2321,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v51';
+const APP_VER = 'v52';
 let STALE = false;
 async function chkUpdate() {
   try {
