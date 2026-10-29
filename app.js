@@ -1002,31 +1002,26 @@ function mNext(G) {
   if (!G.bag || !G.bag.length) { G.bag = MBAG.slice(); for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
   return G.bag.pop();
 }
-/* 道具（每人每天各自累計，換日歸零；存在 play/merge.items.{him|her}）
-   復活：每局第一次合出哈密瓜／射爆：連續丟出 3 顆一樣的水果／地震：打出 Combo ×3／換一顆：每局分數每過 1000 分 */
+/* 道具：每一局各自計算，開新局全部從 0 開始。
+   拿到的方式：復活＝這局第一次合出哈密瓜／射爆＝最近丟的 4 顆裡有 3 顆一樣／地震＝打出 Combo ×4／換一顆＝分數每過 2000 分
+   每種道具「一局最多拿 3 個」：算的是這局總共拿過幾個，不是手上剩幾個——用掉不會空出名額，再達成條件也不會補回來。
+   （以前是每人每天累計、存在 play/merge.items，手上用掉就能再補到 3 個，太好玩不死；舊資料留著不用） */
 const MITEMS = [['revive', '復活'], ['shot', '射爆'], ['quake', '地震'], ['swap', '換一顆']];
-/* 每種道具一天最多存 3 個（原本 9 個，道具太多會玩不死） */
 const MITEM_MAX = 3;
-let MINV = null;
-function mInvLoad() {
-  const it = ((PL('merge') || {}).items || {})[meKey()];
-  MINV = it && it.d === iso(new Date()) ? Object.assign({ revive: 0, shot: 0, quake: 0, swap: 0 }, it) : { d: iso(new Date()), revive: 0, shot: 0, quake: 0, swap: 0 };
-  MINV.d = iso(new Date());
-  for (const [k] of MITEMS) MINV[k] = Math.min(MINV[k] || 0, MITEM_MAX);
-}
-function mInvSave() { wr(setDoc(dref('play', 'merge'), { items: { [meKey()]: Object.assign({}, MINV) } }, { merge: true })); }
+let MINV = null, MGOT = null;
+function mInvLoad() { MINV = { revive: 0, shot: 0, quake: 0, swap: 0 }; MGOT = { revive: 0, shot: 0, quake: 0, swap: 0 }; }
+function mInvSave() { /* 道具只存在這一局，不用存到雲端 */ }
 function mGain(G, k) {
   if (!MINV) mInvLoad();
-  if (MINV.d !== iso(new Date())) mInvLoad();
-  if (MINV[k] >= MITEM_MAX) return;
-  MINV[k]++; mInvSave(); mItemsUI();
+  if (MGOT[k] >= MITEM_MAX) return;
+  MGOT[k]++; MINV[k]++; mItemsUI();
   const name = (MITEMS.find(x => x[0] === k) || ['', k])[1];
-  G.notes.push({ t: G.t, s: '獲得「' + name + '」×1' });
+  G.notes.push({ t: G.t, s: '獲得「' + name + '」×1' + (MGOT[k] >= MITEM_MAX ? '（這局拿滿了）' : '') });
 }
 function mItemsUI() {
   const box = $('#mg-items'); if (!box || !MINV) return;
   const G = MG_;
-  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-act="mgUse" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt=""><span>' + n + ' ×' + MINV[k] + '</span></button>').join('') +
+  box.innerHTML = MITEMS.filter(x => x[0] !== 'revive').map(([k, n]) => '<button class="btn ghost small mg-item' + (G && G.mode === k ? ' on' : '') + '" data-k="' + k + '"' + (!MINV[k] || !G || G.over ? ' disabled' : '') + '><img src="fruits/item_' + k + '.webp" alt=""><span>' + n + ' ×' + MINV[k] + '</span></button>').join('') +
     '<span class="mg-item-rv' + (MINV.revive ? '' : ' zero') + '"><img src="fruits/item_revive.webp" alt=""><span>復活 ×' + MINV.revive + '</span></span>';
   mFit();
 }
@@ -1185,7 +1180,7 @@ function mDraw(G) {
   g.globalAlpha = 1;
   { const se = $('#mg-score'); if (se.textContent !== String(G.score)) { se.textContent = G.score; se.classList.remove('bump'); void se.offsetWidth; se.classList.add('bump'); } }
   if (!G.bestShown && G.best > 0 && G.score > G.best) { G.bestShown = true; const bx = $('#mg-best'); bx.classList.add('flash'); bx.textContent = '新紀錄！'; }
-  else if (!G.bestShown) $('#mg-best').textContent = '最高 ' + G.best;
+  else if (!G.bestShown) { const bx = $('#mg-best'), s = '最高 ' + G.best; if (bx.textContent !== s) bx.textContent = s; }
   const nx = $('#mg-next'); if (nx.dataset.lv !== String(G.next)) { nx.dataset.lv = G.next; nx.innerHTML = '<img src="' + fimgs()[G.next].src + '" alt="' + FRUITS[G.next][0] + '">'; }
   const rt = $('#mg-route'); if (rt && rt.dataset.lv !== String(G.maxLv)) { rt.dataset.lv = G.maxLv; mRoute(); }
 }
@@ -1210,7 +1205,7 @@ let MWOW = null, MSPL = null;
 const mwow = () => MWOW || (MWOW = FRUITS.map((f, i) => { if (!FART_WOW[i]) return null; const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '_wow.webp'; return im; }));
 const mspl = () => MSPL || (MSPL = ['splash_1', 'splash_2', 'splash_3', 'drop', 'celebrate_burst', 'confetti_1', 'confetti_2', 'confetti_3', 'confetti_4'].map(n => { if (!MSPLASH_ART && n.startsWith('splash')) return null; const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 /* 測試用（網址加 #mgtest 才有） */
-if (location.hash === '#mgtest') window.__mg = { G: () => MG_, melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
+if (location.hash === '#mgtest') window.__mg = { G: () => MG_, ui: () => mItemsUI(), gain: k => mGain(MG_, k), melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
 /* 每種水果的果汁顏色（噴濺圖是白色的，由程式染色） */
 const MJUICE = ['#c8102e', '#ef3b3b', '#8e44c9', '#ff8a1a', '#ffd21a', '#e8302a', '#cfdc5a', '#ff9e9e', '#ffbf26', '#f5a65b', '#ff4d5e'];
 const MHOT = ['#c0546b', '#d9653b', '#e8743b', '#ef5a2a', '#e8342a', '#d81b60'];
@@ -1288,11 +1283,23 @@ function mHaptic(level) {
 const SNDON = () => LS.get('ourtwo.snd') !== '0';
 function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; const t = $('#tb-snd'); if (t) t.textContent = SNDON() ? '🔊' : '🔇'; }
 let MAC = null;
-function mAudio() {
+/* 音效引擎。iPhone 的聲音有時會被系統「中斷」：搖手機跳出「搖動以還原」、來電、鬧鐘、切到別的 App 等等，
+   中斷後狀態會變成 interrupted（不只是 suspended），原本只處理 suspended，所以聲音就一直沒回來。
+   現在：只要不是正在播放（running）就試著恢復；手指按畫面時（tap＝true）恢復不了，就整個重開一個新的音效引擎。 */
+function mAudio(tap) {
   if (!SNDON()) return null;
-  try { if (!MAC) MAC = new (window.AudioContext || window.webkitAudioContext)(); if (MAC.state === 'suspended') MAC.resume(); } catch (e) { return null; }
+  try {
+    if (MAC && MAC.state === 'closed') MAC = null;
+    if (!MAC) MAC = new (window.AudioContext || window.webkitAudioContext)();
+    if (MAC.state !== 'running') {
+      const ac = MAC; ac.resume().catch(() => {});
+      if (tap) setTimeout(() => { if (MAC === ac && ac.state !== 'running') { try { ac.close(); } catch (e) { /* ignore */ } MAC = null; } }, 400);
+    }
+  } catch (e) { MAC = null; return null; }
   return MAC;
 }
+/* 從背景回來時也試著把聲音叫回來 */
+document.addEventListener('visibilitychange', () => { if (!document.hidden && MAC && MAC.state !== 'running') MAC.resume().catch(() => {}); });
 function sTone(ac, f0, f1, dur, type, vol, at) {
   const t = ac.currentTime + (at || 0), o = ac.createOscillator(), v = ac.createGain();
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
@@ -1362,7 +1369,7 @@ function mRoute() {
 }
 function mAskRevive() {
   const box = $('#mg-over');
-  box.innerHTML = '<p class="mg-over-t">快滿出來了！</p><p class="muted">要用掉一次「復活」嗎？會清掉上半部的水果，繼續玩。</p><p class="muted">今天還有 ' + MINV.revive + ' 次</p>' +
+  box.innerHTML = '<p class="mg-over-t">快滿出來了！</p><p class="muted">要用掉一次「復活」嗎？會清掉上半部的水果，繼續玩。</p><p class="muted">這局還有 ' + MINV.revive + ' 次</p>' +
     '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgRevive">復活！</button><button class="btn ghost" data-act="mgGiveUp">不用了</button></div>';
   box.hidden = false;
 }
@@ -1375,7 +1382,8 @@ function mRevive() {
 }
 function mShootAt(px, py) {
   const G = MG_; if (!G) return;
-  let hit = null; for (const b of G.bodies) { if (Math.hypot(b.x - px, b.y - py) <= b.r * 1.15 && (!hit || b.r < hit.r)) hit = b; }
+  /* 打點到哪顆：選「點的位置離圓心最近（以水果大小來比）」的那顆。原本是挑附近最小顆，點大水果邊緣時常常打到旁邊的小水果 */
+  let hit = null, hq = 1.15; for (const b of G.bodies) { const q = Math.hypot(b.x - px, b.y - py) / b.r; if (q <= hq) { hq = q; hit = b; } }
   if (!hit) { G.notes.push({ t: G.t, s: '沒打到，再點一次' }); return; }
   G.bodies = G.bodies.filter(b => b !== hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '', hit: 1, r: hit.r }); sfx('shot'); mHaptic(2); mShake(G, 2.2, 0.3); G.freeze = 0.08;
   MINV.shot--; mInvSave(); G.mode = ''; mItemsUI();
@@ -1447,13 +1455,19 @@ function mergeOpen() {
     document.body.appendChild(ov);
     const cv = $('#mg-cv');
     const aim = e => { const r = cv.getBoundingClientRect(); if (MG_) MG_.aim = (e.clientX - r.left) / r.width * MW; };
-    cv.addEventListener('pointerdown', e => { e.preventDefault(); mAudio(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aim(e); });
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); mAudio(true); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aim(e); });
     cv.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') aim(e); });
     cv.addEventListener('pointerup', e => {
       if (MG_ && MG_.mode === 'shot') { const r = cv.getBoundingClientRect(); mShootAt((e.clientX - r.left) / r.width * MW, (e.clientY - r.top) / r.width * MW); return; }
       aim(e); mDrop();
     });
     ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => e.preventDefault(), { passive: false }));
+    /* 道具按鈕：手指一按下去就發動，不等「點擊」事件。
+       原本用點擊：遊戲進行中畫面一直在變（分數、獲得道具時按鈕列重畫），iPhone 有時會把那一下當成沒點到，後期特別容易發生。 */
+    $('#mg-items').addEventListener('pointerdown', e => {
+      const b = e.target.closest('[data-k]'); if (!b || b.disabled) return;
+      e.preventDefault(); mAudio(true); ACT.mgUse(b);
+    });
   }
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   if (MG_) cancelAnimationFrame(MG_.raf);
@@ -1713,7 +1727,7 @@ window.addEventListener('resize', () => tFit());
 function tTouch(cv) {
   let P = null;
   cv.addEventListener('pointerdown', e => {
-    e.preventDefault(); mAudio(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+    e.preventDefault(); mAudio(true); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
     const now = performance.now();
     P = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, t0: now, moved: false, ax: '', hm: [], hist: [[e.clientX, e.clientY, now]] };
   });
@@ -1743,7 +1757,7 @@ function tTouch(cv) {
 /* 按鈕：按住左右／下會連續動 */
 let TREP = null;
 function tBtnDown(k) {
-  const G = TB_; mAudio(); if (!G) return;
+  const G = TB_; mAudio(true); if (!G) return;
   const f = { L: () => tMove(G, -1), R: () => tMove(G, 1), D: () => tSoft(G), U: () => tRotate(G), H: () => tHard(G), C: () => tHold(G) }[k]; if (!f) return;
   f(); clearTimeout(TREP); clearInterval(TREP);
   if ('LRD'.includes(k)) TREP = setTimeout(() => { TREP = setInterval(f, k === 'D' ? 40 : 55); }, 170);
@@ -2314,7 +2328,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v51';
+const APP_VER = 'v52';
 let STALE = false;
 async function chkUpdate() {
   try {
