@@ -1002,26 +1002,21 @@ function mNext(G) {
   if (!G.bag || !G.bag.length) { G.bag = MBAG.slice(); for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; } }
   return G.bag.pop();
 }
-/* 道具（每人每天各自累計，換日歸零；存在 play/merge.items.{him|her}）
-   復活：每局第一次合出哈密瓜／射爆：連續丟出 3 顆一樣的水果／地震：打出 Combo ×3／換一顆：每局分數每過 1000 分 */
+/* 道具：每一局各自計算，開新局全部從 0 開始。
+   拿到的方式：復活＝這局第一次合出哈密瓜／射爆＝最近丟的 4 顆裡有 3 顆一樣／地震＝打出 Combo ×4／換一顆＝分數每過 2000 分
+   每種道具「一局最多拿 3 個」：算的是這局總共拿過幾個，不是手上剩幾個——用掉不會空出名額，再達成條件也不會補回來。
+   （以前是每人每天累計、存在 play/merge.items，手上用掉就能再補到 3 個，太好玩不死；舊資料留著不用） */
 const MITEMS = [['revive', '復活'], ['shot', '射爆'], ['quake', '地震'], ['swap', '換一顆']];
-/* 每種道具一天最多存 3 個（原本 9 個，道具太多會玩不死） */
 const MITEM_MAX = 3;
-let MINV = null;
-function mInvLoad() {
-  const it = ((PL('merge') || {}).items || {})[meKey()];
-  MINV = it && it.d === iso(new Date()) ? Object.assign({ revive: 0, shot: 0, quake: 0, swap: 0 }, it) : { d: iso(new Date()), revive: 0, shot: 0, quake: 0, swap: 0 };
-  MINV.d = iso(new Date());
-  for (const [k] of MITEMS) MINV[k] = Math.min(MINV[k] || 0, MITEM_MAX);
-}
-function mInvSave() { wr(setDoc(dref('play', 'merge'), { items: { [meKey()]: Object.assign({}, MINV) } }, { merge: true })); }
+let MINV = null, MGOT = null;
+function mInvLoad() { MINV = { revive: 0, shot: 0, quake: 0, swap: 0 }; MGOT = { revive: 0, shot: 0, quake: 0, swap: 0 }; }
+function mInvSave() { /* 道具只存在這一局，不用存到雲端 */ }
 function mGain(G, k) {
   if (!MINV) mInvLoad();
-  if (MINV.d !== iso(new Date())) mInvLoad();
-  if (MINV[k] >= MITEM_MAX) return;
-  MINV[k]++; mInvSave(); mItemsUI();
+  if (MGOT[k] >= MITEM_MAX) return;
+  MGOT[k]++; MINV[k]++; mItemsUI();
   const name = (MITEMS.find(x => x[0] === k) || ['', k])[1];
-  G.notes.push({ t: G.t, s: '獲得「' + name + '」×1' });
+  G.notes.push({ t: G.t, s: '獲得「' + name + '」×1' + (MGOT[k] >= MITEM_MAX ? '（這局拿滿了）' : '') });
 }
 function mItemsUI() {
   const box = $('#mg-items'); if (!box || !MINV) return;
@@ -1210,7 +1205,7 @@ let MWOW = null, MSPL = null;
 const mwow = () => MWOW || (MWOW = FRUITS.map((f, i) => { if (!FART_WOW[i]) return null; const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '_wow.webp'; return im; }));
 const mspl = () => MSPL || (MSPL = ['splash_1', 'splash_2', 'splash_3', 'drop', 'celebrate_burst', 'confetti_1', 'confetti_2', 'confetti_3', 'confetti_4'].map(n => { if (!MSPLASH_ART && n.startsWith('splash')) return null; const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 /* 測試用（網址加 #mgtest 才有） */
-if (location.hash === '#mgtest') window.__mg = { G: () => MG_, ui: () => mItemsUI(), melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
+if (location.hash === '#mgtest') window.__mg = { G: () => MG_, ui: () => mItemsUI(), gain: k => mGain(MG_, k), melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
 /* 每種水果的果汁顏色（噴濺圖是白色的，由程式染色） */
 const MJUICE = ['#c8102e', '#ef3b3b', '#8e44c9', '#ff8a1a', '#ffd21a', '#e8302a', '#cfdc5a', '#ff9e9e', '#ffbf26', '#f5a65b', '#ff4d5e'];
 const MHOT = ['#c0546b', '#d9653b', '#e8743b', '#ef5a2a', '#e8342a', '#d81b60'];
@@ -1374,7 +1369,7 @@ function mRoute() {
 }
 function mAskRevive() {
   const box = $('#mg-over');
-  box.innerHTML = '<p class="mg-over-t">快滿出來了！</p><p class="muted">要用掉一次「復活」嗎？會清掉上半部的水果，繼續玩。</p><p class="muted">今天還有 ' + MINV.revive + ' 次</p>' +
+  box.innerHTML = '<p class="mg-over-t">快滿出來了！</p><p class="muted">要用掉一次「復活」嗎？會清掉上半部的水果，繼續玩。</p><p class="muted">這局還有 ' + MINV.revive + ' 次</p>' +
     '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgRevive">復活！</button><button class="btn ghost" data-act="mgGiveUp">不用了</button></div>';
   box.hidden = false;
 }
