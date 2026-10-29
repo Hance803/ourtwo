@@ -1288,11 +1288,23 @@ function mHaptic(level) {
 const SNDON = () => LS.get('ourtwo.snd') !== '0';
 function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; const t = $('#tb-snd'); if (t) t.textContent = SNDON() ? '🔊' : '🔇'; }
 let MAC = null;
-function mAudio() {
+/* 音效引擎。iPhone 的聲音有時會被系統「中斷」：搖手機跳出「搖動以還原」、來電、鬧鐘、切到別的 App 等等，
+   中斷後狀態會變成 interrupted（不只是 suspended），原本只處理 suspended，所以聲音就一直沒回來。
+   現在：只要不是正在播放（running）就試著恢復；手指按畫面時（tap＝true）恢復不了，就整個重開一個新的音效引擎。 */
+function mAudio(tap) {
   if (!SNDON()) return null;
-  try { if (!MAC) MAC = new (window.AudioContext || window.webkitAudioContext)(); if (MAC.state === 'suspended') MAC.resume(); } catch (e) { return null; }
+  try {
+    if (MAC && MAC.state === 'closed') MAC = null;
+    if (!MAC) MAC = new (window.AudioContext || window.webkitAudioContext)();
+    if (MAC.state !== 'running') {
+      const ac = MAC; ac.resume().catch(() => {});
+      if (tap) setTimeout(() => { if (MAC === ac && ac.state !== 'running') { try { ac.close(); } catch (e) { /* ignore */ } MAC = null; } }, 400);
+    }
+  } catch (e) { MAC = null; return null; }
   return MAC;
 }
+/* 從背景回來時也試著把聲音叫回來 */
+document.addEventListener('visibilitychange', () => { if (!document.hidden && MAC && MAC.state !== 'running') MAC.resume().catch(() => {}); });
 function sTone(ac, f0, f1, dur, type, vol, at) {
   const t = ac.currentTime + (at || 0), o = ac.createOscillator(), v = ac.createGain();
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
@@ -1448,7 +1460,7 @@ function mergeOpen() {
     document.body.appendChild(ov);
     const cv = $('#mg-cv');
     const aim = e => { const r = cv.getBoundingClientRect(); if (MG_) MG_.aim = (e.clientX - r.left) / r.width * MW; };
-    cv.addEventListener('pointerdown', e => { e.preventDefault(); mAudio(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aim(e); });
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); mAudio(true); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aim(e); });
     cv.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') aim(e); });
     cv.addEventListener('pointerup', e => {
       if (MG_ && MG_.mode === 'shot') { const r = cv.getBoundingClientRect(); mShootAt((e.clientX - r.left) / r.width * MW, (e.clientY - r.top) / r.width * MW); return; }
@@ -1459,7 +1471,7 @@ function mergeOpen() {
        原本用點擊：遊戲進行中畫面一直在變（分數、獲得道具時按鈕列重畫），iPhone 有時會把那一下當成沒點到，後期特別容易發生。 */
     $('#mg-items').addEventListener('pointerdown', e => {
       const b = e.target.closest('[data-k]'); if (!b || b.disabled) return;
-      e.preventDefault(); mAudio(); ACT.mgUse(b);
+      e.preventDefault(); mAudio(true); ACT.mgUse(b);
     });
   }
   ov.hidden = false; document.documentElement.classList.add('mg-open');
@@ -1720,7 +1732,7 @@ window.addEventListener('resize', () => tFit());
 function tTouch(cv) {
   let P = null;
   cv.addEventListener('pointerdown', e => {
-    e.preventDefault(); mAudio(); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+    e.preventDefault(); mAudio(true); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
     const now = performance.now();
     P = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, t0: now, moved: false, ax: '', hm: [], hist: [[e.clientX, e.clientY, now]] };
   });
@@ -1750,7 +1762,7 @@ function tTouch(cv) {
 /* 按鈕：按住左右／下會連續動 */
 let TREP = null;
 function tBtnDown(k) {
-  const G = TB_; mAudio(); if (!G) return;
+  const G = TB_; mAudio(true); if (!G) return;
   const f = { L: () => tMove(G, -1), R: () => tMove(G, 1), D: () => tSoft(G), U: () => tRotate(G), H: () => tHard(G), C: () => tHold(G) }[k]; if (!f) return;
   f(); clearTimeout(TREP); clearInterval(TREP);
   if ('LRD'.includes(k)) TREP = setTimeout(() => { TREP = setInterval(f, k === 'D' ? 40 : 55); }, 170);
