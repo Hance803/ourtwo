@@ -1078,6 +1078,7 @@ function mStep(G, dt) {
             if (G.combo === 4) mGain(G, 'quake');
             if (a.lv + 1 === 9 && !G.gotRevive) { G.gotRevive = true; mGain(G, 'revive'); }
             if (a.lv + 1 > G.maxLv) G.maxLv = a.lv + 1;
+            if (G.timed && a.lv + 1 === FRUITS.length - 1 && !G.won) { G.won = G.t; G.wonRT = G.rt; }
             if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); mPopPhys(G, mx, my, a.lv + 1); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus), n: G.combo }); }
             else { G.score += 100 + bonus; G.maxLv = FRUITS.length; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (100 + bonus) + ' 🎉', n: G.combo }); }
             mHitFx(G, mx, my, a.lv + 1);
@@ -1178,9 +1179,14 @@ function mDraw(G) {
   if (G.mode === 'shot') { g.font = '6px Naikai, sans-serif'; g.fillStyle = '#c0392b'; g.fillText('點一顆水果射爆它', MW / 2, 40); }
   for (const c of G.combos) { const a = (G.t - c.t) / 1.1, s = 1 + Math.min(c.n, 6) * 0.12; g.globalAlpha = 1 - a * a; g.font = (8 * s) + 'px Naikai, sans-serif'; g.fillStyle = '#e8743b'; g.strokeStyle = '#fff7ea'; g.lineWidth = 1.2; g.strokeText('Combo ×' + c.n, MW / 2, 52 - a * 6); g.fillText('Combo ×' + c.n, MW / 2, 52 - a * 6); }
   g.globalAlpha = 1;
+  if (G.timed) {
+    const se = $('#mg-score'), s = mTime(G.won || G.t); if (se.textContent !== s) se.textContent = s;
+    const bx = $('#mg-best'), b = G.best ? '最快 ' + mTime(G.best) : '目標：合出西瓜'; if (bx.textContent !== b) bx.textContent = b;
+  } else {
   { const se = $('#mg-score'); if (se.textContent !== String(G.score)) { se.textContent = G.score; se.classList.remove('bump'); void se.offsetWidth; se.classList.add('bump'); } }
   if (!G.bestShown && G.best > 0 && G.score > G.best) { G.bestShown = true; const bx = $('#mg-best'); bx.classList.add('flash'); bx.textContent = '新紀錄！'; }
   else if (!G.bestShown) { const bx = $('#mg-best'), s = '最高 ' + G.best; if (bx.textContent !== s) bx.textContent = s; }
+  }
   const nx = $('#mg-next'); if (nx.dataset.lv !== String(G.next)) { nx.dataset.lv = G.next; nx.innerHTML = '<img src="' + fimgs()[G.next].src + '" alt="' + FRUITS[G.next][0] + '">'; }
   const rt = $('#mg-route'); if (rt && rt.dataset.lv !== String(G.maxLv)) { rt.dataset.lv = G.maxLv; mRoute(); }
 }
@@ -1402,6 +1408,7 @@ function mLoop(ts) {
   /* 打擊停頓：合成那一下整個畫面停一瞬間 */
   if (G.freeze > 0) G.freeze -= dt;
   else if (!G.over && !G.paused) mStep(G, dt);
+  if (G.won && !G.over && G.rt - G.wonRT > 1.8) { G.over = true; mergeOver(G); }
   mDraw(G);
   G.raf = requestAnimationFrame(mLoop);
 }
@@ -1416,8 +1423,25 @@ function mDrop() {
   sfx('drop'); G.prev = G.cur; G.dropX = x; G.cur = G.next; G.next = mNext(G); G.cool = 0.55;
 }
 function mergeBest() { const m = PL('merge') || {}; return { him: m.him || 0, her: m.her || 0, top: m.top || [] }; }
+/* 計時挑戰：按下開始就計時（遊戲暫停、問要不要復活、切出 App 時不算），合出第一顆西瓜就結束。
+   紀錄存在 play/mergeT：{ him, her：最快秒數, top: [{by, t, ts}] 由快到慢 }。疊過紅線＝挑戰失敗，不留紀錄。 */
+const mTime = t => { const s = Math.max(0, t); return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') + '.' + Math.floor(s * 10 % 10); };
+function mergeTBest() { const m = PL('mergeT') || {}; return { him: m.him || 0, her: m.her || 0, top: m.top || [] }; }
+function mergeOverTimed(G) {
+  const box = $('#mg-over'), mk = meKey(), m = mergeTBest(), btns = '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="mgAgain">再挑戰一次</button><button class="btn ghost" data-act="mgClose">離開</button></div>';
+  if (G.won) {
+    const t = Math.round(G.won * 10) / 10, isBest = !m[mk] || t < m[mk];
+    const top = m.top.concat([{ by: S.me, t, ts: Date.now() }]).sort((a, b) => a.t - b.t).slice(0, 10);
+    wr(setDoc(dref('play', 'mergeT'), Object.assign({ top }, isBest ? { [mk]: t } : {}), { merge: true }));
+    box.innerHTML = '<p class="mg-over-t">合出西瓜了！🍉</p><p class="mg-over-s">' + mTime(t) + '</p>' + (isBest ? '<p class="quiz-res">' + (m[mk] ? '刷新最快紀錄！🎉' : '第一次挑戰成功！🎉') + '</p>' : '<p class="muted">你的最快 ' + mTime(m[mk]) + '</p>') + btns;
+  } else {
+    box.innerHTML = '<p class="mg-over-t">挑戰失敗</p><p class="muted">撐了 ' + mTime(G.t) + '</p><p class="muted">這局合到：<img class="mg-over-f" src="' + fimgs()[Math.min(G.maxLv, FRUITS.length - 1)].src + '" alt=""></p>' + (m[mk] ? '<p class="muted">你的最快 ' + mTime(m[mk]) + '</p>' : '') + btns;
+  }
+  box.hidden = false;
+}
 function mergeOver(G) {
   if (G.saved) return; G.saved = true; setTimeout(mItemsUI, 0);
+  if (G.timed) { mergeOverTimed(G); return; }
   const mk = meKey(), m = mergeBest(), isBest = G.score > (m[mk] || 0);
   const top = m.top.concat([{ by: S.me, s: G.score, ts: Date.now() }]).sort((a, b) => b.s - a.s).slice(0, 10);
   const ml = (PL('merge') || {}).maxlv || {};
@@ -1441,9 +1465,16 @@ function mergeCardHtml() {
   return '<div class="card play-card"><div class="row"><h3>合成大西瓜 🍉</h3><span class="muted">' + MARK.him + ' ' + m.him + '　' + MARK.her + ' ' + m.her + '</span></div>' +
     '<p class="muted">丟水果，一樣的碰在一起會變大，合出西瓜！水果疊過紅線就結束。</p>' +
     (m.top.length ? '<ol class="mg-top">' + m.top.slice(0, 5).map(t => '<li>' + byChip(t.by) + ' <b>' + t.s + '</b> <span class="muted">' + md(new Date(t.ts)) + '</span></li>').join('') + '</ol>' : '') +
-    '<button class="btn" data-act="mgOpen">開始玩</button></div>';
+    mergeTCard() +
+    '<div class="row" style="gap:8px"><button class="btn" data-act="mgOpen" style="flex:1">開始玩</button><button class="btn ghost" data-act="mgOpen" data-v="timed" style="flex:1">⏱ 計時挑戰</button></div></div>';
 }
-function mergeOpen() {
+function mergeTCard() {
+  const t = mergeTBest();
+  return '<p class="mg-tline"><b>⏱ 計時挑戰</b>：最快合出西瓜　' + MARK.him + ' ' + (t.him ? mTime(t.him) : '—') + '　' + MARK.her + ' ' + (t.her ? mTime(t.her) : '—') + '</p>';
+}
+let MTIMED = false;
+function mergeOpen(el) {
+  if (el && el.dataset) MTIMED = el.dataset.v === 'timed';
   if (STALE) { location.reload(); return; }
   mMotion();
   let ov = $('#mg');
@@ -1471,16 +1502,16 @@ function mergeOpen() {
   }
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   if (MG_) cancelAnimationFrame(MG_.raf);
-  mInvLoad(); MG_ = mergeNew(); $('#mg-over').hidden = true; mItemsUI(); mSndUI(); mRoute(); mFit(); setTimeout(mFit, 400); const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
+  mInvLoad(); MG_ = mergeNew(); if (MTIMED) { MG_.timed = true; MG_.best = mergeTBest()[meKey()] || 0; } $('#mg-best').classList.remove('flash'); $('#mg .mg-scorebox .mg-sl').textContent = MTIMED ? '計時挑戰' : '分數'; $('#mg-over').hidden = true; mItemsUI(); mSndUI(); mRoute(); mFit(); setTimeout(mFit, 400); const bx = $('#mg-best'); bx.classList.remove('flash'); $('#mg-route').dataset.lv = ''; 
   MG_.raf = requestAnimationFrame(mLoop);
 }
 function mergeClose() {
-  if (MG_) { cancelAnimationFrame(MG_.raf); if (!MG_.over && MG_.score > 0) { MG_.over = true; mergeOver(MG_); } MG_ = null; }
+  if (MG_) { cancelAnimationFrame(MG_.raf); if (!MG_.over && MG_.score > 0 && !MG_.timed) { MG_.over = true; mergeOver(MG_); } MG_ = null; }
   const ov = $('#mg'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
   if (curTab === 'play') renderPlay();
 }
 Object.assign(ACT, {
-  mgOpen: mergeOpen, mgClose: mergeClose, mgAgain: mergeOpen,
+  mgOpen: mergeOpen, mgClose: mergeClose, mgAgain: () => mergeOpen(null),
   mgRevive() { mRevive(); },
   mgGiveUp() { const G = MG_; if (!G) return; G.paused = false; G.over = true; mergeOver(G); },
   mgSnd() { LS.set('ourtwo.snd', SNDON() ? '0' : '1'); mSndUI(); if (SNDON()) { sfx('pop', 3, 1); mHaptic(1); } },
@@ -2328,7 +2359,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v52';
+const APP_VER = 'v53';
 let STALE = false;
 async function chkUpdate() {
   try {

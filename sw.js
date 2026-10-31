@@ -1,6 +1,6 @@
 /* Ourtwo 離線外殼：網站自己的檔案優先連網更新，沒網路時用快取；Firebase 程式庫版本固定，快取優先。 */
-const CACHE = 'ourtwo-shell-v52';
-const SHELL = ['./', 'index.html', 'style.css?v=32', 'app.js', 'manifest.webmanifest', 'icon-192.png', 'apple-touch-icon.png'];
+const CACHE = 'ourtwo-shell-v53';
+const SHELL = ['./', 'index.html', 'style.css?v=33', 'app.js', 'manifest.webmanifest', 'icon-192.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
