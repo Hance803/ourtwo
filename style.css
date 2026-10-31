@@ -1312,3 +1312,5 @@ html.mg-open body{overflow:hidden}
 #tb{background:var(--bg) url(tb/page.webp) center/cover no-repeat}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #tb{background-image:none}}
 :root[data-theme="dark"] #tb{background-image:none}
+.mg-tline{margin:4px 0 8px;font-size:14px;color:var(--muted)}
+.mg-tline b{color:var(--fg)}
