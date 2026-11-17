@@ -1412,3 +1412,6 @@ img.tt-ic{border-radius:0;object-fit:contain}
 @keyframes ttFev{to{background-position:200% 0}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tt-stage .mg-over{background:rgba(43,39,36,.95)}:root:not([data-theme="light"]) .tt-ph{color:rgba(40,30,25,.85)}}
 :root[data-theme="dark"] .tt-stage .mg-over{background:rgba(43,39,36,.95)}
+.tt-shuffle:has(img){background:none;border:0;width:64px;height:64px}
+/* 選角畫面不顯示遊戲背景（背景中間的盤面會露在清單後面） */
+#tt:has(#tt-pre:not([hidden])){background-image:none}

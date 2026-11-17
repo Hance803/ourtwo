@@ -2282,7 +2282,7 @@ function ttStep(G, dt) {
    美術到齊後：把圖轉成 webp 放進 ts/，再把檔名加進這個清單就會自動套上。
    可用的檔名：01～12（角色頭像）、01_big～12_big（技能亮相大圖）、bomb、bomb_time、bomb_score、bomb_coin、bomb_star、
    ready、go、fever、timeup、bonus（橫幅）、bg、bg_fever（背景）、skill_ring、shuffle、coin、pop、icon */
-const TT_ART = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', 'bomb', 'ready', 'go', 'fever', 'timeup', 'bg'];
+const TT_ART = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', 'bomb', 'ready', 'go', 'fever', 'timeup', 'bg', 'bomb_time', 'bomb_score', 'bomb_coin', 'bomb_star', 'bonus', 'coin', 'icon', 'pop', 'shuffle', 'skill_ring'];
 const TTI = {};
 const ttKey = i => String(i + 1).padStart(2, '0');
 function ttImg(k) { if (!TT_ART.includes(k)) return null; let im = TTI[k]; if (!im) { im = TTI[k] = new Image(); im.src = 'ts/' + k + '.webp'; } return im.complete && im.naturalWidth ? im : null; }
@@ -2392,10 +2392,12 @@ function ttSkillBtn(G) {
   if (cv.width !== Math.round(w * dpr)) { cv.width = cv.height = Math.round(w * dpr); }
   const g = cv.getContext('2d'), c = w / 2, p = G.sg / G.need, full = p >= 1, pulse = full ? 1 + 0.05 * Math.sin(G.rt * 9) : 1, ring = ttImg('skill_ring');
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, w);
-  g.lineWidth = w * 0.09; g.strokeStyle = 'rgba(120,100,80,.25)'; g.beginPath(); g.arc(c, c, w * 0.42, 0, 7); g.stroke();
-  g.strokeStyle = full ? '#f5b82e' : '#7fb8e6'; g.lineCap = 'round'; g.beginPath(); g.arc(c, c, w * 0.42, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p)); g.stroke();
-  g.globalAlpha = full ? 1 : 0.55; ttDrawBody(g, { k: G.my, bt: '', ang: 0 }, c, c, w * 0.3 * pulse, G); g.globalAlpha = 1;
+  /* 有外框圖時：先畫外框（圓環在半徑 0.35～0.46 之間），集氣條畫在圓環上，頭像放在中間的洞裡 */
+  const rr = ring ? 0.405 : 0.42, hr = ring ? 0.3 : 0.3;
   if (ring) g.drawImage(ring, 0, 0, w, w);
+  else { g.lineWidth = w * 0.09; g.strokeStyle = 'rgba(120,100,80,.25)'; g.beginPath(); g.arc(c, c, w * rr, 0, 7); g.stroke(); }
+  g.lineWidth = ring ? w * 0.075 : w * 0.09; g.strokeStyle = full ? '#f5b82e' : '#7fb8e6'; g.lineCap = 'round'; g.beginPath(); g.arc(c, c, w * rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p)); g.stroke();
+  g.globalAlpha = full ? 1 : 0.55; ttDrawBody(g, { k: G.my, bt: '', ang: 0 }, c, c, w * hr * pulse, G); g.globalAlpha = 1;
 }
 function ttHud(G) {
   const set = (id, v) => { const e = $(id); if (e.textContent !== v) e.textContent = v; };
@@ -3050,7 +3052,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v57';
+const APP_VER = 'v58';
 let STALE = false;
 async function chkUpdate() {
   try {
