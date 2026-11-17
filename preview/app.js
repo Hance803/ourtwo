@@ -1898,7 +1898,7 @@ if (location.hash === '#mgtest') window.__tb = { G: () => TB_, move: d => tMove(
 
 /* ---------- 倒水分色 ---------- */
 /* 玩法：每個瓶子裝 4 格水。點一個瓶子再點另一個，把最上面那段同色的水倒過去——
-   對方只要還有空位就能倒，不管最上面是什麼顏色（裝不下的部分留在原瓶）。每個瓶子都變成單一顏色就過關。
+   對方要是空瓶，或最上面是同一個顏色、而且還有空位（裝不下的部分留在原瓶）。每個瓶子都變成單一顏色就過關。
    關卡：用「第幾關」當亂數種子洗出來，所以兩支手機的同一關長得一模一樣，可以比誰步數少。
    每一關出題前都先用程式解過一次，確定解得開才會出（解不開的洗牌直接丟掉重洗）。
    紀錄存在 play/sort：{ him: { lv: 目前打到第幾關, mv: { 關卡: 最少步數 } }, her: {...} }。 */
@@ -1914,42 +1914,36 @@ const wWon = bs => bs.every(b => !b.length || wDone(b));
 /* 能不能倒：回傳會倒過去幾格（0＝不能倒） */
 function wCan(bs, i, j) {
   const a = bs[i], b = bs[j]; if (i === j || !a.length || b.length >= WCAP) return 0;
+  if (b.length && b[b.length - 1] !== a[a.length - 1]) return 0;
   return Math.min(wTopN(a), WCAP - b.length);
 }
-/* 解題程式（深度優先＋記住看過的盤面，用自己的堆疊不用遞迴，步數再多也不會爆）：回傳解法步驟，解不開或超過上限回傳 null。
-   試的順序：倒在同色上 → 倒進空瓶 → 倒在別的顏色上（只試整段倒過去的，數量少很多，解出來的步驟一樣合法） */
-function wMoves(bs) {
-  const mv = [];
-  for (let i = 0; i < bs.length; i++) {
-    const a = bs[i]; if (!a.length || wDone(a)) continue;
-    const tn = wTopN(a), top = a[a.length - 1]; let usedEmpty = false;
-    for (let j = 0; j < bs.length; j++) {
-      const n = wCan(bs, i, j); if (!n) continue;
-      const b = bs[j];
-      if (!b.length) { if (usedEmpty || tn === a.length) continue; usedEmpty = true; mv.push([i, j, n, 1]); }
-      else if (b[b.length - 1] === top) mv.push([i, j, n, n === tn ? 3 : 2]);
-      else if (n === tn) mv.push([i, j, n, 0]);
-    }
-  }
-  return mv.sort((x, y) => y[3] - x[3]);
-}
+/* 解題程式（深度優先＋記住看過的盤面）：回傳解法步驟，解不開或超過上限回傳 null */
 function wSolve(start, cap) {
-  const key = bs => bs.map(b => b.join(',')).sort().join('|'), seen = new Set(), path = [];
-  const root = start.map(b => b.slice()); if (wWon(root)) return [];
-  seen.add(key(root));
-  const st = [{ bs: root, mv: wMoves(root), k: 0 }]; let nodes = 0;
-  while (st.length) {
-    const top = st[st.length - 1];
-    if (top.k >= top.mv.length || path.length >= 500) { st.pop(); path.pop(); continue; }
-    const [i, j, n] = top.mv[top.k++], nb = top.bs.map(b => b.slice());
-    for (let q = 0; q < n; q++) nb[j].push(nb[i].pop());
-    const k = key(nb); if (seen.has(k)) continue; seen.add(k);
-    path.push([i, j]);
-    if (wWon(nb)) return path.slice();
-    if (++nodes > cap) return null;
-    st.push({ bs: nb, mv: wMoves(nb), k: 0 });
-  }
-  return null;
+  const seen = new Set(), key = bs => bs.map(b => b.join(',')).sort().join('|'), path = [];
+  let nodes = 0;
+  const go = bs => {
+    if (wWon(bs)) return true;
+    if (++nodes > cap) return false;
+    const k = key(bs); if (seen.has(k)) return false; seen.add(k);
+    const mv = [];
+    for (let i = 0; i < bs.length; i++) {
+      const a = bs[i]; if (!a.length || wDone(a)) continue;
+      const tn = wTopN(a); let usedEmpty = false;
+      for (let j = 0; j < bs.length; j++) {
+        const n = wCan(bs, i, j); if (!n) continue;
+        if (!bs[j].length) { if (usedEmpty || tn === a.length) continue; usedEmpty = true; mv.push([i, j, n, 0]); }
+        else mv.push([i, j, n, n === tn ? 2 : 1]);
+      }
+    }
+    mv.sort((x, y) => y[3] - x[3]);
+    for (const [i, j, n] of mv) {
+      const nb = bs.map(b => b.slice()); for (let q = 0; q < n; q++) nb[j].push(nb[i].pop());
+      path.push([i, j]); if (go(nb)) return true; path.pop();
+      if (nodes > cap) return false;
+    }
+    return false;
+  };
+  return go(start.map(b => b.slice())) ? path.slice() : null;
 }
 /* 出題：洗牌 → 沒有一開始就完成的瓶子、相鄰同色不要太多 → 程式解得開才用 */
 function wLevel(lv) {
