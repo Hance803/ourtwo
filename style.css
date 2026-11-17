@@ -1314,3 +1314,101 @@ html.mg-open body{overflow:hidden}
 :root[data-theme="dark"] #tb{background-image:none}
 .mg-tline{margin:4px 0 8px;font-size:14px;color:var(--muted)}
 .mg-tline b{color:var(--fg)}
+/* 倒水分色 */
+#ws{background:var(--bg) url(ws/page.webp) center/cover no-repeat}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #ws{background-image:none}}
+:root[data-theme="dark"] #ws{background-image:none}
+.ws-lvrow{display:flex;align-items:center;gap:6px}
+.ws-lvrow b{font-size:24px;min-width:5.2em;text-align:center}
+.ws-nav{min-width:34px;padding:2px 8px;font-size:20px;line-height:1}
+.ws-stage{position:relative;flex:1;min-height:0;width:100%;max-width:440px;display:flex;flex-direction:column;justify-content:center;gap:52px;padding-top:24px}
+/* 一排瓶子＋下面的木頭層架（層架圖 1100×90，木板上緣在 13% 的地方） */
+.ws-row{position:relative;display:flex;justify-content:center;gap:8px}
+.ws-row::after{content:"";position:absolute;left:-2%;right:-2%;top:100%;aspect-ratio:1100/90;transform:translateY(-22%);background:url(ws/shelf.webp) center/100% 100% no-repeat;pointer-events:none}
+/* 瓶子三層對位（都是 200×620 的同一張畫布）：底色 → 用 mask 裁切的水 → 玻璃瓶 → 完成時的軟木塞 */
+.ws-b{position:relative;z-index:1;flex:none;width:calc(min(440px,100vw - 24px)/var(--wsn) - 8px);max-width:56px;aspect-ratio:200/620;padding:0;border:0;background:none;transition:transform .18s ease;-webkit-tap-highlight-color:transparent;cursor:pointer}
+.ws-fill,.ws-m,.ws-glass,.ws-cap{position:absolute;inset:0;pointer-events:none}
+.ws-fill{background:rgba(255,255,255,.55);-webkit-mask:url(ws/mask.webp) center/100% 100% no-repeat;mask:url(ws/mask.webp) center/100% 100% no-repeat}
+.ws-m{-webkit-mask:url(ws/mask.webp) center/100% 100% no-repeat;mask:url(ws/mask.webp) center/100% 100% no-repeat}
+/* 水域：上緣 y=126、下緣 y=607（共 620）→ 每層 1/4 */
+.ws-liq{position:absolute;left:0;right:0;top:20.32%;height:77.58%;display:flex;flex-direction:column-reverse}
+.ws-liq i{display:block;flex:none;height:25%;box-shadow:inset 0 2px 0 rgba(255,255,255,.22)}
+.ws-glass{background:url(ws/bottle.webp) center/100% 100% no-repeat}
+.ws-cap{background:url(ws/cap.webp) center/100% 100% no-repeat;animation:wsCap .3s ease-out}
+.ws-b.sel{transform:translateY(-18px)}
+.ws-b.pour{z-index:5;transition:transform .2s ease}
+.ws-b.nope{animation:wsNope .28s}
+.ws-b.pop{animation:wsPop .35s}
+.ws-stream{position:absolute;width:6px;border-radius:3px;z-index:4;pointer-events:none}
+.ws-spark{position:absolute;width:64px;height:64px;margin:-32px 0 0 -32px;z-index:6;pointer-events:none;animation:wsSpark .7s ease-out forwards}
+.ws-winimg{width:min(300px,80%);height:auto;margin-bottom:-6px;animation:wsWin .45s ease-out}
+.ws-note{height:20px;margin:6px 0 0;font-size:14px;color:var(--muted);opacity:0;text-align:center}
+.ws-note.show{animation:wsNote 3.2s}
+.ws-pad{width:100%;max-width:440px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.ws-pad .btn{min-height:48px;padding:0}
+@keyframes wsNope{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes wsPop{40%{transform:scale(1.12)}}
+@keyframes wsCap{from{transform:translateY(-14%)}}
+@keyframes wsSpark{0%{transform:scale(.3);opacity:0}30%{transform:scale(1.15);opacity:1}100%{transform:scale(1) translateY(-14px);opacity:0}}
+@keyframes wsWin{0%{transform:scale(.4)}70%{transform:scale(1.1)}100%{transform:scale(1)}}
+@keyframes wsNote{0%,100%{opacity:0}10%,80%{opacity:1}}
+.ws-stage .mg-over{z-index:10;background:rgba(255,247,234,.95);border-radius:14px}
+/* 深色模式：瓶內打亮一點，黑色瓶框才看得清楚 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ws-fill{background:rgba(255,248,236,.92)}:root:not([data-theme="light"]) .ws-stage .mg-over{background:rgba(43,39,36,.95)}}
+:root[data-theme="dark"] .ws-fill{background:rgba(255,248,236,.92)}
+:root[data-theme="dark"] .ws-stage .mg-over{background:rgba(43,39,36,.95)}
+/* 疊疊樂消除 */
+#tt{background:var(--bg) url(ts/bg.webp) center/cover no-repeat}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #tt{background-image:none}}
+:root[data-theme="dark"] #tt{background-image:none}
+.tt-pre{flex:1;min-height:0;width:100%;max-width:440px;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.tt-pre[hidden],.tt-game[hidden]{display:none}
+.tt-pre-in{display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+.tt-pre-h{margin:6px 0 0;font-size:15px;color:var(--muted)}
+.tt-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.tt-pick{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border:2px solid transparent;border-radius:14px;background:var(--surface);font:inherit;font-size:11px;color:var(--fg);cursor:pointer}
+.tt-pick.on{border-color:var(--accent);background:rgba(232,116,59,.12)}
+.tt-ic{display:block;width:42px;height:42px;border-radius:50%}
+img.tt-ic{border-radius:0;object-fit:contain}
+.tt-ph{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:rgba(60,45,40,.8);border:2px solid rgba(70,55,45,.4);box-sizing:border-box}
+.tt-skill-d{margin:2px 0;padding:8px 10px;border-radius:12px;background:var(--surface);font-size:14px;line-height:1.5}
+.tt-items{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tt-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border:2px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;font-size:11px;color:var(--fg);cursor:pointer}
+.tt-item b{font-size:15px}
+.tt-item.on{border-color:var(--accent);background:rgba(232,116,59,.14)}
+.tt-item:disabled{opacity:.4}
+.tt-cost{display:flex;align-items:center;gap:3px;color:var(--muted)}
+.tt-coin{display:inline-block;width:16px;height:16px;vertical-align:-3px}
+.tt-coin-ph{border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3b0,#f5b82e 60%,#d9951a);border:1px solid #c98a12;box-sizing:border-box}
+.tt-coinbox{display:inline-flex;align-items:center;gap:4px;font-size:15px}
+.tt-bests{margin:4px 0 0;text-align:center}
+.tt-start{min-height:52px;font-size:20px;margin-top:4px}
+.tt-game{flex:1;min-height:0;width:100%;max-width:440px;display:flex;flex-direction:column}
+.tt-hud{flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:6px}
+.tt-hud-l{display:flex;align-items:center;gap:8px}
+.tt-hud-c{display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:120px}
+.tt-hud-c b{font-size:30px;color:var(--accent)}
+.tt-combo{height:18px;font-size:14px;color:var(--muted)}
+.tt-combo.hot{color:#e8504a;font-weight:700}
+.tt-hud-r{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.tt-time{display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;border:3px solid var(--accent);font-size:24px}
+.tt-time.low{border-color:#e8504a;color:#e8504a;animation:ttLow .5s infinite alternate}
+.tt-stage{position:relative;flex:1;min-height:0}
+#tt-cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.tt-stage .mg-over{z-index:10;background:rgba(255,247,234,.95);border-radius:18px}
+.tt-stats{margin:0;font-size:13px;color:var(--muted)}
+.tt-bot{flex:none;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding-top:8px}
+.tt-skillbtn,.tt-shuffle{padding:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tt-skillbtn{width:84px;height:84px}
+#tt-skill{width:84px;height:84px;display:block}
+.tt-shuffle{width:60px;height:60px;border-radius:50%;background:var(--surface);border:2px solid var(--line);font-size:28px;color:var(--fg)}
+.tt-shuffle img{width:100%;height:100%;display:block}
+.tt-shuffle:disabled{opacity:.4}
+.tt-fever{display:flex;flex-direction:column;gap:3px;align-items:center}
+.tt-fbar{width:100%;height:14px;border-radius:7px;background:rgba(120,100,80,.2);overflow:hidden}
+.tt-fbar i{display:block;height:100%;width:0;border-radius:7px;background:linear-gradient(90deg,#f5b82e,#f0823c)}
+.tt.fever .tt-fbar i{background:linear-gradient(90deg,#e8504a,#f5b82e,#7bc655,#74c8ec,#9a6ad4);background-size:200% 100%;animation:ttFev .8s linear infinite}
+@keyframes ttLow{to{transform:scale(1.12)}}
+@keyframes ttFev{to{background-position:200% 0}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tt-stage .mg-over{background:rgba(43,39,36,.95)}:root:not([data-theme="light"]) .tt-ph{color:rgba(40,30,25,.85)}}
+:root[data-theme="dark"] .tt-stage .mg-over{background:rgba(43,39,36,.95)}
