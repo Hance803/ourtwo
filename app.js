@@ -896,6 +896,7 @@ function quizHtml() {
   return '<div class="card play-card"><div class="row"><h3>默契大考驗</h3><span class="muted">' + (sc.t ? '默契 ' + (sc.m || 0) + ' / ' + sc.t : '') + '</span></div>' + body + '</div>';
 }
 function renderPlay() {
+  ttLib().catch(() => {});
   const root = $('#play-body');
   if (!root.childElementCount) root.innerHTML = ['merge', 'tetris', 'sort', 'tsum', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
   $('#pw-merge').innerHTML = mergeCardHtml();
@@ -993,9 +994,27 @@ const MPTS = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
 const FART = [[251.7, 402.3, 503, 653], [249.2, 310.8, 498, 560], [279.7, 331.2, 538, 581], [249.5, 230.2, 499, 480], [248.8, 137.7, 498, 386], [248.4, 264.1, 497, 513], [248.6, 252.6, 498, 502], [249.3, 244.5, 499, 494], [249.7, 369.6, 499, 619], [248.6, 319.6, 498, 569], [249.1, 314.5, 499, 564]];
 let MBG = null;
 const mbg = () => MBG || (MBG = ['bg_stage', 'shot_hit'].map(n => { const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
+/* ---------- 物理引擎（合成大西瓜、疊疊樂共用） ----------
+   Matter.js：開源 2D 物理引擎（MIT 授權，lib/matter.min.js）。開 App 時不載入，進「遊戲」頁才在背景下載。 */
+const ttM = () => (typeof Matter !== 'undefined' ? Matter : globalThis.Matter);
+let TTLIB = null;
+function ttLib() {
+  if (ttM()) return Promise.resolve();
+  if (!TTLIB) TTLIB = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'lib/matter.min.js'; s.onload = ok; s.onerror = () => { TTLIB = null; s.remove(); no(new Error('matter')); }; document.head.appendChild(s); });
+  return TTLIB;
+}
+/* Matter 的速度單位是「每 1/60 秒移動幾個 Matter 座標」：遊戲座標每秒 v → v × 縮放 ÷ 60 */
+function phySetVel(mb, vx, vy, S) { ttM().Body.setVelocity(mb, { x: vx * S / 60, y: vy * S / 60 }); }
+function phyGetVel(mb, S) { const v = ttM().Body.getVelocity(mb); return { x: v.x * 60 / S, y: v.y * 60 / S }; }
+function phyAddVel(mb, dvx, dvy, S) { const v = phyGetVel(mb, S); phySetVel(mb, v.x + dvx, v.y + dvy, S); }
+function phyClamp(mb, S, vmax) { const v = phyGetVel(mb, S), s = Math.hypot(v.x, v.y); if (s > vmax) phySetVel(mb, v.x * vmax / s, v.y * vmax / s, S); }
 let FIMG = null;
 const fimgs = () => FIMG || (FIMG = FRUITS.map((f, i) => { const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '.webp'; return im; }));
-const MW = 100, MH = 140, MDANGER = 24, MG = 300, MSOFT = 0.8, MFRIC = 0.004, MBOUNCE = 0.6, MBOUNCE_V = 0.06, MMERGE = 1.08; /* MBOUNCE：撞擊時反彈的比例（水果下落有空氣阻力，實際看起來是小小彈一下），撞得夠用力（MBOUNCE_V）才彈，堆好的水果不會一直抖 */
+const MW = 100, MH = 140, MDANGER = 24, MG = 300, MMERGE = 1.08;
+/* 物理（Matter.js）：遊戲座標（瓶子寬 100、高 140）× MS ＝ Matter 座標；每 1/120 秒算一步。
+   MBOUNCE：彈性（0＝完全不彈）；MFRIC：水果之間的摩擦；MVMAX：速度上限（遊戲座標每秒）。
+   MMERGE：一樣的水果「看起來碰到」就合（判定圈放寬 8%，水果的梗、葉子、外形不是正圓） */
+const MS = 4, MSTEP = 1000 / 120, MBOUNCE = 0.3, MFRIC = 0.05, MVMAX = 240;
 let MG_ = null;
 /* 出水果用「抽袋子」：一袋 8 顆照固定比例洗牌，抽完再換一袋，不會一直連出同一種小水果。
    比例：櫻桃 1、草莓 2、葡萄 2、橘子 2、檸檬 1。 */
@@ -1027,93 +1046,100 @@ function mItemsUI() {
     '<span class="mg-item-rv' + (MINV.revive ? '' : ' zero') + '"><img src="fruits/item_revive.webp" alt=""><span>復活 ×' + MINV.revive + '</span></span>';
   mFit();
 }
+function mWorld(G) {
+  const M = ttM(), S = MS, eng = M.Engine.create({ gravity: { x: 0, y: MG / 250 }, positionIterations: 20, velocityIterations: 8 });
+  const st = { isStatic: true, friction: 0.3, restitution: 0 };
+  /* 左右牆、底、天花板（天花板在紅線上方很遠，只是防止地震把水果甩出瓶外） */
+  M.Composite.add(eng.world, [
+    M.Bodies.rectangle(-100, MH * S / 2, 200, MH * S * 3, st), M.Bodies.rectangle(MW * S + 100, MH * S / 2, 200, MH * S * 3, st),
+    M.Bodies.rectangle(MW * S / 2, MH * S + 100, MW * S + 400, 200, st), M.Bodies.rectangle(MW * S / 2, -40 * S - 100, MW * S + 400, 200, st),
+  ]);
+  /* 撞擊：重重落地／撞到別顆時壓扁一下、「咚」一聲（imp＝撞擊速度，遊戲座標每 1/480 秒，沿用原本的數值尺度） */
+  M.Events.on(eng, 'collisionStart', ev => {
+    for (const p of ev.pairs) {
+      const A = p.bodyA, B = p.bodyB, Z = { x: 0, y: 0 }, vA = A.isStatic ? Z : phyGetVel(A, S), vB = B.isStatic ? Z : phyGetVel(B, S);
+      const n = p.collision.normal, rel = Math.abs((vB.x - vA.x) * n.x + (vB.y - vA.y) * n.y) / 480;
+      if (rel > 0.08) for (const X of [A, B]) if (X.fb) X.fb.imp = Math.max(X.fb.imp || 0, rel);
+    }
+  });
+  G.eng = eng; G.acc = 0;
+}
 function mergeNew() {
   const G = { rt: 0, fx: [], freeze: 0, shakeA: 0, bag: [], bodies: [], notes: [], mode: '', streakLv: -1, streakN: 0, gotRevive: false, swapAt: 2000, paused: false, bag2: 0, score: 0, next: 0, cur: 0, maxLv: 0, combo: 0, comboT: -9, combos: [], best: 0, bestShown: false, aim: MW / 2, cool: 0, over: false, overT: 0, t: 0, pops: [], saved: false, raf: 0, last: 0 };
-  G.cur = mNext(G); G.next = mNext(G); G.best = mergeBest()[meKey()] || 0; return G;
+  G.cur = mNext(G); G.next = mNext(G); G.best = mergeBest()[meKey()] || 0; mWorld(G); return G;
 }
-function mAdd(G, x, y, lv, grow) { const R = FRUITS[lv][1]; G.bodies.push({ x, y, px: x, py: y, R, r: grow ? R * 0.55 : R, lv, born: G.t, dead: false }); }
+function mAdd(G, x, y, lv, grow) {
+  const R = FRUITS[lv][1], r = grow ? R * 0.55 : R, b = { x, y, px: x, py: y, R, r, lv, born: G.t, dead: false, ang: 0 };
+  b.mb = ttM().Bodies.circle(x * MS, y * MS, r * MS, { restitution: MBOUNCE, friction: MFRIC, frictionStatic: 0.3, frictionAir: 0.01, density: 0.001 });
+  b.mb.fb = b; ttM().Composite.add(G.eng.world, b.mb); G.bodies.push(b); return b;
+}
+/* 把水果從世界拿掉（合成、射爆、復活都走這裡） */
+function mKill(G, pred) { const keep = []; for (const b of G.bodies) { if (pred(b)) { if (b.mb) { ttM().Composite.remove(G.eng.world, b.mb); b.mb = null; } } else keep.push(b); } G.bodies = keep; }
+/* 給水果一個速度（遊戲座標每 1/480 秒，沿用原本 Verlet 版的數值） */
+const mVel = (b, dvx, dvy) => { if (b.mb) phyAddVel(b.mb, dvx * 480, dvy * 480, MS); };
 /* 合成的那一下：新水果往上「啵」一下，周圍的水果被推開（越大顆推越用力） */
 function mPopPhys(G, x, y, lv) {
   const nb = G.bodies[G.bodies.length - 1]; if (!nb || nb.lv !== lv) return;
   const big = Math.min(lv, 10), R = FRUITS[lv][1];
-  nb.py = nb.y + 0.12 + big * 0.012;
+  if (nb.mb) phySetVel(nb.mb, 0, -(0.12 + big * 0.012) * 480, MS);
   for (const b of G.bodies) {
     if (b === nb || b.dead) continue;
     const dx = b.x - x, dy = b.y - y, d = Math.hypot(dx, dy) || 1, reach = R + b.R + 5;
-    if (d < reach) { const f = Math.min(0.32, 0.2 * (1 - d / reach) * (1 + big * 0.09)); b.px -= dx / d * f; b.py -= dy / d * f; b.wowT = G.t; }
+    if (d < reach) { const f = Math.min(0.32, 0.2 * (1 - d / reach) * (1 + big * 0.09)); mVel(b, dx / d * f, dy / d * f); b.wowT = G.t; }
   }
 }
 /* 地震：連續 5 下，一下比一下弱，每顆水果各自被往上甩、往旁邊甩一點（整堆會被攪開、重新落下） */
 const MQ_T = [0, 0.16, 0.32, 0.48, 0.64], MQ_P = [1, 1, 0.85, 0.65, 0.45];
 function mQuakeKick(G, p) {
-  for (const b of G.bodies) { b.py += (0.16 + Math.random() * 0.34) * p; b.px -= (Math.random() - 0.5) * 0.5 * p; }
+  for (const b of G.bodies) mVel(b, (Math.random() - 0.5) * 0.5 * p, -(0.16 + Math.random() * 0.34) * p);
   G.calm = G.t + 2.2;
 }
 function mStep(G, dt) {
   G.t += dt; G.cool = Math.max(0, G.cool - dt);
   if (G.quake) { const q = G.quake; while (q.i < MQ_T.length && G.t - q.t0 >= MQ_T[q.i]) { mQuakeKick(G, MQ_P[q.i]); q.i++; } if (q.i >= MQ_T.length) G.quake = null; }
-  const sub = 8, h = dt / sub;
-  for (let s = 0; s < sub; s++) {
+  const M = ttM(); G.acc = Math.min(G.acc + dt * 1000, MSTEP * 6);
+  while (G.acc >= MSTEP) {
+    G.acc -= MSTEP;
+    /* 剛合成的水果從 55% 大小長到原本大小 */
+    for (const b of G.bodies) if (b.r < b.R && b.mb) { const nr = Math.min(b.R, b.r + b.R * (MSTEP / 1000) * 7); M.Body.scale(b.mb, nr / b.r, nr / b.r); b.r = nr; }
+    M.Engine.update(G.eng, MSTEP);
     for (const b of G.bodies) {
-      if (b.r < b.R) b.r = Math.min(b.R, b.r + b.R * h * 7);
-      let vx = (b.x - b.px) * 0.995, vy = (b.y - b.py) * 0.995;
-      const sp = Math.hypot(vx, vy), MAXV = 0.5; if (sp > MAXV) { vx *= MAXV / sp; vy *= MAXV / sp; }
-      b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + MG * h * h;
+      phyClamp(b.mb, MS, MVMAX);
+      /* 底下的水果被整堆壓著時，物理引擎會讓它稍微陷進瓶底／瓶壁一點點（1～2 單位）。
+         只修正「畫出來的位置」，不去動物理（硬推回去會讓整堆又開始抖） */
+      const p = b.mb.position;
+      b.px = b.x; b.py = b.y; b.x = Math.min(MW - b.r, Math.max(b.r, p.x / MS)); b.y = Math.min(MH - b.r, p.y / MS); b.ang = b.mb.angle;
     }
-    for (let it = 0; it < 2; it++) {
-      const B = G.bodies;
-      for (let i = 0; i < B.length; i++) {
-        const a = B[i]; if (a.dead) continue;
-        for (let j = i + 1; j < B.length; j++) {
-          const c = B[j]; if (c.dead) continue;
-          const dx = c.x - a.x, dy = c.y - a.y, rr = a.r + c.r, d2 = dx * dx + dy * dy;
-          /* 一樣的水果「看起來碰到」就要合：判定圈放寬一點點（水果的梗、葉子、橢圓外形都不是正圓） */
-          const same = a.lv === c.lv && !G.over, rm = same ? rr * MMERGE : rr;
-          if (d2 >= rm * rm || d2 === 0) continue;
-          if (same) {
-            a.dead = c.dead = true;
-            const mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2;
-            /* 0.8 秒內接連合成算 Combo，從第 2 下開始每下多加 5×(連段-1) 分 */
-            G.combo = G.t - G.comboT < 0.8 ? G.combo + 1 : 1; G.comboT = G.t;
-            const bonus = G.combo > 1 ? 5 * (G.combo - 1) : 0;
-            if (G.combo > 1) G.combos.push({ x: mx, y: my, t: G.t, n: G.combo });
-            if (G.combo === 4) mGain(G, 'quake');
-            if (a.lv + 1 === 9 && !G.gotRevive) { G.gotRevive = true; mGain(G, 'revive'); }
-            if (a.lv + 1 > G.maxLv) G.maxLv = a.lv + 1;
-            if (G.timed && a.lv + 1 === FRUITS.length - 1 && !G.won) { G.won = G.t; G.wonRT = G.rt; }
-            if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); mPopPhys(G, mx, my, a.lv + 1); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus), n: G.combo }); }
-            else { G.score += 100 + bonus; G.maxLv = FRUITS.length; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (100 + bonus) + ' 🎉', n: G.combo }); }
-            mHitFx(G, mx, my, a.lv + 1);
-            continue;
-          }
-          const d = Math.sqrt(d2), o = (rr - d) / d * 0.5, ma = a.r * a.r, mc = c.r * c.r, wa = mc / (ma + mc), wc = ma / (ma + mc);
-          const ax = dx * o * 2 * wa, ay = dy * o * 2 * wa, cx2 = dx * o * 2 * wc, cy2 = dy * o * 2 * wc;
-          a.x -= ax; a.y -= ay; c.x += cx2; c.y += cy2;
-          /* 不彈：推開不產生速度，而且把「互相撞過去」的速度整個吃掉；沿著表面的速度保留，水果還是會滾 */
-          a.px -= ax; a.py -= ay; c.px += cx2; c.py += cy2;
-          const nx = dx / d, ny = dy / d, rel = ((c.x - c.px) - (a.x - a.px)) * nx + ((c.y - c.py) - (a.y - a.py)) * ny;
-          if (rel < -0.08) { a.imp = Math.max(a.imp || 0, -rel); c.imp = Math.max(c.imp || 0, -rel); }
-          if (rel < 0) { const k = rel < -MBOUNCE_V ? 1 + MBOUNCE : 1; a.px -= nx * rel * wa * k; a.py -= ny * rel * wa * k; c.px += nx * rel * wc * k; c.py += ny * rel * wc * k; }
-          /* 一點點摩擦：堆好的水果會慢慢停下來，不會一直溜 */
-          const tx = -ny, ty = nx, tv = ((c.x - c.px) - (a.x - a.px)) * tx + ((c.y - c.py) - (a.y - a.py)) * ty, fr = tv * MFRIC;
-          a.px -= tx * fr * wa; a.py -= ty * fr * wa; c.px += tx * fr * wc; c.py += ty * fr * wc;
-        }
-      }
-      G.bodies = G.bodies.filter(b => !b.dead);
-      for (const b of G.bodies) {
-        if (b.x < b.r) { b.x = b.r; b.px = b.x; }
-        if (b.x > MW - b.r) { b.x = MW - b.r; b.px = b.x; }
-        if (b.y < -10) { b.y = -10; b.py = Math.max(b.py, b.y); }
-        if (b.y > MH - b.r) { const vy = b.y - b.py; if (vy > 0.08) b.imp = Math.max(b.imp || 0, vy); b.y = MH - b.r; b.py = vy > MBOUNCE_V ? b.y + vy * MBOUNCE : b.y; b.px = b.x - (b.x - b.px) * 0.97; }
+    /* 合成：一樣的水果碰到（判定圈放寬 MMERGE）就合成一顆大一號的 */
+    const B = G.bodies; let merged = false;
+    for (let i = 0; i < B.length; i++) {
+      const a = B[i]; if (a.dead) continue;
+      for (let j = i + 1; j < B.length; j++) {
+        const c = B[j]; if (c.dead || a.lv !== c.lv || G.over) continue;
+        const dx = c.x - a.x, dy = c.y - a.y, rm = (a.r + c.r) * MMERGE;
+        if (dx * dx + dy * dy >= rm * rm) continue;
+        a.dead = c.dead = true; merged = true;
+        const mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2;
+        /* 0.8 秒內接連合成算 Combo，從第 2 下開始每下多加 5×(連段-1) 分 */
+        G.combo = G.t - G.comboT < 0.8 ? G.combo + 1 : 1; G.comboT = G.t;
+        const bonus = G.combo > 1 ? 5 * (G.combo - 1) : 0;
+        if (G.combo > 1) G.combos.push({ x: mx, y: my, t: G.t, n: G.combo });
+        if (G.combo === 4) mGain(G, 'quake');
+        if (a.lv + 1 === 9 && !G.gotRevive) { G.gotRevive = true; mGain(G, 'revive'); }
+        if (a.lv + 1 > G.maxLv) G.maxLv = a.lv + 1;
+        if (G.timed && a.lv + 1 === FRUITS.length - 1 && !G.won) { G.won = G.t; G.wonRT = G.rt; }
+        if (a.lv < FRUITS.length - 1) { mAdd(G, mx, my, a.lv + 1, true); mPopPhys(G, mx, my, a.lv + 1); G.score += MPTS[a.lv + 1] + bonus; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (MPTS[a.lv + 1] + bonus), n: G.combo }); }
+        else { G.score += 100 + bonus; G.maxLv = FRUITS.length; G.pops.push({ x: mx, y: my, t: G.t, s: '+' + (100 + bonus) + ' 🎉', n: G.combo }); }
+        mHitFx(G, mx, my, a.lv + 1);
+        break;
       }
     }
+    if (merged) mKill(G, b => b.dead);
   }
   /* 撞擊：重重落地／撞到別顆時壓扁一下，順便「咚」一聲 */
   let thud = 0;
   for (const b of G.bodies) { if (b.imp) { if (G.t - (b.sqT || -9) > 0.25) { b.sq = Math.min(0.13, b.imp * 0.3); b.sqT = G.t; thud = Math.max(thud, b.imp); } b.imp = 0; } }
   if (thud > 0.12) sfx('thud', thud);
-  /* 滾動角度：用「這一幀實際移動了多少」來轉，太小的抖動不算，才不會停著還在原地轉 */
-  for (const b of G.bodies) { if (b.fx == null) b.fx = b.x; const dx = b.x - b.fx; b.fx = b.x; if (Math.abs(dx) > 0.04) b.ang = (b.ang || 0) + dx / b.r; }
   /* 已經落下超過 1.5 秒的水果，頂端還在紅線上方，累積 1.5 秒就結束 */
   /* 結束判定：落下超過 1.5 秒的水果，頂端還在紅線上方就開始累積；離開紅線時慢慢扣回（不用等水果完全靜止，堆滿時水果會微微晃，以前因此永遠判不到） */
   const high = G.t > (G.calm || 0) && G.bodies.some(b => G.t - b.born > 1.5 && b.y - b.r < MDANGER);
@@ -1213,7 +1239,7 @@ let MWOW = null, MSPL = null;
 const mwow = () => MWOW || (MWOW = FRUITS.map((f, i) => { if (!FART_WOW[i]) return null; const im = new Image(); im.src = 'fruits/f' + String(i + 1).padStart(2, '0') + '_wow.webp'; return im; }));
 const mspl = () => MSPL || (MSPL = ['splash_1', 'splash_2', 'splash_3', 'drop', 'celebrate_burst', 'confetti_1', 'confetti_2', 'confetti_3', 'confetti_4'].map(n => { if (!MSPLASH_ART && n.startsWith('splash')) return null; const im = new Image(); im.src = 'fruits/' + n + '.webp'; return im; }));
 /* 測試用（網址加 #mgtest 才有） */
-if (location.hash === '#mgtest') window.__mg = { G: () => MG_, ui: () => mItemsUI(), gain: k => mGain(MG_, k), melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
+if (location.hash === '#mgtest') window.__mg = { G: () => MG_, ui: () => mItemsUI(), gain: k => mGain(MG_, k), add: (x, y, lv) => mAdd(MG_, x, y, lv), motion: () => MMOT, melon: () => mMelon(MG_), hit: (x, y, lv) => mHitFx(MG_, x, y, lv) };
 /* 每種水果的果汁顏色（噴濺圖是白色的，由程式染色） */
 const MJUICE = ['#c8102e', '#ef3b3b', '#8e44c9', '#ff8a1a', '#ffd21a', '#e8302a', '#cfdc5a', '#ff9e9e', '#ffbf26', '#f5a65b', '#ff4d5e'];
 const MHOT = ['#c0546b', '#d9653b', '#e8743b', '#ef5a2a', '#e8342a', '#d81b60'];
@@ -1400,7 +1426,7 @@ function mAskRevive() {
 function mRevive() {
   const G = MG_; if (!G || !MINV || MINV.revive <= 0) return;
   MINV.revive--; mInvSave();
-  G.bodies = G.bodies.filter(b => b.y - b.r > MH * 0.5);
+  mKill(G, b => !(b.y - b.r > MH * 0.5));
   G.overT = 0; G.paused = false; G.askedRevive = false; G.notes.push({ t: G.t, s: '復活！' });
   $('#mg-over').hidden = true; mItemsUI();
 }
@@ -1409,7 +1435,7 @@ function mShootAt(px, py) {
   /* 打點到哪顆：選「點的位置離圓心最近（以水果大小來比）」的那顆。原本是挑附近最小顆，點大水果邊緣時常常打到旁邊的小水果 */
   let hit = null, hq = 1.15; for (const b of G.bodies) { const q = Math.hypot(b.x - px, b.y - py) / b.r; if (q <= hq) { hq = q; hit = b; } }
   if (!hit) { G.notes.push({ t: G.t, s: '沒打到，再點一次' }); return; }
-  G.bodies = G.bodies.filter(b => b !== hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '', hit: 1, r: hit.r }); sfx('shot'); mHaptic(2); mShake(G, 2.2, 0.3); G.freeze = 0.08;
+  mKill(G, b => b === hit); G.pops.push({ x: hit.x, y: hit.y, t: G.t, s: '', hit: 1, r: hit.r }); sfx('shot'); mHaptic(2); mShake(G, 2.2, 0.3); G.freeze = 0.08;
   MINV.shot--; mInvSave(); G.mode = ''; mItemsUI();
 }
 function mQuake() {
@@ -1491,10 +1517,17 @@ function mergeTCard() {
   return '<p class="mg-tline"><b>⏱ 計時挑戰</b>：最快合出西瓜　' + MARK.him + ' ' + (t.him ? mTime(t.him) : '—') + '　' + MARK.her + ' ' + (t.her ? mTime(t.her) : '—') + '</p>';
 }
 let MTIMED = false;
-function mergeOpen(el) {
+async function mergeOpen(el) {
   if (el && el.dataset) MTIMED = el.dataset.v === 'timed';
   if (STALE) { location.reload(); return; }
+  /* iPhone 的「允許動作與方向」一定要在手指按下的那一瞬間詢問，所以放在等物理引擎載入之前 */
   mMotion();
+  if (!ttM()) {
+    const btn = el && el.closest ? el.closest('button') : null, t0 = btn && btn.textContent;
+    if (btn) { btn.disabled = true; btn.textContent = '載入中…'; }
+    try { await ttLib(); } catch (e) { if (btn) { btn.disabled = false; btn.textContent = '載入失敗，確認網路後再按一次'; } return; }
+    if (btn) { btn.disabled = false; btn.textContent = t0; }
+  }
   let ov = $('#mg');
   if (!ov) {
     ov = document.createElement('div'); ov.id = 'mg'; ov.className = 'mg';
@@ -2140,7 +2173,6 @@ const ttFloor = (G, x) => G.Hw - 1.5 - 5 * Math.pow((x - 50) / 50, 2);
    遊戲座標（盤面寬 100）× TT_S ＝ Matter 的座標。每顆是一個圓形剛體，會滾動、互相推、靜下來就停住。
    盤面：左右兩道牆＋一個微微下凹的碗狀底（用 16 段斜板拼出來）。 */
 const TT_S = 4, TT_STEP = 1000 / 120;
-const ttM = () => (typeof Matter !== 'undefined' ? Matter : globalThis.Matter);
 function ttWorld(G) {
   const M = ttM(), S = TT_S, eng = M.Engine.create({ gravity: { x: 0, y: 1.28 }, positionIterations: 10, velocityIterations: 8 });
   const st = { isStatic: true, friction: 0.35, restitution: 0 }, H = G.Hw * S, W = 100 * S, walls = [];
@@ -2162,15 +2194,14 @@ function ttSpawn(G, k, x, y, bt) {
 }
 function ttRemove(G, b) { if (b.mb) { ttM().Composite.remove(G.eng.world, b.mb); b.mb = null; } }
 /* 推一顆（洗牌用）：vx、vy 是遊戲座標每秒的速度 */
-function ttKick(G, b, vx, vy) { if (b.mb) ttM().Body.setVelocity(b.mb, { x: vx * TT_S / 120, y: vy * TT_S / 120 }); }
+function ttKick(G, b, vx, vy) { if (b.mb) phySetVel(b.mb, vx, vy, TT_S); }
 /* 固定每 1/120 秒算一步（畫面卡的時候一幀最多補 6 步），再把位置同步回遊戲座標 */
 function ttPhys(G, dt) {
   const M = ttM(); G.acc = Math.min(G.acc + dt * 1000, TT_STEP * 6);
   /* 速度上限（每秒 260 單位，約盤面兩倍半寬）：避免偶發的大重疊把角色彈飛 */
-  const VMAX = 260 * TT_S / 120;
   while (G.acc >= TT_STEP) {
     M.Engine.update(G.eng, TT_STEP); G.acc -= TT_STEP;
-    for (const b of G.bodies) { const v = b.mb && b.mb.velocity, s = v && Math.hypot(v.x, v.y); if (s > VMAX) M.Body.setVelocity(b.mb, { x: v.x * VMAX / s, y: v.y * VMAX / s }); }
+    for (const b of G.bodies) if (b.mb) phyClamp(b.mb, TT_S, 260);
   }
   for (const b of G.bodies) { if (!b.mb) continue; b.px = b.x; b.py = b.y; b.x = b.mb.position.x / TT_S; b.y = b.mb.position.y / TT_S; b.ang = b.mb.angle; }
 }
@@ -2526,13 +2557,6 @@ function tsumOpen() {
   if (TT_) { cancelAnimationFrame(TT_.raf); TT_ = null; }
   const my = Number(LS.get('ourtwo.tt.my')); TTP = { my: my >= 0 && my < TTS.length ? my : 0, items: {} };
   ov.classList.remove('fever'); ttShow(true); ttPreRender(); ttLib().catch(() => {});
-}
-/* 物理引擎只在要玩疊疊樂時才下載（開 App 不會變慢）；打開選角畫面時就先開始下載 */
-let TTLIB = null;
-function ttLib() {
-  if (ttM()) return Promise.resolve();
-  if (!TTLIB) TTLIB = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'lib/matter.min.js'; s.onload = ok; s.onerror = () => { TTLIB = null; s.remove(); no(new Error('matter')); }; document.head.appendChild(s); });
-  return TTLIB;
 }
 async function ttStart() {
   const btn = $('#tt-pre .tt-start');
@@ -3073,7 +3097,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v60';
+const APP_VER = 'v61';
 let STALE = false;
 async function chkUpdate() {
   try {
