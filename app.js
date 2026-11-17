@@ -2154,12 +2154,10 @@ function ttBombType(n, rnd) {
   if (n >= 9) return r < 0.3 ? 'time' : r < 0.4 ? 'star' : 'n';
   return r < 0.1 ? 'time' : 'n';
 }
-/* 顏色太接近、不要同一局出現的角色（編號從 0 開始）。
-   做法：把 12 張頭像各自最大塊的顏色拿出來比（CIELAB 色差），色差 < 25 的算太接近：
-   花小兔～歐拉夫、烏薩奇～歐拉夫、烏薩奇～花小兔（白／淺色）、大眼蛙～Kingjun（萊姆綠）、屎蛋～小虎（黃橘）、
-   Dimoo～波波（咖啡）、丸丸～波波、Pingu～波波（深色） */
-const TT_NEAR = [[3, 9], [0, 9], [0, 3], [4, 11], [6, 7], [2, 10], [5, 10], [8, 10]];
-const ttNear = (a, b) => TT_NEAR.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+/* 不能同一局出現的角色組（編號從 0 開始；同一組裡最多只會出現一個）：
+   1. 屎蛋、Kingjun、大眼蛙、小虎　2. 歐拉夫、花小兔　3. 烏薩奇、Dimoo */
+const TT_GROUPS = [[6, 11, 4, 7], [9, 3], [0, 2]];
+const ttNear = (a, b) => a !== b && TT_GROUPS.some(g => g.includes(a) && g.includes(b));
 function ttNew(my, items, Hw, rnd) {
   rnd = rnd || Math.random;
   const others = TTS.map((_, i) => i).filter(i => i !== my);
@@ -3106,7 +3104,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v62';
+const APP_VER = 'v63';
 let STALE = false;
 async function chkUpdate() {
   try {
