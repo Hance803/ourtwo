@@ -1358,19 +1358,23 @@ html.mg-open body{overflow:hidden}
 :root[data-theme="dark"] .ws-fill{background:rgba(255,248,236,.92)}
 :root[data-theme="dark"] .ws-stage .mg-over{background:rgba(43,39,36,.95)}
 /* 疊疊樂消除 */
+#tt{background:var(--bg) url(../ts/bg.webp) center/cover no-repeat}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #tt{background-image:none}}
+:root[data-theme="dark"] #tt{background-image:none}
 .tt-pre{flex:1;min-height:0;width:100%;max-width:440px;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 .tt-pre[hidden],.tt-game[hidden]{display:none}
 .tt-pre-in{display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
 .tt-pre-h{margin:6px 0 0;font-size:15px;color:var(--muted)}
-.tt-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
-.tt-pick{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border:2px solid transparent;border-radius:14px;background:var(--surface);font:inherit;font-size:11px;color:var(--fg);cursor:pointer}
+.tt-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+.tt-pick{min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border:2px solid transparent;border-radius:14px;background:var(--surface);font:inherit;font-size:11px;color:var(--fg);cursor:pointer}
 .tt-pick.on{border-color:var(--accent);background:rgba(232,116,59,.12)}
-.tt-ic{display:block;width:42px;height:42px;border-radius:50%}
+.tt-ic{display:block;width:100%;max-width:42px;height:auto;aspect-ratio:1;border-radius:50%}
+.tt-pick span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 img.tt-ic{border-radius:0;object-fit:contain}
 .tt-ph{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:rgba(60,45,40,.8);border:2px solid rgba(70,55,45,.4);box-sizing:border-box}
 .tt-skill-d{margin:2px 0;padding:8px 10px;border-radius:12px;background:var(--surface);font-size:14px;line-height:1.5}
-.tt-items{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.tt-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border:2px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;font-size:11px;color:var(--fg);cursor:pointer}
+.tt-items{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tt-item{min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border:2px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;font-size:11px;color:var(--fg);cursor:pointer}
 .tt-item b{font-size:15px}
 .tt-item.on{border-color:var(--accent);background:rgba(232,116,59,.14)}
 .tt-item:disabled{opacity:.4}
@@ -1409,3 +1413,6 @@ img.tt-ic{border-radius:0;object-fit:contain}
 @keyframes ttFev{to{background-position:200% 0}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tt-stage .mg-over{background:rgba(43,39,36,.95)}:root:not([data-theme="light"]) .tt-ph{color:rgba(40,30,25,.85)}}
 :root[data-theme="dark"] .tt-stage .mg-over{background:rgba(43,39,36,.95)}
+.tt-shuffle:has(img){background:none;border:0;width:64px;height:64px}
+/* 選角畫面不顯示遊戲背景（背景中間的盤面會露在清單後面） */
+#tt:has(#tt-pre:not([hidden])){background-image:none}
