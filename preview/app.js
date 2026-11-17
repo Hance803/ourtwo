@@ -897,10 +897,11 @@ function quizHtml() {
 }
 function renderPlay() {
   const root = $('#play-body');
-  if (!root.childElementCount) root.innerHTML = ['merge', 'tetris', 'sort', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
+  if (!root.childElementCount) root.innerHTML = ['merge', 'tetris', 'sort', 'tsum', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
   $('#pw-merge').innerHTML = mergeCardHtml();
   if (!TB_) $('#pw-tetris').innerHTML = tetrisCardHtml();
   if (!WS_) $('#pw-sort').innerHTML = sortCardHtml();
+  if (!TT_) $('#pw-tsum').innerHTML = tsumCardHtml();
   if (!kDrawing) { $('#pw-balloon').innerHTML = balloonCardHtml(); $('#pw-kuji').innerHTML = kujiCardHtml(); }
   if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
   const ga = document.activeElement && document.activeElement.id === 'g-ta';
@@ -1288,7 +1289,7 @@ function mHaptic(level) {
 }
 /* 音效：用程式即時合成（不用音效檔），可以在遊戲右上角關掉 */
 const SNDON = () => LS.get('ourtwo.snd') !== '0';
-function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; const t = $('#tb-snd'); if (t) t.textContent = SNDON() ? '🔊' : '🔇'; const w = $('#ws-snd'); if (w) w.textContent = SNDON() ? '🔊' : '🔇'; }
+function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; const t = $('#tb-snd'); if (t) t.textContent = SNDON() ? '🔊' : '🔇'; const w = $('#ws-snd'); if (w) w.textContent = SNDON() ? '🔊' : '🔇'; const q = $('#tt-snd'); if (q) q.textContent = SNDON() ? '🔊' : '🔇'; }
 let MAC = null;
 /* 音效引擎。iPhone 的聲音有時會被系統「中斷」：搖手機跳出「搖動以還原」、來電、鬧鐘、切到別的 App 等等，
    中斷後狀態會變成 interrupted（不只是 suspended），原本只處理 suspended，所以聲音就一直沒回來。
@@ -1331,6 +1332,17 @@ function sfx(k, a, b) {
     else if (k === 'tlock') { sTone(ac, 170, 70, 0.1, 'sine', 0.28); sNoise(ac, 0.04, 0.15, 900); }
     else if (k === 'tclear') { const n = a || 1; [523, 659, 784, 1047].slice(0, n).forEach((f, i) => sTone(ac, f, f * 1.02, 0.16, 'triangle', 0.22, i * 0.06)); sNoise(ac, 0.18 + n * 0.05, 0.25, 3000); if (n >= 4) { sTone(ac, 120, 40, 0.5, 'sine', 0.45); [1047, 1319, 1568].forEach((f, i) => sTone(ac, f, f, 0.25, 'triangle', 0.18, 0.3 + i * 0.09)); } }
     else if (k === 'tlevel') [659, 880, 1175].forEach((f, i) => sTone(ac, f, f, 0.14, 'triangle', 0.18, i * 0.08));
+    else if (k === 'ttlink') { const f = 392 * Math.pow(2, Math.min(a - 1, 14) * 2 / 12); sTone(ac, f, f * 1.03, 0.07, 'triangle', 0.13); }
+    else if (k === 'ttpop') { const now = ac.currentTime; if (now - MSNDT < 0.035) return; MSNDT = now; const f = 520 * Math.pow(2, Math.min(a, 16) / 12); sTone(ac, f, f * 1.5, 0.07, 'sine', 0.16); }
+    else if (k === 'ttclear') { const n = Math.min(a || 3, 12); sTone(ac, 660, 660 * (1 + n * 0.08), 0.12, 'triangle', 0.14); }
+    else if (k === 'ttboom') { sNoise(ac, 0.22, 0.3, 700); sTone(ac, 150, 50, 0.22, 'sine', 0.35); }
+    else if (k === 'ttbomb') [988, 1319, 1760].forEach((f, i) => sTone(ac, f, f, 0.09, 'triangle', 0.13, i * 0.05));
+    else if (k === 'ttfever') [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => sTone(ac, f, f, 0.16, 'triangle', 0.18, i * 0.06));
+    else if (k === 'ttskill') { sTone(ac, 300, 1400, 0.45, 'sawtooth', 0.09); sTone(ac, 600, 2000, 0.45, 'sine', 0.12); }
+    else if (k === 'ttready') [523, 523].forEach((f, i) => sTone(ac, f, f, 0.14, 'triangle', 0.16, i * 0.45));
+    else if (k === 'ttgo') sTone(ac, 1047, 1047, 0.35, 'triangle', 0.2);
+    else if (k === 'ttup') [784, 659, 523].forEach((f, i) => sTone(ac, f, f, 0.2, 'triangle', 0.2, i * 0.14));
+    else if (k === 'ttshuffle') sNoise(ac, 0.3, 0.2, 1200);
     else if (k === 'wpick') sTone(ac, 520, 700, 0.06, 'sine', 0.12);
     else if (k === 'wnope') sTone(ac, 200, 150, 0.1, 'triangle', 0.14);
     else if (k === 'wpour') { const n = a || 1, d = 0.22 + n * 0.04; sNoise(ac, d, 0.12, 1400); sTone(ac, 380, 620 + n * 60, d, 'sine', 0.1); }
@@ -2045,6 +2057,465 @@ Object.assign(ACT, {
   wsExtra() { const W = WS_; if (!W || W.busy || W.won || W.extra) return; W.hist.push(JSON.stringify({ b: W.b, extra: W.extra })); W.extra = true; W.b.push([]); W.sel = -1; sfx('wdone'); wsRender(); },
 });
 if (location.hash === '#mgtest') window.__ws = { W: () => WS_, tap: i => wsTap(i), solve: () => wSolve(WS_.b, 200000), level: wLevel };
+
+/* ---------- 疊疊樂消除 ---------- */
+/* 玩法：圓滾滾的角色堆在盤面裡，手指劃過 3 個以上「相鄰的同角色」放開就消除。限時 60 秒比分數。
+   - 每局盤面上有 5 種角色：自己選的主角＋隨機 4 種（用了「5→4」道具就只有 4 種）
+   - Combo：連續消除會累計，超過 3 秒沒消就歸零（Fever 中不會歸零）
+   - Fever：消滿 30 顆進入，時間 +5 秒、分數 ×1.5、持續 8 秒（消越多延長一點）
+   - 一局裡各種加時（Fever、時間炸彈、技能）合計最多 +60 秒
+   - 炸彈：一次消 7 顆以上會生一顆，點一下炸掉周圍
+   - 技能：消主角會集氣，集滿後按左下角的按鈕發動（每個角色的技能不一樣）
+   - 時間到：盤面上剩下的炸彈會自動引爆，算進分數
+   紀錄存在 play/tsum：{ him, her：最高分, top: [{by, s, ts}], coins: { him, her } }
+   座標：盤面寬固定 100 單位，高度看螢幕；所有角色半徑一樣（TT_R）。 */
+const TT_R = 7.6, TT_LINK = TT_R * 2 * 1.6, TT_TIME = 60, TT_FEVER_NEED = 30, TT_FEVER_SEC = 8, TT_COMBO_SEC = 3;
+/* 12 個角色：n＝名字、c＝還沒有美術時的佔位顏色、sk＝技能（對應 TT_SKILLS）。美術到了以後改名字就好 */
+const TTS = [
+  { n: '角色 1', c: '#f28b82', sk: 'burst' }, { n: '角色 2', c: '#fbbc5b', sk: 'hline' }, { n: '角色 3', c: '#fff176', sk: 'vline' },
+  { n: '角色 4', c: '#a5d6a7', sk: 'rand' }, { n: '角色 5', c: '#80cbc4', sk: 'conv' }, { n: '角色 6', c: '#81d4fa', sk: 'bombs' },
+  { n: '角色 7', c: '#9fa8da', sk: 'time' }, { n: '角色 8', c: '#ce93d8', sk: 'cross' }, { n: '角色 9', c: '#f48fb1', sk: 'bottom' },
+  { n: '角色 10', c: '#bcaaa4', sk: 'kind' }, { n: '角色 11', c: '#e6ee9c', sk: 'diag' }, { n: '角色 12', c: '#ffab91', sk: 'fever' },
+];
+/* 技能：need＝要消幾顆主角才集滿、d＝說明 */
+const TT_SKILLS = {
+  burst: { need: 14, d: '消除畫面中央一大圈' }, hline: { need: 15, d: '消除橫的一整排' }, vline: { need: 15, d: '消除直的一整排' },
+  rand: { need: 13, d: '隨機消除 12 顆' }, conv: { need: 20, d: '把 7 顆別的角色變成自己' }, bombs: { need: 16, d: '變出 2 顆炸彈' },
+  time: { need: 24, d: '時間 +4 秒' }, cross: { need: 17, d: '消除十字形範圍' }, bottom: { need: 15, d: '消除最下面一大片' },
+  kind: { need: 16, d: '把其中一種角色全部消除' }, diag: { need: 16, d: '消除兩條斜線（X 形）' }, fever: { need: 24, d: '馬上進入 Fever' },
+};
+/* 開局道具：花金幣買，只有這一局有效 */
+const TT_ITEMS = [
+  { k: 'score', n: '+分數', d: '最後分數 +10%', cost: 100 }, { k: 'time', n: '+時間', d: '多 10 秒', cost: 250 },
+  { k: 'bomb', n: '+炸彈', d: '消 6 顆就出炸彈', cost: 350 }, { k: 'four', n: '5→4', d: '角色只出 4 種', cost: 500 },
+];
+const TT_BOMBS = { n: { c: '#ffffff', d: '炸彈' }, time: { c: '#64b5f6', d: '+2 秒' }, score: { c: '#ef5350', d: '分數 ×2' }, coin: { c: '#ffd54f', d: '+10 金幣' }, star: { c: '#ba68c8', d: '大範圍' } };
+/* 計分：每顆 100 分（主角 150）× 連鎖加成 × Combo 加成 × Fever 加成 */
+const ttChainMul = n => n <= 3 ? 1 : n === 4 ? 1.3 : n === 5 ? 1.6 : n === 6 ? 2 : 2.5 + (n - 7) * 0.5;
+const ttComboMul = c => 1 + Math.min(c, 60) * 0.02;
+const ttCoins = n => n < 4 ? 0 : (n - 3) * 2 - 1;
+function ttPoints(G, list, mul) {
+  let base = 0; for (const b of list) base += b.k === G.my ? 150 : 100;
+  return Math.round(base * (mul || 1) * ttComboMul(G.combo) * (G.fever > 0 ? 1.5 : 1) / 10) * 10;
+}
+/* 炸彈種類：連越長越容易出特殊炸彈 */
+function ttBombType(n, rnd) {
+  const r = rnd();
+  if (n >= 15) return r < 0.4 ? 'coin' : r < 0.7 ? 'score' : r < 0.85 ? 'star' : 'time';
+  if (n >= 11) return r < 0.3 ? 'score' : r < 0.55 ? 'time' : r < 0.7 ? 'star' : 'n';
+  if (n >= 9) return r < 0.3 ? 'time' : r < 0.4 ? 'star' : 'n';
+  return r < 0.1 ? 'time' : 'n';
+}
+function ttNew(my, items, Hw, rnd) {
+  rnd = rnd || Math.random;
+  const others = TTS.map((_, i) => i).filter(i => i !== my);
+  for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [others[i], others[j]] = [others[j], others[i]]; }
+  const kinds = [my].concat(others.slice(0, items.four ? 3 : 4));
+  /* 盤面上的顆數：填到大約七成高 */
+  const cap = Math.max(26, Math.min(52, Math.floor(100 * Hw * 0.72 * 0.86 / (Math.PI * TT_R * TT_R))));
+  return { my, kinds, items, Hw, rnd, cap, bodies: [], seq: 0, t: 0, phase: 'ready', pt: 0, time: TT_TIME + (items.time ? 10 : 0), score: 0, coins: 0, combo: 0, comboT: 0, maxCombo: 0, maxChain: 0,
+    fg: 0, fever: 0, feverN: 0, idle: 0, sg: 0, need: TT_SKILLS[TTS[my].sk].need, chain: [], pops: [], spawnT: 0, toSpawn: cap, fx: [], shuffleT: 0, bombMin: items.bomb ? 6 : 7, shake: 0 };
+}
+/* 加時間：Fever、時間炸彈、技能都走這裡。一局裡加時合計最多 +60 秒，高手也不會打不完 */
+const TT_PLUS_MAX = 60;
+function ttAddTime(G, sec) { const a = Math.max(0, Math.min(sec, TT_PLUS_MAX - (G.plus || 0))); G.plus = (G.plus || 0) + a; G.time += a; return a; }
+const ttFloor = (G, x) => G.Hw - 1.5 - 5 * Math.pow((x - 50) / 50, 2);
+function ttSpawn(G, k, x, y, bt) {
+  const b = { id: ++G.seq, k, bt: bt || '', x, y, px: x, py: y, ang: (G.rnd() - 0.5) * 0.6, born: G.t, dying: 0 };
+  G.bodies.push(b); return b;
+}
+/* 物理：每幀切 6 小步；重力 → 兩顆互相推開 → 牆和地板 */
+function ttPhys(G, dt) {
+  const SUB = 6, h = dt / SUB, g = 320 * h * h, R = TT_R, bs = G.bodies, n = bs.length, D = R * 2, D2 = D * D;
+  for (let s = 0; s < SUB; s++) {
+    for (let i = 0; i < n; i++) {
+      const b = bs[i]; let vx = (b.x - b.px) * 0.99, vy = (b.y - b.py) * 0.99;
+      const sp = Math.hypot(vx, vy); if (sp > 0.9) { vx *= 0.9 / sp; vy *= 0.9 / sp; }
+      b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + g; b.ang += vx / R;
+    }
+    for (let it = 0; it < 2; it++) {
+      for (let i = 0; i < n; i++) {
+        const a = bs[i];
+        for (let j = i + 1; j < n; j++) {
+          const c = bs[j], dx = c.x - a.x, dy = c.y - a.y, d2 = dx * dx + dy * dy;
+          if (d2 >= D2) continue;
+          const d = Math.sqrt(d2) || 0.001, p = (D - d) / 2 * 0.8, ux = dx / d, uy = dy / d;
+          a.x -= ux * p; a.y -= uy * p; c.x += ux * p; c.y += uy * p;
+          /* 兩顆剛好上下對齊（常發生在貼牆的地方）會疊成一根不倒的高塔：把上面那顆往盤面中間推一點點，讓它滑下來 */
+          if (ux > -0.1 && ux < 0.1) { const up = uy > 0 ? a : c; up.x += up.x < 50 ? 0.03 : -0.03; }
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        const b = bs[i];
+        if (b.x < R) b.x = R; else if (b.x > 100 - R) b.x = 100 - R;
+        const fy = ttFloor(G, b.x) - R; if (b.y > fy) { b.y = fy; b.px += (b.x - b.px) * 0.25; }
+      }
+    }
+  }
+}
+const ttAlive = G => G.bodies.filter(b => !b.dying && !b.lock);
+const ttCanLink = (a, b) => a.k === b.k && !b.bt && !b.dying && !b.lock && Math.hypot(a.x - b.x, a.y - b.y) <= TT_LINK;
+/* 排隊消除：一顆接一顆爆（間隔 gap 秒），最後一顆爆完才算分、才生炸彈 */
+function ttClear(G, list, src, mul) {
+  list = list.filter(b => !b.dying && !b.lock); if (!list.length) return 0;
+  const n = list.length, gap = src === 'chain' ? 0.055 : 0.025;
+  G.combo++; G.comboT = TT_COMBO_SEC; if (G.combo > G.maxCombo) G.maxCombo = G.combo;
+  const pts = ttPoints(G, list, (src === 'chain' ? ttChainMul(n) : 1) * (mul || 1)), coins = src === 'chain' ? ttCoins(n) : Math.floor(n / 4);
+  G.score += pts; G.coins += coins; G.idle = 0;
+  if (src === 'chain' && n > G.maxChain) G.maxChain = n;
+  const last = list[n - 1], bomb = (src === 'chain' || src === 'skill') && n >= G.bombMin && G.phase === 'play' ? ttBombType(n, G.rnd) : '';
+  let mine = 0; list.forEach((b, i) => { if (b.k === G.my && !b.bt) mine++; if (bomb && b === last) return; b.dying = G.t + i * gap + 0.001; });
+  if (src !== 'skill') G.sg = Math.min(G.need, G.sg + mine);
+  /* 要生炸彈時，最後一顆不消掉，等前面都爆完直接變成炸彈（位置不變，不會跟別顆重疊） */
+  if (bomb) last.lock = true;
+  G.pops.push({ at: G.t + (n - 1) * gap, x: last.x, y: last.y, pts, n, coins, bomb, b: bomb ? last : null });
+  if (G.fever > 0) G.fever = Math.min(TT_FEVER_SEC, G.fever + n * 0.05);
+  else if (G.phase === 'play') { G.fg += n; if (G.fg >= TT_FEVER_NEED) { G.fg = 0; G.fever = TT_FEVER_SEC; G.feverN++; ttAddTime(G, 5); G.ev = 'fever'; } }
+  return n;
+}
+function ttExplode(G, bomb) {
+  if (bomb.dying) return;
+  const rad = TT_R * (bomb.bt === 'star' ? 5.2 : 3.6), hit = G.bodies.filter(b => !b.dying && !b.lock && b !== bomb && !b.bt && Math.hypot(b.x - bomb.x, b.y - bomb.y) <= rad);
+  hit.sort((a, b) => Math.hypot(a.x - bomb.x, a.y - bomb.y) - Math.hypot(b.x - bomb.x, b.y - bomb.y));
+  bomb.dying = G.t + 0.001;
+  if (bomb.bt === 'time' && G.phase === 'play') ttAddTime(G, 2);
+  if (bomb.bt === 'coin') G.coins += 10;
+  G.shake = 1; G.fx.push({ t: G.t, k: 'boom', x: bomb.x, y: bomb.y, r: rad });
+  if (hit.length) ttClear(G, hit, 'bomb', bomb.bt === 'score' ? 2 : 1); else { G.combo++; G.comboT = TT_COMBO_SEC; }
+}
+/* 盤面上還有沒有能連的（3 顆以上）：只要有一顆同時跟兩顆同角色相鄰就有 */
+function ttHasMove(G) {
+  const al = ttAlive(G).filter(b => !b.bt && b.y > -TT_R);
+  for (const a of al) { let n = 0; for (const b of al) if (b !== a && ttCanLink(a, b) && ++n >= 2) return true; }
+  return false;
+}
+/* 死局救援：完全沒得連的時候，把一對相鄰同角色旁邊的一顆變成同一種（保證立刻有得連） */
+function ttUnstick(G) {
+  const al = ttAlive(G).filter(b => !b.bt && b.y > -TT_R), near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= TT_LINK * 0.95;
+  for (const a of al) for (const b of al) if (a !== b && ttCanLink(a, b)) {
+    const c = al.find(q => q !== a && q !== b && q.k !== a.k && (near(q, a) || near(q, b)));
+    if (c) { c.k = a.k; G.fx.push({ t: G.t, k: 'spark', x: c.x, y: c.y }); return true; }
+  }
+  for (const a of al) { const ns = al.filter(q => q !== a && near(q, a)); if (ns.length >= 2) { ns[0].k = a.k; ns[1].k = a.k; ns.slice(0, 2).forEach(q => G.fx.push({ t: G.t, k: 'spark', x: q.x, y: q.y })); return true; } }
+  return false;
+}
+/* 技能效果 */
+function ttSkill(G) {
+  const sk = TTS[G.my].sk, al = ttAlive(G).filter(b => !b.bt), H = G.Hw, pick = (arr, n) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(G.rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
+  const ys = al.map(b => b.y), top = ys.length ? Math.min(...ys) : H / 2, mid = (top + H) / 2;
+  let hit = [];
+  if (sk === 'burst') hit = al.filter(b => Math.hypot(b.x - 50, b.y - mid) < 27);
+  else if (sk === 'hline') hit = al.filter(b => Math.abs(b.y - mid) < 12);
+  else if (sk === 'vline') hit = al.filter(b => Math.abs(b.x - 50) < 13);
+  else if (sk === 'rand') hit = pick(al, 12);
+  else if (sk === 'cross') hit = al.filter(b => Math.abs(b.y - mid) < 9 || Math.abs(b.x - 50) < 9);
+  else if (sk === 'bottom') hit = al.filter(b => b.y > H - 34);
+  else if (sk === 'diag') hit = al.filter(b => Math.abs((b.x - 50) - (b.y - mid)) < 11 || Math.abs((b.x - 50) + (b.y - mid)) < 11);
+  else if (sk === 'fever') { if (G.fever > 0) G.fever = TT_FEVER_SEC; else { G.fg = 0; G.fever = TT_FEVER_SEC; G.feverN++; ttAddTime(G, 5); G.sev = 'fever'; } }
+  else if (sk === 'kind') { const ks = G.kinds.filter(k => k !== G.my && al.some(b => b.k === k)); const cnt = k => al.filter(b => b.k === k).length; ks.sort((a, b) => cnt(b) - cnt(a)); hit = ks.length ? al.filter(b => b.k === ks[0]) : []; }
+  else if (sk === 'conv') { pick(al.filter(b => b.k !== G.my), 7).forEach(b => { b.k = G.my; G.fx.push({ t: G.t, k: 'spark', x: b.x, y: b.y }); }); }
+  else if (sk === 'bombs') { pick(al.filter(b => b.k !== G.my), 2).forEach(b => { b.bt = 'n'; b.k = -1; G.fx.push({ t: G.t, k: 'spark', x: b.x, y: b.y }); }); }
+  else if (sk === 'time') { const a = ttAddTime(G, 4); G.fx.push({ t: G.t, k: 'text', x: 50, y: mid, s: a ? '+' + Math.round(a) + ' 秒' : '加時已達上限' }); }
+  G.sg = 0;
+  if (hit.length) ttClear(G, hit, 'skill');
+}
+/* 每幀的遊戲邏輯。回傳 G.ev（'go'、'fever'、'timeup'、'bonus'、'done'…）給畫面放橫幅和音效 */
+function ttStep(G, dt) {
+  G.t += dt; G.pt += dt; G.ev = '';
+  /* 補角色：一顆一顆從上面掉下來 */
+  G.spawnT -= dt;
+  while (G.toSpawn > 0 && G.spawnT <= 0) {
+    G.toSpawn--; G.spawnT += G.phase === 'ready' ? 0.03 : 0.06;
+    ttSpawn(G, G.kinds[Math.floor(G.rnd() * G.kinds.length)], TT_R + G.rnd() * (100 - TT_R * 2), -TT_R - G.rnd() * 30);
+  }
+  ttPhys(G, dt);
+  /* 到時間的就爆掉 */
+  for (const b of G.bodies) if (b.dying && G.t >= b.dying) { b.gone = true; G.fx.push({ t: G.t, k: 'pop', x: b.x, y: b.y, c: b.bt ? '#ffffff' : TTS[b.k].c }); G.popped = (G.popped || 0) + 1; if (!b.bt && G.phase !== 'done') G.toSpawn++; }
+  if (G.bodies.some(b => b.gone)) { G.bodies = G.bodies.filter(b => !b.gone); G.chain = G.chain.filter(b => !b.gone); }
+  for (const p of G.pops) if (!p.done && G.t >= p.at) {
+    p.done = true; G.fx.push({ t: G.t, k: 'text', x: p.x, y: p.y, s: '+' + p.pts, big: p.n >= 7 });
+    if (p.bomb && p.b && !p.b.gone) { p.b.bt = p.bomb; p.b.k = -1; p.b.lock = false; p.b.born = G.t; G.fx.push({ t: G.t, k: 'spark', x: p.b.x, y: p.b.y }); G.toSpawn++; G.ev = G.ev || 'bombnew'; }
+  }
+  G.pops = G.pops.filter(p => !p.done);
+  G.fx = G.fx.filter(f => G.t - f.t < 1);
+  if (G.shake > 0) G.shake = Math.max(0, G.shake - dt * 3);
+  if (G.shuffleT > 0) G.shuffleT -= dt;
+  if (G.phase === 'ready') { if (G.pt >= 1.9) { G.phase = 'play'; G.pt = 0; G.ev = 'go'; } return; }
+  if (G.phase === 'skill') { if (G.pt >= 0.9) { G.phase = 'play'; G.pt = 0; G.sev = ''; ttSkill(G); G.ev = G.sev || 'skillfx'; } return; }
+  if (G.phase === 'play') {
+    G.time -= dt; G.idle += dt;
+    if (G.fever > 0) { G.fever -= dt; if (G.fever <= 0) { G.fever = 0; G.ev = 'feverend'; } }
+    else { if (G.comboT > 0) { G.comboT -= dt; if (G.comboT <= 0) G.combo = 0; } if (G.idle > 2 && G.fg > 0) G.fg = Math.max(0, G.fg - dt * 1.5); }
+    /* 每 0.5 秒檢查一次死局（盤面靜下來、沒有東西在爆也沒有在補的時候才算） */
+    G.chk = (G.chk || 0) + dt;
+    if (G.chk >= 0.5) { G.chk = 0; if (!G.toSpawn && !G.pops.length && !G.bodies.some(b => b.dying) && !ttHasMove(G)) { G.stuck = (G.stuck || 0) + 0.5; if (G.stuck >= 1) { ttUnstick(G); G.stuck = 0; G.unstuck = (G.unstuck || 0) + 1; } } else G.stuck = 0; }
+    if (G.time <= 0) { G.time = 0; G.phase = 'timeup'; G.pt = 0; G.fever = 0; G.ev = 'timeup'; }
+    return;
+  }
+  if (G.phase === 'timeup') { if (G.pt >= 1.3) { G.phase = 'bonus'; G.pt = 0; G.bonusN = 0; if (G.bodies.some(b => b.bt && !b.dying)) G.ev = 'bonus'; } return; }
+  if (G.phase === 'bonus') {
+    const bomb = G.bodies.find(b => b.bt && !b.dying);
+    if (bomb) { if (G.pt >= 0.4) { G.pt = 0; G.bonusN++; ttExplode(G, bomb); G.ev = 'boom'; } }
+    else if (!G.pops.length && !G.bodies.some(b => b.dying) && G.pt >= 0.9) { G.phase = 'done'; G.final = Math.round(G.score * (G.items.score ? 1.1 : 1) / 10) * 10; G.ev = 'done'; }
+  }
+}
+/* ---- 美術 ----
+   TT_ART 列出「已經放進 ts/ 資料夾」的圖（檔名不含 .webp）。沒列到的一律用程式畫的佔位圖，也不會去抓檔案。
+   美術到齊後：把圖轉成 webp 放進 ts/，再把檔名加進這個清單就會自動套上。
+   可用的檔名：01～12（角色頭像）、01_big～12_big（技能亮相大圖）、bomb、bomb_time、bomb_score、bomb_coin、bomb_star、
+   ready、go、fever、timeup、bonus（橫幅）、bg、bg_fever（背景）、skill_ring、shuffle、coin、pop、icon */
+const TT_ART = [];
+const TTI = {};
+const ttKey = i => String(i + 1).padStart(2, '0');
+function ttImg(k) { if (!TT_ART.includes(k)) return null; let im = TTI[k]; if (!im) { im = TTI[k] = new Image(); im.src = 'ts/' + k + '.webp'; } return im.complete && im.naturalWidth ? im : null; }
+const ttHas = k => TT_ART.includes(k);
+const ttIconHtml = (i, cls) => ttHas(ttKey(i)) ? '<img class="tt-ic ' + (cls || '') + '" src="ts/' + ttKey(i) + '.webp" alt="">' : '<span class="tt-ic tt-ph ' + (cls || '') + '" style="background:' + TTS[i].c + '">' + (i + 1) + '</span>';
+let TT_ = null, TTP = null;
+const ttDark = () => document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+function tsumInfo() { const d = PL('tsum') || {}; return { him: d.him || 0, her: d.her || 0, top: d.top || [], coins: Object.assign({ him: 0, her: 0 }, d.coins || {}) }; }
+function tsumCardHtml() {
+  const m = tsumInfo();
+  return '<div class="card play-card"><div class="row"><h3>疊疊樂消除 ' + (ttHas('icon') ? '<img class="tb-ico" src="ts/icon.webp" alt="">' : '🧸') + '</h3><span class="muted">' + MARK.him + ' ' + m.him + '　' + MARK.her + ' ' + m.her + '</span></div>' +
+    '<p class="muted">手指劃過 3 個以上相連的同角色就消除，連越多分越高。限時 60 秒，消滿會進 Fever。</p>' +
+    (m.top.length ? '<ol class="mg-top">' + m.top.slice(0, 5).map(t => '<li>' + byChip(t.by) + ' <b>' + t.s + '</b> <span class="muted">' + md(new Date(t.ts)) + '</span></li>').join('') + '</ol>' : '') +
+    '<button class="btn" data-act="ttOpen">開始玩</button></div>';
+}
+/* ---- 開局畫面：選主角、買道具 ---- */
+function ttPreRender() {
+  const P = TTP, m = tsumInfo(), mk = meKey(), coins = m.coins[mk], cost = TT_ITEMS.reduce((s, it) => s + (P.items[it.k] ? it.cost : 0), 0), sk = TT_SKILLS[TTS[P.my].sk];
+  $('#tt-pre').innerHTML = '<div class="tt-pre-in"><div class="row"><button class="btn ghost small" data-act="ttClose">‹ 離開</button><span class="tt-coinbox">' + ttCoinHtml() + ' <b>' + (coins - cost) + '</b></span></div>' +
+    '<p class="tt-pre-h">選主角</p><div class="tt-grid">' + TTS.map((t, i) => '<button class="tt-pick' + (i === P.my ? ' on' : '') + '" data-act="ttPick" data-v="' + i + '">' + ttIconHtml(i) + '<span>' + esc(t.n) + '</span></button>').join('') + '</div>' +
+    '<p class="tt-skill-d"><b>' + esc(TTS[P.my].n) + '的技能</b>：' + sk.d + '<br><span class="muted">消 ' + sk.need + ' 顆主角集滿，按左下角發動</span></p>' +
+    '<p class="tt-pre-h">道具（只有這一局有效）</p><div class="tt-items">' + TT_ITEMS.map(it => { const on = !!P.items[it.k], can = on || coins - cost >= it.cost; return '<button class="tt-item' + (on ? ' on' : '') + '" data-act="ttItem" data-v="' + it.k + '"' + (can ? '' : ' disabled') + '><b>' + it.n + '</b><span>' + it.d + '</span><span class="tt-cost">' + ttCoinHtml() + ' ' + it.cost + '</span></button>'; }).join('') + '</div>' +
+    '<p class="muted tt-bests">最高分　' + MARK.him + ' ' + m.him + '　' + MARK.her + ' ' + m.her + '</p>' +
+    '<button class="btn tt-start" data-act="ttStart">開始</button></div>';
+}
+const ttCoinHtml = () => ttHas('coin') ? '<img class="tt-coin" src="ts/coin.webp" alt="金幣">' : '<span class="tt-coin tt-coin-ph"></span>';
+/* ---- 畫面 ---- */
+function ttDrawBody(g, b, x, y, rp, G) {
+  const im = b.bt ? ttImg(b.bt === 'n' ? 'bomb' : 'bomb_' + b.bt) : ttImg(ttKey(b.k));
+  g.save(); g.translate(x, y); g.rotate(b.bt ? 0 : b.ang);
+  if (im) { const s = rp * 2 * 256 / 200; g.drawImage(im, -s / 2, -s / 2, s, s); }
+  else if (b.bt) {
+    const c = TT_BOMBS[b.bt].c, gr = g.createRadialGradient(-rp * 0.3, -rp * 0.35, rp * 0.1, 0, 0, rp);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.45, c); gr.addColorStop(1, b.bt === 'n' ? '#b9c4cf' : c);
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rp * 0.96, 0, 7); g.fill(); g.lineWidth = Math.max(1.5, rp * 0.09); g.strokeStyle = 'rgba(60,60,70,.55)'; g.stroke();
+    g.fillStyle = 'rgba(40,40,50,.8)'; g.font = 'bold ' + Math.round(rp * 0.8) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText({ n: '✸', time: '⏱', score: '×2', coin: '＄', star: '★' }[b.bt], 0, rp * 0.05);
+  } else {
+    g.fillStyle = TTS[b.k].c; g.beginPath(); g.arc(0, 0, rp * 0.96, 0, 7); g.fill(); g.lineWidth = Math.max(1.5, rp * 0.09); g.strokeStyle = 'rgba(70,55,45,.55)'; g.stroke();
+    g.fillStyle = 'rgba(60,45,40,.85)'; g.beginPath(); g.arc(-rp * 0.36, -rp * 0.12, rp * 0.1, 0, 7); g.arc(rp * 0.36, -rp * 0.12, rp * 0.1, 0, 7); g.fill();
+    g.font = 'bold ' + Math.round(rp * 0.62) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(b.k + 1), 0, rp * 0.42);
+  }
+  g.restore();
+}
+function ttDraw(G) {
+  const cv = $('#tt-cv'), dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext('2d'), s = w / 100, dark = ttDark(), rp = TT_R * s, fev = G.fever > 0;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  /* 盤面底：一塊比周圍暗一點的圓角區塊；Fever 中會發亮閃動 */
+  g.fillStyle = dark ? 'rgba(0,0,0,.28)' : 'rgba(120,95,70,.16)'; g.beginPath(); g.roundRect(0, 0, w, h, 18); g.fill();
+  if (fev) { g.fillStyle = 'rgba(255,196,60,' + (0.16 + 0.08 * Math.sin(G.t * 9)) + ')'; g.beginPath(); g.roundRect(0, 0, w, h, 18); g.fill(); }
+  g.save(); g.beginPath(); g.roundRect(0, 0, w, h, 18); g.clip();
+  if (G.shake > 0) g.translate((Math.random() - 0.5) * G.shake * 8, (Math.random() - 0.5) * G.shake * 8);
+  const ch = G.chain, ck = ch.length ? ch[0].k : -9;
+  /* 連線 */
+  if (ch.length > 1) { g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = rp * 0.5; g.beginPath(); ch.forEach((b, i) => i ? g.lineTo(b.x * s, b.y * s) : g.moveTo(b.x * s, b.y * s)); g.stroke(); }
+  for (const b of G.bodies) {
+    const x = b.x * s, y = b.y * s, inC = ch.includes(b);
+    let sc = 1; if (inC) sc = 1.12; else if (b.dying) sc = 1.08 + 0.1 * Math.sin(G.t * 40); if (b.bt && G.t - b.born < 0.25) sc = 0.4 + 0.6 * ((G.t - b.born) / 0.25);
+    g.globalAlpha = ch.length && !inC && (b.k !== ck || b.bt) ? 0.45 : 1;
+    if (inC || b.lock) { g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.arc(x, y, rp * sc * 1.08, 0, 7); g.fill(); }
+    ttDrawBody(g, b, x, y, rp * sc, G);
+    if (b.dying) { g.globalAlpha = 0.45; g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, rp * sc, 0, 7); g.fill(); }
+    g.globalAlpha = 1;
+  }
+  /* 連了幾顆 */
+  if (ch.length >= 2) { const l = ch[ch.length - 1], x = l.x * s, y = l.y * s - rp * 1.7; g.fillStyle = ch.length >= 3 ? '#e8743b' : 'rgba(90,80,70,.8)'; g.beginPath(); g.arc(x, y, rp * 0.62, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = 'bold ' + Math.round(rp * 0.8) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(ch.length), x, y + 1); }
+  /* 特效 */
+  const pim = ttImg('pop');
+  for (const f of G.fx) {
+    const u = G.t - f.t, x = f.x * s, y = f.y * s;
+    if (f.k === 'pop') { const p = u / 0.35; if (p > 1) continue; g.globalAlpha = 1 - p;
+      if (pim) { const z = rp * (1.6 + p * 1.6); g.drawImage(pim, x - z, y - z, z * 2, z * 2); }
+      else { g.strokeStyle = f.c; g.lineWidth = rp * 0.28 * (1 - p); g.beginPath(); g.arc(x, y, rp * (0.7 + p * 0.9), 0, 7); g.stroke(); g.fillStyle = '#fff'; for (let i = 0; i < 6; i++) { const a = i * 1.047 + f.x, d = rp * (0.6 + p * 1.5); g.beginPath(); g.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, rp * 0.13 * (1 - p), 0, 7); g.fill(); } } }
+    else if (f.k === 'spark') { const p = u / 0.5; if (p > 1) continue; g.globalAlpha = 1 - p; g.strokeStyle = '#fff3b0'; g.lineWidth = 3; g.beginPath(); for (let i = 0; i < 8; i++) { const a = i * 0.785; g.moveTo(x + Math.cos(a) * rp * (0.9 + p), y + Math.sin(a) * rp * (0.9 + p)); g.lineTo(x + Math.cos(a) * rp * (1.3 + p * 1.4), y + Math.sin(a) * rp * (1.3 + p * 1.4)); } g.stroke(); }
+    else if (f.k === 'boom') { const p = u / 0.4; if (p > 1) continue; g.globalAlpha = 0.7 * (1 - p); g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, f.r * s * (0.3 + 0.7 * p), 0, 7); g.fill(); }
+    else if (f.k === 'text') { const p = u / 0.9; if (p > 1) continue; g.globalAlpha = Math.min(1, 3 * (1 - p)); g.font = 'bold ' + Math.round(rp * (f.big ? 1.25 : 0.95)) + 'px naikai, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = dark ? '#2b2724' : '#fffaf2'; const ty = y - p * rp * 2.2; g.strokeText(f.s, Math.max(rp * 2, Math.min(w - rp * 2, x)), ty); g.fillStyle = f.big ? '#e8743b' : (dark ? '#f3e7d8' : '#506874'); g.fillText(f.s, Math.max(rp * 2, Math.min(w - rp * 2, x)), ty); }
+    g.globalAlpha = 1;
+  }
+  g.restore();
+  /* 技能亮相：畫面變暗，主角從左邊滑進來 */
+  if (G.phase === 'skill') {
+    const p = G.pt / 0.9, e = p < 0.25 ? p / 0.25 : p > 0.8 ? 1 + (p - 0.8) * 3 : 1, big = ttImg(ttKey(G.my) + '_big'), z = w * 0.5, cx = -z + (w / 2 + z) * Math.min(1, e) + (e > 1 ? (e - 1) * w : 0), cy = h * 0.42;
+    g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.roundRect(0, 0, w, h, 18); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(0, cy - z * 0.42, w, z * 0.84);
+    if (big) g.drawImage(big, cx - z / 2, cy - z / 2, z, z); else ttDrawBody(g, { k: G.my, bt: '', ang: 0 }, cx, cy, z * 0.4, G);
+    g.fillStyle = '#fff'; g.font = 'bold ' + Math.round(w * 0.055) + 'px naikai, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(TT_SKILLS[TTS[G.my].sk].d, w / 2, cy + z * 0.62);
+  }
+  /* 橫幅（Ready、Go!、FEVER!、Time Up!、Bonus!） */
+  const B = G.banner;
+  if (B && G.rt - B.t < B.d) {
+    const u = (G.rt - B.t) / B.d, pop = u < 0.15 ? 0.4 + 0.75 * (u / 0.15) : u < 0.25 ? 1.15 - 0.15 * ((u - 0.15) / 0.1) : 1, a = u > 0.8 ? (1 - u) / 0.2 : 1, im = ttImg(B.k);
+    g.globalAlpha = Math.max(0, a);
+    if (im) { const bw = w * 0.9 * pop, bh = bw * 384 / 1024; g.drawImage(im, (w - bw) / 2, h * 0.4 - bh / 2, bw, bh); }
+    else { g.font = 'bold ' + Math.round(w * 0.15 * pop) + 'px naikai, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = '#fff'; g.strokeText(B.s, w / 2, h * 0.4); g.fillStyle = B.c; g.fillText(B.s, w / 2, h * 0.4); }
+    g.globalAlpha = 1;
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+}
+const TT_BANNERS = { ready: ['Ready', '#4a8fd8', 1.2], go: ['Go!', '#f39a3b', 0.7], fever: ['FEVER!', '#e8504a', 1.1], timeup: ['Time Up!', '#d64545', 1.3], bonus: ['Bonus!', '#e0a020', 1.1] };
+function ttBanner(G, k) { const b = TT_BANNERS[k]; G.banner = { k, s: b[0], c: b[1], d: b[2], t: G.rt }; }
+/* 左下角的技能按鈕：主角頭像＋外圈集氣條，集滿會發光跳動 */
+function ttSkillBtn(G) {
+  const cv = $('#tt-skill'), dpr = window.devicePixelRatio || 1, w = cv.clientWidth; if (!w) return;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = cv.height = Math.round(w * dpr); }
+  const g = cv.getContext('2d'), c = w / 2, p = G.sg / G.need, full = p >= 1, pulse = full ? 1 + 0.05 * Math.sin(G.rt * 9) : 1, ring = ttImg('skill_ring');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, w);
+  g.lineWidth = w * 0.09; g.strokeStyle = 'rgba(120,100,80,.25)'; g.beginPath(); g.arc(c, c, w * 0.42, 0, 7); g.stroke();
+  g.strokeStyle = full ? '#f5b82e' : '#7fb8e6'; g.lineCap = 'round'; g.beginPath(); g.arc(c, c, w * 0.42, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p)); g.stroke();
+  g.globalAlpha = full ? 1 : 0.55; ttDrawBody(g, { k: G.my, bt: '', ang: 0 }, c, c, w * 0.3 * pulse, G); g.globalAlpha = 1;
+  if (ring) g.drawImage(ring, 0, 0, w, w);
+}
+function ttHud(G) {
+  const set = (id, v) => { const e = $(id); if (e.textContent !== v) e.textContent = v; };
+  set('#tt-score', String(G.score)); set('#tt-time', String(Math.ceil(G.time))); set('#tt-coins', String(G.coins));
+  $('#tt-time').classList.toggle('low', G.time <= 10 && G.phase === 'play');
+  const cb = $('#tt-combo'); set('#tt-combo', G.combo >= 2 ? G.combo + ' Combo' : ''); cb.classList.toggle('hot', G.fever > 0);
+  $('#tt-fg').style.width = (G.fever > 0 ? G.fever / TT_FEVER_SEC : G.fg / TT_FEVER_NEED) * 100 + '%';
+  $('#tt').classList.toggle('fever', G.fever > 0);
+  $('#tt-shuffle').disabled = G.phase !== 'play' || G.shuffleT > 0;
+  ttSkillBtn(G);
+}
+function ttLoop(ts) {
+  const G = TT_; if (!G) return;
+  const dt = Math.min(1 / 30, ((ts - (G.last || ts)) / 1000) || 0); G.last = ts; G.rt = (G.rt || 0) + dt;
+  if (!G.paused && G.phase !== 'done') {
+    const p0 = G.popped || 0; ttStep(G, dt);
+    if ((G.popped || 0) > p0) { sfx('ttpop', G.popN = (G.popN || 0) + 1); mHaptic(1); } else if (!G.bodies.some(b => b.dying)) G.popN = 0;
+    const ev = G.ev;
+    if (ev === 'go') { ttBanner(G, 'go'); sfx('ttgo'); }
+    else if (ev === 'fever') { ttBanner(G, 'fever'); sfx('ttfever'); mHaptic(3); }
+    else if (ev === 'timeup') { if (G.chain.length >= 3) ttClear(G, G.chain, 'chain'); G.chain = []; ttBanner(G, 'timeup'); sfx('ttup'); mHaptic(3); }
+    else if (ev === 'bonus') ttBanner(G, 'bonus');
+    else if (ev === 'boom') { sfx('ttboom'); mHaptic(2); }
+    else if (ev === 'bombnew') sfx('ttbomb');
+    else if (ev === 'skillfx') { sfx('ttboom'); mHaptic(2); }
+    else if (ev === 'done') ttResult(G);
+  }
+  ttDraw(G); ttHud(G); G.raf = requestAnimationFrame(ttLoop);
+}
+/* ---- 操作 ---- */
+function ttAt(G, wx, wy) {
+  let best = null, bd = TT_R * 1.3;
+  for (const b of G.bodies) { if (b.dying || b.lock) continue; const d = Math.hypot(b.x - wx, b.y - wy); if (d < bd) { bd = d; best = b; } }
+  return best;
+}
+function ttFeed(G, wx, wy) {
+  const ch = G.chain; if (!ch.length) return;
+  const b = ttAt(G, wx, wy); if (!b || b.bt) return;
+  if (ch.length >= 2 && b === ch[ch.length - 2]) { ch.pop(); sfx('ttlink', ch.length); return; }
+  if (ch.includes(b) || !ttCanLink(ch[ch.length - 1], b)) return;
+  ch.push(b); sfx('ttlink', ch.length); mHaptic(1);
+}
+function ttTouch(cv) {
+  let P = null;
+  const pos = e => { const r = cv.getBoundingClientRect(), k = 100 / r.width; return [(e.clientX - r.left) * k, (e.clientY - r.top) * k]; };
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault(); mAudio(true); const G = TT_; if (!G || G.paused || G.phase !== 'play') return;
+    try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+    const [x, y] = pos(e), b = ttAt(G, x, y); if (!b) return;
+    if (b.bt) { ttExplode(G, b); sfx('ttboom'); mHaptic(2); return; }
+    G.chain = [b]; P = { id: e.pointerId, x, y }; sfx('ttlink', 1); mHaptic(1);
+  });
+  cv.addEventListener('pointermove', e => {
+    const G = TT_; if (!P || P.id !== e.pointerId || !G || G.phase !== 'play') return;
+    /* 手指滑很快時，兩次回報之間可能跳過一顆：沿路每半顆的距離補測一次 */
+    const [x, y] = pos(e), d = Math.hypot(x - P.x, y - P.y), n = Math.max(1, Math.ceil(d / (TT_R * 0.5)));
+    for (let i = 1; i <= n; i++) ttFeed(G, P.x + (x - P.x) * i / n, P.y + (y - P.y) * i / n);
+    P.x = x; P.y = y;
+  });
+  const end = e => {
+    const G = TT_; if (!P || P.id !== e.pointerId) return; P = null; if (!G) return;
+    if (G.phase === 'play' && G.chain.length >= 3) { const n = ttClear(G, G.chain, 'chain'); sfx('ttclear', n); }
+    G.chain = [];
+  };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+}
+function ttPause(on) {
+  const G = TT_; if (!G || G.phase === 'done') return; G.paused = on; G.chain = [];
+  const box = $('#tt-over');
+  if (on) { box.innerHTML = '<p class="mg-over-t">暫停中</p><div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="ttResume">繼續</button><button class="btn ghost" data-act="ttQuit">放棄這局</button></div>'; box.hidden = false; }
+  else box.hidden = true;
+}
+function ttResult(G) {
+  const mk = meKey(), m = tsumInfo(), best = m[mk], isBest = G.final > best;
+  const top = G.final > 0 ? m.top.concat([{ by: S.me, s: G.final, ts: Date.now() }]).sort((a, b) => b.s - a.s).slice(0, 10) : m.top;
+  wr(setDoc(dref('play', 'tsum'), Object.assign({ top, coins: { [mk]: m.coins[mk] + G.coins } }, isBest ? { [mk]: G.final } : {}), { merge: true }));
+  sfx('wwin'); mHaptic(3);
+  const box = $('#tt-over');
+  box.innerHTML = '<p class="mg-over-t">結算</p><p class="mg-over-s">' + G.final + '</p>' + (G.items.score ? '<p class="muted">（含道具 +10%）</p>' : '') +
+    (isBest && G.final > 0 ? '<p class="quiz-res">新紀錄！🎉</p>' : '<p class="muted">你的最高分 ' + best + '</p>') +
+    '<p class="tt-stats">' + ttCoinHtml() + ' +' + G.coins + '　最長連鎖 ' + G.maxChain + '　最高 Combo ' + G.maxCombo + '　Fever ' + G.feverN + ' 次</p>' +
+    '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="ttAgain">再玩一次</button><button class="btn ghost" data-act="ttClose">離開</button></div>';
+  box.hidden = false;
+}
+function ttShow(pre) { $('#tt-pre').hidden = !pre; $('#tt-game').hidden = pre; }
+function tsumOpen() {
+  if (STALE) { location.reload(); return; }
+  let ov = $('#tt');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'tt'; ov.className = 'mg tt';
+    ov.innerHTML = '<div class="tt-pre" id="tt-pre"></div><div class="tt-game" id="tt-game" hidden>' +
+      '<div class="tt-hud"><div class="tt-hud-l"><button class="btn ghost small" data-act="ttPauseBtn" aria-label="暫停">❙❙</button><span class="tt-coinbox">' + ttCoinHtml() + ' <b id="tt-coins">0</b></span></div>' +
+      '<div class="tt-hud-c"><span class="mg-sl">分數</span><b id="tt-score">0</b><span class="tt-combo" id="tt-combo"></span></div>' +
+      '<div class="tt-hud-r"><b class="tt-time" id="tt-time">60</b><button class="btn ghost small mg-snd" data-act="mgSnd" id="tt-snd"></button></div></div>' +
+      '<div class="tt-stage"><canvas id="tt-cv"></canvas><div class="mg-over" id="tt-over" hidden></div></div>' +
+      '<div class="tt-bot"><button class="tt-skillbtn" id="tt-skillbtn" aria-label="發動技能"><canvas id="tt-skill"></canvas></button>' +
+      '<div class="tt-fever"><span class="mg-sl">FEVER</span><div class="tt-fbar"><i id="tt-fg"></i></div></div>' +
+      '<button class="tt-shuffle" id="tt-shuffle" aria-label="洗牌">' + (ttHas('shuffle') ? '<img src="ts/shuffle.webp" alt="">' : '<span>⟲</span>') + '</button></div></div>';
+    document.body.appendChild(ov);
+    ttTouch($('#tt-cv'));
+    /* 技能和洗牌：手指一按下去就發動 */
+    $('#tt-skillbtn').addEventListener('pointerdown', e => {
+      e.preventDefault(); mAudio(true); const G = TT_; if (!G || G.paused || G.phase !== 'play' || G.sg < G.need) return;
+      G.chain = []; G.phase = 'skill'; G.pt = 0; sfx('ttskill'); mHaptic(3);
+    });
+    $('#tt-shuffle').addEventListener('pointerdown', e => {
+      e.preventDefault(); mAudio(true); const G = TT_; if (!G || G.paused || G.phase !== 'play' || G.shuffleT > 0) return;
+      G.chain = []; G.shuffleT = 2; for (const b of G.bodies) { b.py += 0.45 + Math.random() * 0.45; b.px += (Math.random() - 0.5) * 1.4; } sfx('ttshuffle'); mHaptic(2);
+    });
+    ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => { if (!e.target.closest('.tt-pre')) e.preventDefault(); }, { passive: false }));
+    document.addEventListener('visibilitychange', () => { if (document.hidden && TT_ && TT_.phase !== 'done' && !TT_.paused) ttPause(true); });
+  }
+  ov.hidden = false; document.documentElement.classList.add('mg-open');
+  if (TT_) { cancelAnimationFrame(TT_.raf); TT_ = null; }
+  const my = Number(LS.get('ourtwo.tt.my')); TTP = { my: my >= 0 && my < TTS.length ? my : 0, items: {} };
+  ov.classList.remove('fever'); ttShow(true); ttPreRender();
+}
+function ttStart() {
+  const P = TTP, mk = meKey(), m = tsumInfo(), cost = TT_ITEMS.reduce((s, it) => s + (P.items[it.k] ? it.cost : 0), 0);
+  if (cost > m.coins[mk]) { P.items = {}; ttPreRender(); return; }
+  if (cost) wr(setDoc(dref('play', 'tsum'), { coins: { [mk]: m.coins[mk] - cost } }, { merge: true }));
+  LS.set('ourtwo.tt.my', String(P.my));
+  ttShow(false); $('#tt-over').hidden = true; $('#tt-snd').textContent = SNDON() ? '🔊' : '🔇';
+  const cv = $('#tt-cv'), Hw = cv.clientHeight / (cv.clientWidth / 100);
+  TT_ = ttNew(P.my, Object.assign({}, P.items), Hw); TT_.rt = 0; ttBanner(TT_, 'ready'); sfx('ttready');
+  TT_.raf = requestAnimationFrame(ttLoop);
+}
+function tsumClose() {
+  if (TT_) { cancelAnimationFrame(TT_.raf); TT_ = null; }
+  const ov = $('#tt'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
+  if (curTab === 'play') renderPlay();
+}
+Object.assign(ACT, {
+  ttOpen: tsumOpen, ttAgain: tsumOpen, ttClose: tsumClose, ttQuit: tsumOpen, ttStart,
+  ttPick(el) { TTP.my = Number(el.dataset.v); ttPreRender(); },
+  ttItem(el) { const k = el.dataset.v; TTP.items[k] = !TTP.items[k]; ttPreRender(); },
+  ttPauseBtn() { ttPause(true); }, ttResume() { ttPause(false); },
+});
+if (location.hash === '#mgtest') window.__tt = { G: () => TT_, P: () => TTP, canLink: ttCanLink, clear: l => ttClear(TT_, l, 'chain'), explode: b => ttExplode(TT_, b), alive: () => ttAlive(TT_), R: TT_R, TTS, TT_SKILLS };
 
 /* ---------- 真心話扭蛋機 ---------- */
 /* 兩人共用一顆「目前的扭蛋」（play/gacha.cur）。誰都可以扭，但兩個人都回答完才能扭下一顆。
