@@ -2178,7 +2178,10 @@ function ttClear(G, list, src, mul) {
   const pts = ttPoints(G, list, (src === 'chain' ? ttChainMul(n) : 1) * (mul || 1)), coins = src === 'chain' ? ttCoins(n) : Math.floor(n / 4);
   G.score += pts; G.coins += coins; G.idle = 0;
   if (src === 'chain' && n > G.maxChain) G.maxChain = n;
-  const last = list[n - 1], bomb = (src === 'chain' || src === 'skill') && n >= G.bombMin && G.phase === 'play' ? ttBombType(n, G.rnd) : '';
+  let bomb = (src === 'chain' || src === 'skill') && n >= G.bombMin && G.phase === 'play' ? ttBombType(n, G.rnd) : '';
+  /* 特殊炸彈（加時、加倍、金幣、星星）要有美術圖才會出現，沒有的話一律出一般炸彈 */
+  if (bomb && bomb !== 'n' && typeof ttHas === 'function' && !ttHas('bomb_' + bomb)) bomb = 'n';
+  const last = list[n - 1];
   let mine = 0; list.forEach((b, i) => { if (b.k === G.my && !b.bt) mine++; if (bomb && b === last) return; b.dying = G.t + i * gap + 0.001; });
   if (src !== 'skill') G.sg = Math.min(G.need, G.sg + mine);
   /* 要生炸彈時，最後一顆不消掉，等前面都爆完直接變成炸彈（位置不變，不會跟別顆重疊） */
@@ -2279,7 +2282,7 @@ function ttStep(G, dt) {
    美術到齊後：把圖轉成 webp 放進 ts/，再把檔名加進這個清單就會自動套上。
    可用的檔名：01～12（角色頭像）、01_big～12_big（技能亮相大圖）、bomb、bomb_time、bomb_score、bomb_coin、bomb_star、
    ready、go、fever、timeup、bonus（橫幅）、bg、bg_fever（背景）、skill_ring、shuffle、coin、pop、icon */
-const TT_ART = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+const TT_ART = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', 'bomb', 'ready', 'go', 'fever', 'timeup', 'bg'];
 const TTI = {};
 const ttKey = i => String(i + 1).padStart(2, '0');
 function ttImg(k) { if (!TT_ART.includes(k)) return null; let im = TTI[k]; if (!im) { im = TTI[k] = new Image(); im.src = 'ts/' + k + '.webp'; } return im.complete && im.naturalWidth ? im : null; }
@@ -2330,7 +2333,8 @@ function ttDraw(G) {
   const g = cv.getContext('2d'), s = w / 100, dark = ttDark(), rp = TT_R * s, fev = G.fever > 0;
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
   /* 盤面底：一塊比周圍暗一點的圓角區塊；Fever 中會發亮閃動 */
-  g.fillStyle = dark ? 'rgba(0,0,0,.28)' : 'rgba(120,95,70,.16)'; g.beginPath(); g.roundRect(0, 0, w, h, 18); g.fill();
+  /* 淺色模式有背景圖時，盤面用背景圖裡盤面的淡紫色，跟背景接得起來 */
+  g.fillStyle = dark ? 'rgba(0,0,0,.28)' : ttHas('bg') ? '#d4c7d4' : 'rgba(120,95,70,.16)'; g.beginPath(); g.roundRect(0, 0, w, h, 18); g.fill();
   if (fev) { g.fillStyle = 'rgba(255,196,60,' + (0.16 + 0.08 * Math.sin(G.t * 9)) + ')'; g.beginPath(); g.roundRect(0, 0, w, h, 18); g.fill(); }
   g.save(); g.beginPath(); g.roundRect(0, 0, w, h, 18); g.clip();
   if (G.shake > 0) g.translate((Math.random() - 0.5) * G.shake * 8, (Math.random() - 0.5) * G.shake * 8);
@@ -3046,7 +3050,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v56';
+const APP_VER = 'v57';
 let STALE = false;
 async function chkUpdate() {
   try {

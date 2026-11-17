@@ -1358,6 +1358,9 @@ html.mg-open body{overflow:hidden}
 :root[data-theme="dark"] .ws-fill{background:rgba(255,248,236,.92)}
 :root[data-theme="dark"] .ws-stage .mg-over{background:rgba(43,39,36,.95)}
 /* 疊疊樂消除 */
+#tt{background:var(--bg) url(ts/bg.webp) center/cover no-repeat}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #tt{background-image:none}}
+:root[data-theme="dark"] #tt{background-image:none}
 .tt-pre{flex:1;min-height:0;width:100%;max-width:440px;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
 .tt-pre[hidden],.tt-game[hidden]{display:none}
 .tt-pre-in{display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
