@@ -1870,7 +1870,8 @@ if (location.hash === '#mgtest') window.__tb = { G: () => TB_, move: d => tMove(
    每一關出題前都先用程式解過一次，確定解得開才會出（解不開的洗牌直接丟掉重洗）。
    紀錄存在 play/sort：{ him: { lv: 目前打到第幾關, mv: { 關卡: 最少步數 } }, her: {...} }。 */
 const WCAP = 4;
-const WSCOL = ['#e5534b', '#f29a38', '#f4d24a', '#7bc655', '#2f9e86', '#74c8ec', '#3f6fd6', '#9a6ad4', '#f08fc2', '#a8734d', '#9ba4ad', '#3d4454'];
+/* 12 種水色（美術調過的版本，順序：紅 橘 黃 綠 青綠 天藍 藍 紫 粉紅 咖啡 灰 深藍灰） */
+const WSCOL = ['#D9504B', '#F19B45', '#F4D45A', '#91C957', '#278F7F', '#84CDE8', '#3466B5', '#AA82CE', '#EBA6C5', '#94603F', '#ACB2BA', '#3E4554'];
 /* 顏色數：第 1 關 3 色，之後每 2 關多 1 色，最多 12 色；空瓶固定 2 個 */
 const wColors = lv => Math.min(WSCOL.length, 3 + Math.floor(lv / 2));
 function wRng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -1928,7 +1929,7 @@ let WS_ = null;
 function sortInfo() { const d = PL('sort') || {}, f = k => ({ lv: (d[k] && d[k].lv) || 1, mv: (d[k] && d[k].mv) || {} }); return { him: f('him'), her: f('her') }; }
 function sortCardHtml() {
   const s = sortInfo(), my = s[meKey()].lv;
-  return '<div class="card play-card"><div class="row"><h3>倒水分色 🧪</h3><span class="muted">' + MARK.him + ' 第 ' + s.him.lv + ' 關　' + MARK.her + ' 第 ' + s.her.lv + ' 關</span></div>' +
+  return '<div class="card play-card"><div class="row"><h3>倒水分色 <img class="tb-ico" src="ws/icon.webp" alt=""></h3><span class="muted">' + MARK.him + ' 第 ' + s.him.lv + ' 關　' + MARK.her + ' 第 ' + s.her.lv + ' 關</span></div>' +
     '<p class="muted">點一個瓶子，再點另一個，把同色的水倒在一起。每個瓶子都變成同一個顏色就過關，兩個人的關卡一樣，可以比誰步數少。</p>' +
     '<button class="btn" data-act="wsOpen">開始玩（第 ' + my + ' 關）</button></div>';
 }
@@ -1945,7 +1946,7 @@ function wsRender() {
 }
 function wsBottleHtml(i) {
   const W = WS_, b = W.b[i];
-  return '<button class="ws-b' + (W.sel === i ? ' sel' : '') + (wDone(b) ? ' done' : '') + '" data-ws="' + i + '" aria-label="第 ' + (i + 1) + ' 個瓶子"><span class="ws-glass"><span class="ws-liq">' + b.map(c => '<i style="background:' + WSCOL[c] + '"></i>').join('') + '</span></span></button>';
+  return '<button class="ws-b' + (W.sel === i ? ' sel' : '') + (wDone(b) ? ' done' : '') + '" data-ws="' + i + '" aria-label="第 ' + (i + 1) + ' 個瓶子"><span class="ws-fill"></span><span class="ws-m"><span class="ws-liq">' + b.map(c => '<i style="background:' + WSCOL[c] + '"></i>').join('') + '</span></span><span class="ws-glass"></span>' + (wDone(b) ? '<span class="ws-cap"></span>' : '') + '</button>';
 }
 function wsHud() {
   const W = WS_; if (!W) return;
@@ -1977,8 +1978,9 @@ function wsPour(from, to, n) {
   W.busy = true; W.sel = -1; W.hist.push(JSON.stringify({ b: W.b, extra: W.extra })); W.moves++;
   const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(), dir = ra.left <= rb.left ? 1 : -1, ang = 100 * dir, h = ra.height;
   /* 傾斜後瓶口相對瓶子中心的位置，讓瓶口剛好停在對方瓶口上方 */
-  const mx = Math.sin(ang * Math.PI / 180) * h / 2, my = -Math.cos(ang * Math.PI / 180) * h / 2;
-  const dx = (rb.left + rb.width / 2) - mx - (ra.left + ra.width / 2), dy = (rb.top - 10) - my - (ra.top + ra.height / 2);
+  /* 瓶子圖的瓶口在整張圖由上往下 11.5% 的地方 */
+  const MO = 0.115, hm = h * (0.5 - MO), mx = Math.sin(ang * Math.PI / 180) * hm, my = -Math.cos(ang * Math.PI / 180) * hm, mouthB = rb.top + rb.height * MO;
+  const dx = (rb.left + rb.width / 2) - mx - (ra.left + ra.width / 2), dy = (mouthB - 12) - my - (ra.top + ra.height / 2);
   a.classList.remove('sel'); a.classList.add('pour'); a.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + ang + 'deg)';
   for (let q = 0; q < n; q++) W.b[to].push(W.b[from].pop());
   const T1 = 200, T2 = 260 + n * 40, T3 = 200;
@@ -1989,8 +1991,8 @@ function wsPour(from, to, n) {
     cells.forEach(c => { c.style.transition = 'height ' + T2 + 'ms linear'; c.style.height = '0'; });
     for (let q = 0; q < n; q++) { const c = document.createElement('i'); c.style.background = WSCOL[col]; c.style.height = '0'; c.style.transition = 'height ' + T2 + 'ms linear'; lb.appendChild(c); void c.offsetWidth; c.style.height = ''; }
     const s = document.createElement('span'); s.className = 'ws-stream'; s.style.background = WSCOL[col];
-    const rs = $('#ws-stage').getBoundingClientRect(), rg = $('.ws-glass', b).getBoundingClientRect();
-    s.style.left = (rb.left + rb.width / 2 - 3 - rs.left) + 'px'; s.style.top = (rb.top - 10 - rs.top) + 'px'; s.style.height = (rg.bottom - rb.top + 6) + 'px';
+    const rs = $('#ws-stage').getBoundingClientRect(), rl = $('.ws-liq', b).getBoundingClientRect(), surf = rl.bottom - rl.height * (W.b[to].length - n) / 4;
+    s.style.left = (rb.left + rb.width / 2 - 3 - rs.left) + 'px'; s.style.top = (mouthB - 12 - rs.top) + 'px'; s.style.height = Math.max(10, surf - mouthB + 14) + 'px';
     $('#ws-stage').appendChild(s);
     setTimeout(() => { s.remove(); if (WS_ !== W) return; a.style.transform = ''; }, T2);
     setTimeout(() => {
@@ -1998,7 +2000,12 @@ function wsPour(from, to, n) {
       a.classList.remove('pour'); W.busy = false;
       const done = wDone(W.b[to]);
       a.outerHTML = wsBottleHtml(from); wsEl(to).outerHTML = wsBottleHtml(to);
-      if (done) { const e = wsEl(to); e.classList.add('pop'); sfx('wdone'); mHaptic(2); }
+      if (done) {
+        const e = wsEl(to), r = e.getBoundingClientRect(), rs = $('#ws-stage').getBoundingClientRect(), sp = document.createElement('img');
+        e.classList.add('pop'); sfx('wdone'); mHaptic(2);
+        sp.className = 'ws-spark'; sp.src = 'ws/spark.webp'; sp.alt = ''; sp.style.left = (r.left + r.width / 2 - rs.left) + 'px'; sp.style.top = (r.top + r.height * 0.08 - rs.top) + 'px';
+        $('#ws-stage').appendChild(sp); setTimeout(() => sp.remove(), 700);
+      }
       wsHud();
       if (wWon(W.b)) wsWin(); else if (!wsAnyMove()) wsNote('沒有可以倒的了，按「復原」或「重來」');
     }, T2 + T3);
@@ -2012,7 +2019,7 @@ function wsWin() {
   const patch = {}; if (isBest) patch.mv = { [W.lv]: W.moves }; if (W.lv >= s[mk].lv) patch.lv = W.lv + 1;
   if (isBest || patch.lv) wr(setDoc(dref('play', 'sort'), { [mk]: patch }, { merge: true }));
   const box = $('#ws-over');
-  box.innerHTML = '<p class="mg-over-t">過關！🎉</p><p class="mg-over-s">' + W.moves + ' 步</p>' +
+  box.innerHTML = '<img class="ws-winimg" src="ws/win.webp" alt="過關！"><p class="mg-over-s">' + W.moves + ' 步</p>' +
     (best ? (isBest ? '<p class="quiz-res">比上次少 ' + (best - W.moves) + ' 步！</p>' : '<p class="muted">你的最少 ' + best + ' 步</p>') : '') +
     (other ? '<p class="muted">' + MARK[ok] + ' 這關 ' + other + ' 步' + (W.moves < other ? '，你贏了！' : W.moves === other ? '，平手' : '') + '</p>' : '<p class="muted">' + MARK[ok] + ' 還沒玩到這關</p>') +
     (W.extra ? '<p class="muted">（這關有用加空瓶）</p>' : '') +
@@ -2070,12 +2077,20 @@ if (location.hash === '#mgtest') window.__ws = { W: () => WS_, tap: i => wsTap(i
    紀錄存在 play/tsum：{ him, her：最高分, top: [{by, s, ts}], coins: { him, her } }
    座標：盤面寬固定 100 單位，高度看螢幕；所有角色半徑一樣（TT_R）。 */
 const TT_R = 7.6, TT_LINK = TT_R * 2 * 1.6, TT_TIME = 60, TT_FEVER_NEED = 30, TT_FEVER_SEC = 8, TT_COMBO_SEC = 3;
-/* 12 個角色：n＝名字、c＝還沒有美術時的佔位顏色、sk＝技能（對應 TT_SKILLS）。美術到了以後改名字就好 */
+/* 12 個角色：n＝名字、c＝主色（消除特效的顏色；沒有美術時也拿來畫佔位圓球）、sk＝技能（對應 TT_SKILLS）。美術到了以後改名字就好 */
 const TTS = [
-  { n: '角色 1', c: '#f28b82', sk: 'burst' }, { n: '角色 2', c: '#fbbc5b', sk: 'hline' }, { n: '角色 3', c: '#fff176', sk: 'vline' },
-  { n: '角色 4', c: '#a5d6a7', sk: 'rand' }, { n: '角色 5', c: '#80cbc4', sk: 'conv' }, { n: '角色 6', c: '#81d4fa', sk: 'bombs' },
-  { n: '角色 7', c: '#9fa8da', sk: 'time' }, { n: '角色 8', c: '#ce93d8', sk: 'cross' }, { n: '角色 9', c: '#f48fb1', sk: 'bottom' },
-  { n: '角色 10', c: '#bcaaa4', sk: 'kind' }, { n: '角色 11', c: '#e6ee9c', sk: 'diag' }, { n: '角色 12', c: '#ffab91', sk: 'fever' },
+  { n: '烏薩奇', c: '#f6dfc4', sk: 'burst' },
+  { n: '星星人', c: '#ef7d4f', sk: 'hline' },
+  { n: 'Dimoo', c: '#f4c9c2', sk: 'vline' },
+  { n: '花小兔', c: '#f3dede', sk: 'rand' },
+  { n: '大眼蛙', c: '#c6e23e', sk: 'conv' },
+  { n: '丸丸', c: '#9aa0a8', sk: 'bombs' },
+  { n: '屎蛋', c: '#f5c43c', sk: 'time' },
+  { n: '小虎', c: '#f7ab2a', sk: 'cross' },
+  { n: 'Pingu', c: '#2f2f33', sk: 'bottom' },
+  { n: '歐拉夫', c: '#efece0', sk: 'kind' },
+  { n: '波波', c: '#6b4a2c', sk: 'diag' },
+  { n: 'Kingjun', c: '#bfe12a', sk: 'fever' },
 ];
 /* 技能：need＝要消幾顆主角才集滿、d＝說明 */
 const TT_SKILLS = {
@@ -2264,7 +2279,7 @@ function ttStep(G, dt) {
    美術到齊後：把圖轉成 webp 放進 ts/，再把檔名加進這個清單就會自動套上。
    可用的檔名：01～12（角色頭像）、01_big～12_big（技能亮相大圖）、bomb、bomb_time、bomb_score、bomb_coin、bomb_star、
    ready、go、fever、timeup、bonus（橫幅）、bg、bg_fever（背景）、skill_ring、shuffle、coin、pop、icon */
-const TT_ART = [];
+const TT_ART = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
 const TTI = {};
 const ttKey = i => String(i + 1).padStart(2, '0');
 function ttImg(k) { if (!TT_ART.includes(k)) return null; let im = TTI[k]; if (!im) { im = TTI[k] = new Image(); im.src = 'ts/' + k + '.webp'; } return im.complete && im.naturalWidth ? im : null; }
@@ -2295,7 +2310,7 @@ const ttCoinHtml = () => ttHas('coin') ? '<img class="tt-coin" src="ts/coin.webp
 function ttDrawBody(g, b, x, y, rp, G) {
   const im = b.bt ? ttImg(b.bt === 'n' ? 'bomb' : 'bomb_' + b.bt) : ttImg(ttKey(b.k));
   g.save(); g.translate(x, y); g.rotate(b.bt ? 0 : b.ang);
-  if (im) { const s = rp * 2 * 256 / 200; g.drawImage(im, -s / 2, -s / 2, s, s); }
+  if (im) { const s = rp * 2 * 256 / 200 * (b.bt ? 1 : 1.06); g.drawImage(im, -s / 2, -s / 2, s, s); }
   else if (b.bt) {
     const c = TT_BOMBS[b.bt].c, gr = g.createRadialGradient(-rp * 0.3, -rp * 0.35, rp * 0.1, 0, 0, rp);
     gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.45, c); gr.addColorStop(1, b.bt === 'n' ? '#b9c4cf' : c);
