@@ -2131,42 +2131,48 @@ function ttNew(my, items, Hw, rnd) {
   return { my, kinds, items, Hw, rnd, cap, bodies: [], seq: 0, t: 0, phase: 'ready', pt: 0, time: TT_TIME + (items.time ? 10 : 0), score: 0, coins: 0, combo: 0, comboT: 0, maxCombo: 0, maxChain: 0,
     fg: 0, fever: 0, feverN: 0, idle: 0, sg: 0, need: TT_SKILLS[TTS[my].sk].need, chain: [], pops: [], spawnT: 0, toSpawn: cap, fx: [], shuffleT: 0, bombMin: items.bomb ? 6 : 7, shake: 0 };
 }
+function ttNewGame(my, items, Hw, rnd) { const G = ttNew(my, items, Hw, rnd); ttWorld(G); return G; }
 /* 加時間：Fever、時間炸彈、技能都走這裡。一局裡加時合計最多 +60 秒，高手也不會打不完 */
 const TT_PLUS_MAX = 60;
 function ttAddTime(G, sec) { const a = Math.max(0, Math.min(sec, TT_PLUS_MAX - (G.plus || 0))); G.plus = (G.plus || 0) + a; G.time += a; return a; }
 const ttFloor = (G, x) => G.Hw - 1.5 - 5 * Math.pow((x - 50) / 50, 2);
+/* ---- 物理：Matter.js（開源 2D 物理引擎，lib/matter.min.js，打開疊疊樂時才載入） ----
+   遊戲座標（盤面寬 100）× TT_S ＝ Matter 的座標。每顆是一個圓形剛體，會滾動、互相推、靜下來就停住。
+   盤面：左右兩道牆＋一個微微下凹的碗狀底（用 16 段斜板拼出來）。 */
+const TT_S = 4, TT_STEP = 1000 / 120;
+const ttM = () => (typeof Matter !== 'undefined' ? Matter : globalThis.Matter);
+function ttWorld(G) {
+  const M = ttM(), S = TT_S, eng = M.Engine.create({ gravity: { x: 0, y: 1.28 }, positionIterations: 10, velocityIterations: 8 });
+  const st = { isStatic: true, friction: 0.35, restitution: 0 }, H = G.Hw * S, W = 100 * S, walls = [];
+  walls.push(M.Bodies.rectangle(-50, H / 2 - 400, 100, H + 1200, st), M.Bodies.rectangle(W + 50, H / 2 - 400, 100, H + 1200, st));
+  const N = 16; for (let i = 0; i < N; i++) {
+    const x0 = 100 * i / N, x1 = 100 * (i + 1) / N, y0 = ttFloor(G, x0) * S, y1 = ttFloor(G, x1) * S, len = Math.hypot((x1 - x0) * S, y1 - y0) + 6, T = 60;
+    const ang = Math.atan2(y1 - y0, (x1 - x0) * S), cx = (x0 + x1) / 2 * S - Math.sin(ang) * -T / 2, cy = (y0 + y1) / 2 + Math.cos(ang) * T / 2;
+    walls.push(M.Bodies.rectangle(cx, cy, len, T, Object.assign({ angle: ang }, st)));
+  }
+  M.Composite.add(eng.world, walls);
+  G.eng = eng; G.acc = 0;
+}
 function ttSpawn(G, k, x, y, bt) {
-  const b = { id: ++G.seq, k, bt: bt || '', x, y, px: x, py: y, ang: (G.rnd() - 0.5) * 0.6, born: G.t, dying: 0 };
+  const M = ttM(), ang = (G.rnd() - 0.5) * 0.6;
+  const mb = M.Bodies.circle(x * TT_S, y * TT_S, TT_R * TT_S, { restitution: 0.08, friction: 0.08, frictionStatic: 0.5, frictionAir: 0.02, density: 0.0015, angle: ang });
+  M.Composite.add(G.eng.world, mb);
+  const b = { id: ++G.seq, k, bt: bt || '', x, y, px: x, py: y, ang, born: G.t, dying: 0, mb };
   G.bodies.push(b); return b;
 }
-/* 物理：每幀切 6 小步；重力 → 兩顆互相推開 → 牆和地板 */
+function ttRemove(G, b) { if (b.mb) { ttM().Composite.remove(G.eng.world, b.mb); b.mb = null; } }
+/* 推一顆（洗牌用）：vx、vy 是遊戲座標每秒的速度 */
+function ttKick(G, b, vx, vy) { if (b.mb) ttM().Body.setVelocity(b.mb, { x: vx * TT_S / 120, y: vy * TT_S / 120 }); }
+/* 固定每 1/120 秒算一步（畫面卡的時候一幀最多補 6 步），再把位置同步回遊戲座標 */
 function ttPhys(G, dt) {
-  const SUB = 6, h = dt / SUB, g = 320 * h * h, R = TT_R, bs = G.bodies, n = bs.length, D = R * 2, D2 = D * D;
-  for (let s = 0; s < SUB; s++) {
-    for (let i = 0; i < n; i++) {
-      const b = bs[i]; let vx = (b.x - b.px) * 0.99, vy = (b.y - b.py) * 0.99;
-      const sp = Math.hypot(vx, vy); if (sp > 0.9) { vx *= 0.9 / sp; vy *= 0.9 / sp; }
-      b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + g; b.ang += vx / R;
-    }
-    for (let it = 0; it < 2; it++) {
-      for (let i = 0; i < n; i++) {
-        const a = bs[i];
-        for (let j = i + 1; j < n; j++) {
-          const c = bs[j], dx = c.x - a.x, dy = c.y - a.y, d2 = dx * dx + dy * dy;
-          if (d2 >= D2) continue;
-          const d = Math.sqrt(d2) || 0.001, p = (D - d) / 2 * 0.8, ux = dx / d, uy = dy / d;
-          a.x -= ux * p; a.y -= uy * p; c.x += ux * p; c.y += uy * p;
-          /* 兩顆剛好上下對齊（常發生在貼牆的地方）會疊成一根不倒的高塔：把上面那顆往盤面中間推一點點，讓它滑下來 */
-          if (ux > -0.1 && ux < 0.1) { const up = uy > 0 ? a : c; up.x += up.x < 50 ? 0.03 : -0.03; }
-        }
-      }
-      for (let i = 0; i < n; i++) {
-        const b = bs[i];
-        if (b.x < R) b.x = R; else if (b.x > 100 - R) b.x = 100 - R;
-        const fy = ttFloor(G, b.x) - R; if (b.y > fy) { b.y = fy; b.px += (b.x - b.px) * 0.25; }
-      }
-    }
+  const M = ttM(); G.acc = Math.min(G.acc + dt * 1000, TT_STEP * 6);
+  /* 速度上限（每秒 260 單位，約盤面兩倍半寬）：避免偶發的大重疊把角色彈飛 */
+  const VMAX = 260 * TT_S / 120;
+  while (G.acc >= TT_STEP) {
+    M.Engine.update(G.eng, TT_STEP); G.acc -= TT_STEP;
+    for (const b of G.bodies) { const v = b.mb && b.mb.velocity, s = v && Math.hypot(v.x, v.y); if (s > VMAX) M.Body.setVelocity(b.mb, { x: v.x * VMAX / s, y: v.y * VMAX / s }); }
   }
+  for (const b of G.bodies) { if (!b.mb) continue; b.px = b.x; b.py = b.y; b.x = b.mb.position.x / TT_S; b.y = b.mb.position.y / TT_S; b.ang = b.mb.angle; }
 }
 const ttAlive = G => G.bodies.filter(b => !b.dying && !b.lock);
 const ttCanLink = (a, b) => a.k === b.k && !b.bt && !b.dying && !b.lock && Math.hypot(a.x - b.x, a.y - b.y) <= TT_LINK;
@@ -2244,12 +2250,18 @@ function ttStep(G, dt) {
   G.spawnT -= dt;
   while (G.toSpawn > 0 && G.spawnT <= 0) {
     G.toSpawn--; G.spawnT += G.phase === 'ready' ? 0.03 : 0.06;
-    ttSpawn(G, G.kinds[Math.floor(G.rnd() * G.kinds.length)], TT_R + G.rnd() * (100 - TT_R * 2), -TT_R - G.rnd() * 30);
+    /* 從上方掉下來：找一個不會跟別顆重疊的位置（試 12 次，都擠就放更高的地方） */
+    let sx = 50, sy = -TT_R;
+    for (let tries = 0; tries < 12; tries++) {
+      sx = TT_R + G.rnd() * (100 - TT_R * 2); sy = -TT_R - G.rnd() * 30 - (tries >= 8 ? 30 : 0);
+      if (!G.bodies.some(b => Math.hypot(b.x - sx, b.y - sy) < TT_R * 2.05)) break;
+    }
+    ttSpawn(G, G.kinds[Math.floor(G.rnd() * G.kinds.length)], sx, sy);
   }
   ttPhys(G, dt);
   /* 到時間的就爆掉 */
   for (const b of G.bodies) if (b.dying && G.t >= b.dying) { b.gone = true; G.fx.push({ t: G.t, k: 'pop', x: b.x, y: b.y, c: b.bt ? '#ffffff' : TTS[b.k].c }); G.popped = (G.popped || 0) + 1; if (!b.bt && G.phase !== 'done') G.toSpawn++; }
-  if (G.bodies.some(b => b.gone)) { G.bodies = G.bodies.filter(b => !b.gone); G.chain = G.chain.filter(b => !b.gone); }
+  if (G.bodies.some(b => b.gone)) { G.bodies.forEach(b => b.gone && ttRemove(G, b)); G.bodies = G.bodies.filter(b => !b.gone); G.chain = G.chain.filter(b => !b.gone); }
   for (const p of G.pops) if (!p.done && G.t >= p.at) {
     p.done = true; G.fx.push({ t: G.t, k: 'text', x: p.x, y: p.y, s: '+' + p.pts, big: p.n >= 7 });
     if (p.bomb && p.b && !p.b.gone) { p.b.bt = p.bomb; p.b.k = -1; p.b.lock = false; p.b.born = G.t; G.fx.push({ t: G.t, k: 'spark', x: p.b.x, y: p.b.y }); G.toSpawn++; G.ev = G.ev || 'bombnew'; }
@@ -2505,7 +2517,7 @@ function tsumOpen() {
     });
     $('#tt-shuffle').addEventListener('pointerdown', e => {
       e.preventDefault(); mAudio(true); const G = TT_; if (!G || G.paused || G.phase !== 'play' || G.shuffleT > 0) return;
-      G.chain = []; G.shuffleT = 2; for (const b of G.bodies) { b.py += 0.45 + Math.random() * 0.45; b.px += (Math.random() - 0.5) * 1.4; } sfx('ttshuffle'); mHaptic(2);
+      G.chain = []; G.shuffleT = 2; for (const b of G.bodies) ttKick(G, b, (Math.random() - 0.5) * 80, -(55 + Math.random() * 55)); sfx('ttshuffle'); mHaptic(2);
     });
     ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => { if (!e.target.closest('.tt-pre')) e.preventDefault(); }, { passive: false }));
     document.addEventListener('visibilitychange', () => { if (document.hidden && TT_ && TT_.phase !== 'done' && !TT_.paused) ttPause(true); });
@@ -2513,16 +2525,25 @@ function tsumOpen() {
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   if (TT_) { cancelAnimationFrame(TT_.raf); TT_ = null; }
   const my = Number(LS.get('ourtwo.tt.my')); TTP = { my: my >= 0 && my < TTS.length ? my : 0, items: {} };
-  ov.classList.remove('fever'); ttShow(true); ttPreRender();
+  ov.classList.remove('fever'); ttShow(true); ttPreRender(); ttLib().catch(() => {});
 }
-function ttStart() {
+/* 物理引擎只在要玩疊疊樂時才下載（開 App 不會變慢）；打開選角畫面時就先開始下載 */
+let TTLIB = null;
+function ttLib() {
+  if (ttM()) return Promise.resolve();
+  if (!TTLIB) TTLIB = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'lib/matter.min.js'; s.onload = ok; s.onerror = () => { TTLIB = null; s.remove(); no(new Error('matter')); }; document.head.appendChild(s); });
+  return TTLIB;
+}
+async function ttStart() {
+  const btn = $('#tt-pre .tt-start');
+  if (!ttM()) { if (btn) { btn.disabled = true; btn.textContent = '載入中…'; } try { await ttLib(); } catch (e) { if (btn) { btn.disabled = false; btn.textContent = '載入失敗，確認網路後再按一次'; } return; } }
   const P = TTP, mk = meKey(), m = tsumInfo(), cost = TT_ITEMS.reduce((s, it) => s + (P.items[it.k] ? it.cost : 0), 0);
   if (cost > m.coins[mk]) { P.items = {}; ttPreRender(); return; }
   if (cost) wr(setDoc(dref('play', 'tsum'), { coins: { [mk]: m.coins[mk] - cost } }, { merge: true }));
   LS.set('ourtwo.tt.my', String(P.my));
   ttShow(false); $('#tt-over').hidden = true; $('#tt-snd').textContent = SNDON() ? '🔊' : '🔇';
   const cv = $('#tt-cv'), Hw = cv.clientHeight / (cv.clientWidth / 100);
-  TT_ = ttNew(P.my, Object.assign({}, P.items), Hw); TT_.rt = 0; ttBanner(TT_, 'ready'); sfx('ttready');
+  TT_ = ttNewGame(P.my, Object.assign({}, P.items), Hw); TT_.rt = 0; ttBanner(TT_, 'ready'); sfx('ttready');
   TT_.raf = requestAnimationFrame(ttLoop);
 }
 function tsumClose() {
@@ -3052,7 +3073,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v59';
+const APP_VER = 'v60';
 let STALE = false;
 async function chkUpdate() {
   try {
