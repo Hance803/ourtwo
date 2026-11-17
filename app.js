@@ -897,9 +897,10 @@ function quizHtml() {
 }
 function renderPlay() {
   const root = $('#play-body');
-  if (!root.childElementCount) root.innerHTML = ['merge', 'tetris', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
+  if (!root.childElementCount) root.innerHTML = ['merge', 'tetris', 'sort', 'balloon', 'kuji', 'truth', 'wheel', 'quiz'].map(k => '<div id="pw-' + k + '"></div>').join('');
   $('#pw-merge').innerHTML = mergeCardHtml();
   if (!TB_) $('#pw-tetris').innerHTML = tetrisCardHtml();
+  if (!WS_) $('#pw-sort').innerHTML = sortCardHtml();
   if (!kDrawing) { $('#pw-balloon').innerHTML = balloonCardHtml(); $('#pw-kuji').innerHTML = kujiCardHtml(); }
   if (!wheelSpin) { $('#pw-wheel').innerHTML = wheelHtml(); drawWheel(); }
   const ga = document.activeElement && document.activeElement.id === 'g-ta';
@@ -1287,7 +1288,7 @@ function mHaptic(level) {
 }
 /* 音效：用程式即時合成（不用音效檔），可以在遊戲右上角關掉 */
 const SNDON = () => LS.get('ourtwo.snd') !== '0';
-function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; const t = $('#tb-snd'); if (t) t.textContent = SNDON() ? '🔊' : '🔇'; }
+function mSndUI() { const b = $('#mg-snd'); if (b) b.textContent = SNDON() ? '音效 開' : '音效 關'; const t = $('#tb-snd'); if (t) t.textContent = SNDON() ? '🔊' : '🔇'; const w = $('#ws-snd'); if (w) w.textContent = SNDON() ? '🔊' : '🔇'; }
 let MAC = null;
 /* 音效引擎。iPhone 的聲音有時會被系統「中斷」：搖手機跳出「搖動以還原」、來電、鬧鐘、切到別的 App 等等，
    中斷後狀態會變成 interrupted（不只是 suspended），原本只處理 suspended，所以聲音就一直沒回來。
@@ -1330,6 +1331,11 @@ function sfx(k, a, b) {
     else if (k === 'tlock') { sTone(ac, 170, 70, 0.1, 'sine', 0.28); sNoise(ac, 0.04, 0.15, 900); }
     else if (k === 'tclear') { const n = a || 1; [523, 659, 784, 1047].slice(0, n).forEach((f, i) => sTone(ac, f, f * 1.02, 0.16, 'triangle', 0.22, i * 0.06)); sNoise(ac, 0.18 + n * 0.05, 0.25, 3000); if (n >= 4) { sTone(ac, 120, 40, 0.5, 'sine', 0.45); [1047, 1319, 1568].forEach((f, i) => sTone(ac, f, f, 0.25, 'triangle', 0.18, 0.3 + i * 0.09)); } }
     else if (k === 'tlevel') [659, 880, 1175].forEach((f, i) => sTone(ac, f, f, 0.14, 'triangle', 0.18, i * 0.08));
+    else if (k === 'wpick') sTone(ac, 520, 700, 0.06, 'sine', 0.12);
+    else if (k === 'wnope') sTone(ac, 200, 150, 0.1, 'triangle', 0.14);
+    else if (k === 'wpour') { const n = a || 1, d = 0.22 + n * 0.04; sNoise(ac, d, 0.12, 1400); sTone(ac, 380, 620 + n * 60, d, 'sine', 0.1); }
+    else if (k === 'wdone') [784, 1047].forEach((f, i) => sTone(ac, f, f, 0.14, 'triangle', 0.18, i * 0.08));
+    else if (k === 'wwin') [523, 659, 784, 1047, 1319].forEach((f, i) => sTone(ac, f, f, 0.2, 'triangle', 0.2, i * 0.09));
     else if (k === 'tover') [392, 330, 262, 196].forEach((f, i) => sTone(ac, f, f * 0.98, 0.22, 'triangle', 0.2, i * 0.16));
     else if (k === 'shot') { sNoise(ac, 0.3, 0.6, 2400); sTone(ac, 180, 45, 0.25, 'sine', 0.4); }
     else if (k === 'quake') { sNoise(ac, 1.0, 0.7, 260); sTone(ac, 75, 32, 0.9, 'sine', 0.45); [0.16, 0.32, 0.48].forEach(d => sTone(ac, 90, 40, 0.2, 'sine', 0.3, d)); }
@@ -1845,6 +1851,201 @@ Object.assign(ACT, {
 });
 if (location.hash === '#mgtest') window.__tb = { G: () => TB_, move: d => tMove(TB_, d), rot: () => tRotate(TB_), hard: () => tHard(TB_), hold: () => tHold(TB_) };
 
+/* ---------- 倒水分色 ---------- */
+/* 玩法：每個瓶子裝 4 格水。點一個瓶子再點另一個，把最上面那段同色的水倒過去——
+   對方要是空瓶，或最上面是同一個顏色、而且還有空位（裝不下的部分留在原瓶）。每個瓶子都變成單一顏色就過關。
+   關卡：用「第幾關」當亂數種子洗出來，所以兩支手機的同一關長得一模一樣，可以比誰步數少。
+   每一關出題前都先用程式解過一次，確定解得開才會出（解不開的洗牌直接丟掉重洗）。
+   紀錄存在 play/sort：{ him: { lv: 目前打到第幾關, mv: { 關卡: 最少步數 } }, her: {...} }。 */
+const WCAP = 4;
+const WSCOL = ['#e5534b', '#f29a38', '#f4d24a', '#7bc655', '#2f9e86', '#74c8ec', '#3f6fd6', '#9a6ad4', '#f08fc2', '#a8734d', '#9ba4ad', '#3d4454'];
+/* 顏色數：第 1 關 3 色，之後每 2 關多 1 色，最多 12 色；空瓶固定 2 個 */
+const wColors = lv => Math.min(WSCOL.length, 3 + Math.floor(lv / 2));
+function wRng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const wTopN = b => { let n = 0; for (let i = b.length - 1; i >= 0 && b[i] === b[b.length - 1]; i--) n++; return n; };
+const wDone = b => b.length === WCAP && wTopN(b) === WCAP;
+const wWon = bs => bs.every(b => !b.length || wDone(b));
+/* 能不能倒：回傳會倒過去幾格（0＝不能倒） */
+function wCan(bs, i, j) {
+  const a = bs[i], b = bs[j]; if (i === j || !a.length || b.length >= WCAP) return 0;
+  if (b.length && b[b.length - 1] !== a[a.length - 1]) return 0;
+  return Math.min(wTopN(a), WCAP - b.length);
+}
+/* 解題程式（深度優先＋記住看過的盤面）：回傳解法步驟，解不開或超過上限回傳 null */
+function wSolve(start, cap) {
+  const seen = new Set(), key = bs => bs.map(b => b.join(',')).sort().join('|'), path = [];
+  let nodes = 0;
+  const go = bs => {
+    if (wWon(bs)) return true;
+    if (++nodes > cap) return false;
+    const k = key(bs); if (seen.has(k)) return false; seen.add(k);
+    const mv = [];
+    for (let i = 0; i < bs.length; i++) {
+      const a = bs[i]; if (!a.length || wDone(a)) continue;
+      const tn = wTopN(a); let usedEmpty = false;
+      for (let j = 0; j < bs.length; j++) {
+        const n = wCan(bs, i, j); if (!n) continue;
+        if (!bs[j].length) { if (usedEmpty || tn === a.length) continue; usedEmpty = true; mv.push([i, j, n, 0]); }
+        else mv.push([i, j, n, n === tn ? 2 : 1]);
+      }
+    }
+    mv.sort((x, y) => y[3] - x[3]);
+    for (const [i, j, n] of mv) {
+      const nb = bs.map(b => b.slice()); for (let q = 0; q < n; q++) nb[j].push(nb[i].pop());
+      path.push([i, j]); if (go(nb)) return true; path.pop();
+      if (nodes > cap) return false;
+    }
+    return false;
+  };
+  return go(start.map(b => b.slice())) ? path.slice() : null;
+}
+/* 出題：洗牌 → 沒有一開始就完成的瓶子、相鄰同色不要太多 → 程式解得開才用 */
+function wLevel(lv) {
+  const nc = wColors(lv), rnd = wRng(lv * 7919 + 13);
+  for (let tries = 0; tries < 200; tries++) {
+    const pool = []; for (let c = 0; c < nc; c++) for (let q = 0; q < WCAP; q++) pool.push(c);
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const bs = []; for (let c = 0; c < nc; c++) bs.push(pool.slice(c * WCAP, c * WCAP + WCAP)); bs.push([], []);
+    if (bs.some(b => b.length && wTopN(b) >= 3)) continue;
+    if (wSolve(bs, 30000)) return bs;
+  }
+  /* 理論上到不了這裡；保險起見給一個一定解得開的簡單盤面 */
+  const bs = []; for (let c = 0; c < nc; c++) bs.push([c, (c + 1) % nc, c, (c + 1) % nc]); if (nc % 2) { bs[nc - 1] = [nc - 1, nc - 1, 0, 0]; bs[0] = [0, 1, 0, 1]; } bs.push([], []); return bs;
+}
+let WS_ = null;
+function sortInfo() { const d = PL('sort') || {}, f = k => ({ lv: (d[k] && d[k].lv) || 1, mv: (d[k] && d[k].mv) || {} }); return { him: f('him'), her: f('her') }; }
+function sortCardHtml() {
+  const s = sortInfo(), my = s[meKey()].lv;
+  return '<div class="card play-card"><div class="row"><h3>倒水分色 🧪</h3><span class="muted">' + MARK.him + ' 第 ' + s.him.lv + ' 關　' + MARK.her + ' 第 ' + s.her.lv + ' 關</span></div>' +
+    '<p class="muted">點一個瓶子，再點另一個，把同色的水倒在一起。每個瓶子都變成同一個顏色就過關，兩個人的關卡一樣，可以比誰步數少。</p>' +
+    '<button class="btn" data-act="wsOpen">開始玩（第 ' + my + ' 關）</button></div>';
+}
+function wsNew(lv) {
+  return { lv, b: wLevel(lv), hist: [], moves: 0, sel: -1, busy: false, extra: false, won: false };
+}
+/* 瓶子排法：6 個以內排一排，再多就分兩排（上排多一個） */
+function wsRender() {
+  const W = WS_, st = $('#ws-stage'); if (!W || !st) return;
+  const n = W.b.length, top = n <= 6 ? n : Math.ceil(n / 2), rows = n <= 6 ? [[0, n]] : [[0, top], [top, n]];
+  st.innerHTML = rows.map(([a, z]) => '<div class="ws-row">' + W.b.slice(a, z).map((b, k) => wsBottleHtml(a + k)).join('') + '</div>').join('') + '<div class="mg-over" id="ws-over" hidden></div>';
+  st.style.setProperty('--wsn', String(Math.max(top, 5)));
+  wsHud();
+}
+function wsBottleHtml(i) {
+  const W = WS_, b = W.b[i];
+  return '<button class="ws-b' + (W.sel === i ? ' sel' : '') + (wDone(b) ? ' done' : '') + '" data-ws="' + i + '" aria-label="第 ' + (i + 1) + ' 個瓶子"><span class="ws-glass"><span class="ws-liq">' + b.map(c => '<i style="background:' + WSCOL[c] + '"></i>').join('') + '</span></span></button>';
+}
+function wsHud() {
+  const W = WS_; if (!W) return;
+  $('#ws-lv').textContent = '第 ' + W.lv + ' 關'; $('#ws-moves').textContent = W.moves + ' 步';
+  const my = sortInfo()[meKey()], best = my.mv[W.lv];
+  $('#ws-best').textContent = best ? '你的最少 ' + best + ' 步' : '';
+  $('#ws-undo').disabled = !W.hist.length || W.won; $('#ws-extra').disabled = W.extra || W.won;
+  $('#ws-prev').disabled = W.lv <= 1; $('#ws-next').disabled = W.lv >= my.lv;
+}
+const wsEl = i => $('#ws-stage [data-ws="' + i + '"]');
+function wsTap(i) {
+  const W = WS_; if (!W || W.busy || W.won) return;
+  mAudio(true);
+  if (W.sel < 0) { if (!W.b[i].length || wDone(W.b[i])) { wsNope(i); return; } W.sel = i; wsEl(i).classList.add('sel'); sfx('wpick'); mHaptic(1); return; }
+  if (W.sel === i) { W.sel = -1; wsEl(i).classList.remove('sel'); return; }
+  const from = W.sel, n = wCan(W.b, from, i);
+  if (!n) {
+    /* 倒不過去：如果點的是另一個有水的瓶子，就改選它；不然晃一下 */
+    wsEl(from).classList.remove('sel'); W.sel = -1;
+    if (W.b[i].length && !wDone(W.b[i])) { W.sel = i; wsEl(i).classList.add('sel'); sfx('wpick'); } else wsNope(i);
+    return;
+  }
+  wsPour(from, i, n);
+}
+function wsNope(i) { const e = wsEl(i); if (!e) return; e.classList.remove('nope'); void e.offsetWidth; e.classList.add('nope'); sfx('wnope'); }
+/* 倒水動畫：瓶子移到對方瓶口上方傾斜 → 水一格一格過去（原瓶變少、對方變多）→ 瓶子回原位 */
+function wsPour(from, to, n) {
+  const W = WS_, a = wsEl(from), b = wsEl(to), col = W.b[from][W.b[from].length - 1];
+  W.busy = true; W.sel = -1; W.hist.push(JSON.stringify({ b: W.b, extra: W.extra })); W.moves++;
+  const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(), dir = ra.left <= rb.left ? 1 : -1, ang = 100 * dir, h = ra.height;
+  /* 傾斜後瓶口相對瓶子中心的位置，讓瓶口剛好停在對方瓶口上方 */
+  const mx = Math.sin(ang * Math.PI / 180) * h / 2, my = -Math.cos(ang * Math.PI / 180) * h / 2;
+  const dx = (rb.left + rb.width / 2) - mx - (ra.left + ra.width / 2), dy = (rb.top - 10) - my - (ra.top + ra.height / 2);
+  a.classList.remove('sel'); a.classList.add('pour'); a.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + ang + 'deg)';
+  for (let q = 0; q < n; q++) W.b[to].push(W.b[from].pop());
+  const T1 = 200, T2 = 260 + n * 40, T3 = 200;
+  setTimeout(() => {
+    if (WS_ !== W) return;
+    sfx('wpour', n); mHaptic(1);
+    const la = $('.ws-liq', a), lb = $('.ws-liq', b), cells = Array.from(la.children).slice(-n);
+    cells.forEach(c => { c.style.transition = 'height ' + T2 + 'ms linear'; c.style.height = '0'; });
+    for (let q = 0; q < n; q++) { const c = document.createElement('i'); c.style.background = WSCOL[col]; c.style.height = '0'; c.style.transition = 'height ' + T2 + 'ms linear'; lb.appendChild(c); void c.offsetWidth; c.style.height = ''; }
+    const s = document.createElement('span'); s.className = 'ws-stream'; s.style.background = WSCOL[col];
+    const rs = $('#ws-stage').getBoundingClientRect(), rg = $('.ws-glass', b).getBoundingClientRect();
+    s.style.left = (rb.left + rb.width / 2 - 3 - rs.left) + 'px'; s.style.top = (rb.top - 10 - rs.top) + 'px'; s.style.height = (rg.bottom - rb.top + 6) + 'px';
+    $('#ws-stage').appendChild(s);
+    setTimeout(() => { s.remove(); if (WS_ !== W) return; a.style.transform = ''; }, T2);
+    setTimeout(() => {
+      if (WS_ !== W) return;
+      a.classList.remove('pour'); W.busy = false;
+      const done = wDone(W.b[to]);
+      a.outerHTML = wsBottleHtml(from); wsEl(to).outerHTML = wsBottleHtml(to);
+      if (done) { const e = wsEl(to); e.classList.add('pop'); sfx('wdone'); mHaptic(2); }
+      wsHud();
+      if (wWon(W.b)) wsWin(); else if (!wsAnyMove()) wsNote('沒有可以倒的了，按「復原」或「重來」');
+    }, T2 + T3);
+  }, T1);
+}
+function wsAnyMove() { const W = WS_; for (let i = 0; i < W.b.length; i++) for (let j = 0; j < W.b.length; j++) if (wCan(W.b, i, j)) return true; return false; }
+function wsNote(s) { const e = $('#ws-note'); e.textContent = s; e.classList.remove('show'); void e.offsetWidth; e.classList.add('show'); }
+function wsWin() {
+  const W = WS_; W.won = true; sfx('wwin'); mHaptic(3);
+  const mk = meKey(), ok = mk === 'him' ? 'her' : 'him', s = sortInfo(), best = s[mk].mv[W.lv], isBest = !best || W.moves < best, other = s[ok].mv[W.lv];
+  const patch = {}; if (isBest) patch.mv = { [W.lv]: W.moves }; if (W.lv >= s[mk].lv) patch.lv = W.lv + 1;
+  if (isBest || patch.lv) wr(setDoc(dref('play', 'sort'), { [mk]: patch }, { merge: true }));
+  const box = $('#ws-over');
+  box.innerHTML = '<p class="mg-over-t">過關！🎉</p><p class="mg-over-s">' + W.moves + ' 步</p>' +
+    (best ? (isBest ? '<p class="quiz-res">比上次少 ' + (best - W.moves) + ' 步！</p>' : '<p class="muted">你的最少 ' + best + ' 步</p>') : '') +
+    (other ? '<p class="muted">' + MARK[ok] + ' 這關 ' + other + ' 步' + (W.moves < other ? '，你贏了！' : W.moves === other ? '，平手' : '') + '</p>' : '<p class="muted">' + MARK[ok] + ' 還沒玩到這關</p>') +
+    (W.extra ? '<p class="muted">（這關有用加空瓶）</p>' : '') +
+    '<div class="row" style="justify-content:center;gap:10px"><button class="btn" data-act="wsGo" data-v="' + (W.lv + 1) + '">下一關</button><button class="btn ghost" data-act="wsClose">離開</button></div>';
+  box.hidden = false; wsHud();
+}
+function sortOpen(lv) {
+  if (STALE) { location.reload(); return; }
+  let ov = $('#ws');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'ws'; ov.className = 'mg ws';
+    ov.innerHTML = '<div class="mg-top-bar mg-hud"><button class="btn ghost small" data-act="wsClose">‹ 離開</button>' +
+      '<span class="mg-scorebox"><span class="ws-lvrow"><button class="btn ghost small ws-nav" id="ws-prev" data-act="wsStep" data-v="-1" aria-label="上一關">‹</button><b id="ws-lv"></b><button class="btn ghost small ws-nav" id="ws-next" data-act="wsStep" data-v="1" aria-label="下一關">›</button></span><span class="mg-sl"><span id="ws-moves"></span>　<span id="ws-best"></span></span></span>' +
+      '<button class="btn ghost small mg-snd" data-act="mgSnd" id="ws-snd"></button></div>' +
+      '<div class="ws-stage" id="ws-stage"></div><p class="ws-note" id="ws-note"></p>' +
+      '<div class="ws-pad"><button class="btn ghost" id="ws-undo" data-act="wsUndo">↶ 復原</button><button class="btn ghost" data-act="wsRestart">重來</button><button class="btn ghost" id="ws-extra" data-act="wsExtra">＋空瓶</button></div>';
+    document.body.appendChild(ov);
+    /* 手指一按下去就算點到（不等點擊事件），跟西瓜的道具按鈕同一個做法 */
+    $('#ws-stage').addEventListener('pointerdown', e => { const b = e.target.closest('[data-ws]'); if (!b) return; e.preventDefault(); wsTap(Number(b.dataset.ws)); });
+    ['gesturestart', 'gesturechange', 'touchmove'].forEach(n => ov.addEventListener(n, e => e.preventDefault(), { passive: false }));
+  }
+  ov.hidden = false; document.documentElement.classList.add('mg-open');
+  const my = sortInfo()[meKey()].lv;
+  WS_ = wsNew(Math.max(1, Math.min(typeof lv === 'number' ? lv : my, my)));
+  $('#ws-snd').textContent = SNDON() ? '🔊' : '🔇'; $('#ws-note').classList.remove('show');
+  wsRender();
+}
+function sortClose() {
+  WS_ = null; const ov = $('#ws'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
+  if (curTab === 'play') renderPlay();
+}
+Object.assign(ACT, {
+  wsOpen() { sortOpen(); }, wsClose: sortClose,
+  wsGo(el) { sortOpen(Number(el.dataset.v)); },
+  wsStep(el) { const W = WS_; if (!W || W.busy) return; sortOpen(W.lv + Number(el.dataset.v)); },
+  wsRestart() { const W = WS_; if (!W || W.busy) return; sortOpen(W.lv); },
+  wsUndo() {
+    const W = WS_; if (!W || W.busy || W.won || !W.hist.length) return;
+    const h = JSON.parse(W.hist.pop()); W.b = h.b; W.extra = h.extra; W.sel = -1; sfx('wpick'); wsRender();
+  },
+  /* 加一個空瓶：每關一次，卡住時救急用 */
+  wsExtra() { const W = WS_; if (!W || W.busy || W.won || W.extra) return; W.hist.push(JSON.stringify({ b: W.b, extra: W.extra })); W.extra = true; W.b.push([]); W.sel = -1; sfx('wdone'); wsRender(); },
+});
+if (location.hash === '#mgtest') window.__ws = { W: () => WS_, tap: i => wsTap(i), solve: () => wSolve(WS_.b, 200000), level: wLevel };
+
 /* ---------- 真心話扭蛋機 ---------- */
 /* 兩人共用一顆「目前的扭蛋」（play/gacha.cur）。誰都可以扭，但兩個人都回答完才能扭下一顆。
    兩人都答完時，整顆扭蛋（題目＋兩人回答）存進 truth 收藏，下面的「回答紀錄」可以回顧。
@@ -2359,7 +2560,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v53';
+const APP_VER = 'v54';
 let STALE = false;
 async function chkUpdate() {
   try {
