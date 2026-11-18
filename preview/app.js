@@ -2155,8 +2155,8 @@ function ttBombType(n, rnd) {
   return r < 0.1 ? 'time' : 'n';
 }
 /* 不能同一局出現的角色組（編號從 0 開始；同一組裡最多只會出現一個）：
-   1. 屎蛋、Kingjun、大眼蛙、小虎　2. 歐拉夫、花小兔　3. 烏薩奇、Dimoo */
-const TT_GROUPS = [[6, 11, 4, 7], [9, 3], [0, 2]];
+   1. 屎蛋、Kingjun、大眼蛙、小虎　2. 歐拉夫、花小兔　3. 烏薩奇、Dimoo　4. Dimoo、屎蛋 */
+const TT_GROUPS = [[6, 11, 4, 7], [9, 3], [0, 2], [2, 6]];
 const ttNear = (a, b) => a !== b && TT_GROUPS.some(g => g.includes(a) && g.includes(b));
 function ttNew(my, items, Hw, rnd) {
   rnd = rnd || Math.random;
