@@ -2155,8 +2155,8 @@ function ttBombType(n, rnd) {
   return r < 0.1 ? 'time' : 'n';
 }
 /* 不能同一局出現的角色組（編號從 0 開始；同一組裡最多只會出現一個）：
-   1. 屎蛋、Kingjun、大眼蛙、小虎　2. 歐拉夫、花小兔　3. 烏薩奇、Dimoo */
-const TT_GROUPS = [[6, 11, 4, 7], [9, 3], [0, 2]];
+   1. 屎蛋、Kingjun、大眼蛙、小虎　2. 歐拉夫、花小兔　3. 烏薩奇、Dimoo　4. Dimoo、屎蛋 */
+const TT_GROUPS = [[6, 11, 4, 7], [9, 3], [0, 2], [2, 6]];
 const ttNear = (a, b) => a !== b && TT_GROUPS.some(g => g.includes(a) && g.includes(b));
 function ttNew(my, items, Hw, rnd) {
   rnd = rnd || Math.random;
@@ -3104,7 +3104,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v63';
+const APP_VER = 'v64';
 let STALE = false;
 async function chkUpdate() {
   try {
