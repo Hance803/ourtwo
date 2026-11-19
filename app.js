@@ -1959,6 +1959,23 @@ function wLevel(lv) {
   const bs = []; for (let c = 0; c < nc; c++) bs.push([c, (c + 1) % nc, c, (c + 1) % nc]); if (nc % 2) { bs[nc - 1] = [nc - 1, nc - 1, 0, 0]; bs[0] = [0, 1, 0, 1]; } bs.push([], []); return bs;
 }
 let WS_ = null;
+/* 色弱模式：每種顏色的水上印一個不同的白色形狀，不用分顏色、看形狀就能玩。每支手機各自記住開關 */
+const WS_SHAPES = [
+  '<circle cx="10" cy="10" r="6.5"/>',                                         /* 紅：圓 */
+  '<path d="M10 3.2 17 16.2H3z"/>',                                            /* 橘：三角 */
+  '<rect x="4" y="4" width="12" height="12" rx="1.5"/>',                       /* 黃：方塊 */
+  '<path d="M10 2.5 17.5 10 10 17.5 2.5 10z"/>',                               /* 綠：菱形 */
+  '<path d="M10 2.4l2.3 4.9 5.3.6-3.9 3.6 1 5.3L10 14.2l-4.7 2.6 1-5.3L2.4 7.9l5.3-.6z"/>', /* 青綠：星星 */
+  '<path d="M10 17s-6.5-4.2-6.5-8.6A3.6 3.6 0 0 1 10 6a3.6 3.6 0 0 1 6.5 2.4C16.5 12.8 10 17 10 17z"/>', /* 天藍：愛心 */
+  '<path d="M7.5 3h5v4.5H17v5h-4.5V17h-5v-4.5H3v-5h4.5z"/>',                   /* 藍：十字 */
+  '<path d="M4.6 2.8 10 8.2l5.4-5.4 1.8 1.8L11.8 10l5.4 5.4-1.8 1.8L10 11.8l-5.4 5.4-1.8-1.8L8.2 10 2.8 4.6z"/>', /* 紫：叉叉 */
+  '<circle cx="10" cy="10" r="6" fill="none" stroke-width="3.4"/>',            /* 粉紅：空心圓 */
+  '<path d="M10 16.8 3 3.8h14z"/>',                                            /* 咖啡：倒三角 */
+  '<path d="M6 3.5h8l4 6.5-4 6.5H6L2 10z"/>',                                  /* 灰：六角形 */
+  '<path d="M3 4.5h14v3.2H3zM3 12.3h14v3.2H3z"/>',                             /* 深藍灰：兩槓 */
+];
+const wsCB = () => LS.get('ourtwo.ws.cb') === '1';
+const wsCell = c => '<i style="background:' + WSCOL[c] + '">' + (wsCB() ? '<svg viewBox="0 0 20 20" aria-hidden="true">' + WS_SHAPES[c] + '</svg>' : '') + '</i>';
 function sortInfo() { const d = PL('sort') || {}, f = k => ({ lv: (d[k] && d[k].lv) || 1, mv: (d[k] && d[k].mv) || {} }); return { him: f('him'), her: f('her') }; }
 function sortCardHtml() {
   const s = sortInfo(), my = s[meKey()].lv;
@@ -1979,7 +1996,7 @@ function wsRender() {
 }
 function wsBottleHtml(i) {
   const W = WS_, b = W.b[i];
-  return '<button class="ws-b' + (W.sel === i ? ' sel' : '') + (wDone(b) ? ' done' : '') + '" data-ws="' + i + '" aria-label="第 ' + (i + 1) + ' 個瓶子"><span class="ws-fill"></span><span class="ws-m"><span class="ws-liq">' + b.map(c => '<i style="background:' + WSCOL[c] + '"></i>').join('') + '</span></span><span class="ws-glass"></span>' + (wDone(b) ? '<span class="ws-cap"></span>' : '') + '</button>';
+  return '<button class="ws-b' + (W.sel === i ? ' sel' : '') + (wDone(b) ? ' done' : '') + '" data-ws="' + i + '" aria-label="第 ' + (i + 1) + ' 個瓶子"><span class="ws-fill"></span><span class="ws-m"><span class="ws-liq">' + b.map(wsCell).join('') + '</span></span><span class="ws-glass"></span>' + (wDone(b) ? '<span class="ws-cap"></span>' : '') + '</button>';
 }
 function wsHud() {
   const W = WS_; if (!W) return;
@@ -2022,7 +2039,7 @@ function wsPour(from, to, n) {
     sfx('wpour', n); mHaptic(1);
     const la = $('.ws-liq', a), lb = $('.ws-liq', b), cells = Array.from(la.children).slice(-n);
     cells.forEach(c => { c.style.transition = 'height ' + T2 + 'ms linear'; c.style.height = '0'; });
-    for (let q = 0; q < n; q++) { const c = document.createElement('i'); c.style.background = WSCOL[col]; c.style.height = '0'; c.style.transition = 'height ' + T2 + 'ms linear'; lb.appendChild(c); void c.offsetWidth; c.style.height = ''; }
+    for (let q = 0; q < n; q++) { const t = document.createElement('div'); t.innerHTML = wsCell(col); const c = t.firstChild; c.style.height = '0'; c.style.transition = 'height ' + T2 + 'ms linear'; lb.appendChild(c); void c.offsetWidth; c.style.height = ''; }
     const s = document.createElement('span'); s.className = 'ws-stream'; s.style.background = WSCOL[col];
     const rs = $('#ws-stage').getBoundingClientRect(), rl = $('.ws-liq', b).getBoundingClientRect(), surf = rl.bottom - rl.height * (W.b[to].length - n) / 4;
     s.style.left = (rb.left + rb.width / 2 - 3 - rs.left) + 'px'; s.style.top = (mouthB - 12 - rs.top) + 'px'; s.style.height = Math.max(10, surf - mouthB + 14) + 'px';
@@ -2066,7 +2083,7 @@ function sortOpen(lv) {
     ov = document.createElement('div'); ov.id = 'ws'; ov.className = 'mg ws';
     ov.innerHTML = '<div class="mg-top-bar mg-hud"><button class="btn ghost small" data-act="wsClose">‹ 離開</button>' +
       '<span class="mg-scorebox"><span class="ws-lvrow"><button class="btn ghost small ws-nav" id="ws-prev" data-act="wsStep" data-v="-1" aria-label="上一關">‹</button><b id="ws-lv"></b><button class="btn ghost small ws-nav" id="ws-next" data-act="wsStep" data-v="1" aria-label="下一關">›</button></span><span class="mg-sl"><span id="ws-moves"></span>　<span id="ws-best"></span></span></span>' +
-      '<button class="btn ghost small mg-snd" data-act="mgSnd" id="ws-snd"></button></div>' +
+      '<span class="ws-hudr"><button class="btn ghost small ws-cbbtn" data-act="wsCB" id="ws-cb" aria-label="色弱模式"></button><button class="btn ghost small mg-snd" data-act="mgSnd" id="ws-snd"></button></span></div>' +
       '<div class="ws-stage" id="ws-stage"></div><p class="ws-note" id="ws-note"></p>' +
       '<div class="ws-pad"><button class="btn ghost" id="ws-undo" data-act="wsUndo">↶ 復原</button><button class="btn ghost" data-act="wsRestart">重來</button><button class="btn ghost" id="ws-extra" data-act="wsExtra">＋空瓶</button></div>';
     document.body.appendChild(ov);
@@ -2077,9 +2094,11 @@ function sortOpen(lv) {
   ov.hidden = false; document.documentElement.classList.add('mg-open');
   const my = sortInfo()[meKey()].lv;
   WS_ = wsNew(Math.max(1, Math.min(typeof lv === 'number' ? lv : my, my)));
-  $('#ws-snd').textContent = SNDON() ? '🔊' : '🔇'; $('#ws-note').classList.remove('show');
+  $('#ws-snd').textContent = SNDON() ? '🔊' : '🔇'; wsCBUI(); $('#ws-note').classList.remove('show');
   wsRender();
 }
+/* 色弱模式按鈕：開的時候亮起來 */
+function wsCBUI() { const b = $('#ws-cb'); if (!b) return; b.textContent = '◆●▲'; b.classList.toggle('on', wsCB()); b.title = wsCB() ? '色弱模式：開' : '色弱模式：關'; }
 function sortClose() {
   WS_ = null; const ov = $('#ws'); if (ov) ov.hidden = true; document.documentElement.classList.remove('mg-open');
   if (curTab === 'play') renderPlay();
@@ -2087,6 +2106,7 @@ function sortClose() {
 Object.assign(ACT, {
   wsOpen() { sortOpen(); }, wsClose: sortClose,
   wsGo(el) { sortOpen(Number(el.dataset.v)); },
+  wsCB() { const W = WS_; if (!W || W.busy) return; LS.set('ourtwo.ws.cb', wsCB() ? '0' : '1'); wsCBUI(); wsRender(); },
   wsStep(el) { const W = WS_; if (!W || W.busy) return; sortOpen(W.lv + Number(el.dataset.v)); },
   wsRestart() { const W = WS_; if (!W || W.busy) return; sortOpen(W.lv); },
   wsUndo() {
@@ -3113,7 +3133,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v65';
+const APP_VER = 'v66';
 let STALE = false;
 async function chkUpdate() {
   try {
