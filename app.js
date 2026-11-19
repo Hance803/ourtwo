@@ -2175,6 +2175,15 @@ function ttNewGame(my, items, Hw, rnd) { const G = ttNew(my, items, Hw, rnd); tt
 /* 加時間：Fever、時間炸彈、技能都走這裡。一局裡加時合計最多 +60 秒，高手也不會打不完 */
 const TT_PLUS_MAX = 60;
 function ttAddTime(G, sec) { const a = Math.max(0, Math.min(sec, TT_PLUS_MAX - (G.plus || 0))); G.plus = (G.plus || 0) + a; G.time += a; return a; }
+/* 下一顆掉什麼：抽袋子（主角 3 張、其他角色各 2 張，抽完再洗一袋）。
+   主角出現率約 27%（5 種角色）／33%（用了 5→4），也不會連續好久都不來 */
+function ttDraw1(G) {
+  if (!G.bag || !G.bag.length) {
+    G.bag = []; for (const k of G.kinds) for (let i = 0; i < (k === G.my ? 3 : 2); i++) G.bag.push(k);
+    for (let i = G.bag.length - 1; i > 0; i--) { const j = Math.floor(G.rnd() * (i + 1)); [G.bag[i], G.bag[j]] = [G.bag[j], G.bag[i]]; }
+  }
+  return G.bag.pop();
+}
 const ttFloor = (G, x) => G.Hw - 1.5 - 5 * Math.pow((x - 50) / 50, 2);
 /* ---- 物理：Matter.js（開源 2D 物理引擎，lib/matter.min.js，打開疊疊樂時才載入） ----
    遊戲座標（盤面寬 100）× TT_S ＝ Matter 的座標。每顆是一個圓形剛體，會滾動、互相推、靜下來就停住。
@@ -2294,7 +2303,7 @@ function ttStep(G, dt) {
       sx = TT_R + G.rnd() * (100 - TT_R * 2); sy = -TT_R - G.rnd() * 30 - (tries >= 8 ? 30 : 0);
       if (!G.bodies.some(b => Math.hypot(b.x - sx, b.y - sy) < TT_R * 2.05)) break;
     }
-    ttSpawn(G, G.kinds[Math.floor(G.rnd() * G.kinds.length)], sx, sy);
+    ttSpawn(G, ttDraw1(G), sx, sy);
   }
   ttPhys(G, dt);
   /* 到時間的就爆掉 */
@@ -3104,7 +3113,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', () => { naviga
    手機上 App 開著的時候網站更新了，正在跑的畫面還是舊程式（大西瓜曾因此一直玩不死）。
    這裡定時去看網站上的版本號，不一樣就在畫面上方跳出「有新版本，點一下更新」；
    在大西瓜裡，開始新的一局或「再來一局」前會自動換新。 */
-const APP_VER = 'v64';
+const APP_VER = 'v65';
 let STALE = false;
 async function chkUpdate() {
   try {
